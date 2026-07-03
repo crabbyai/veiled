@@ -1,0 +1,209 @@
+{
+  "expo": {
+    "name": "Butterfly: Muslim Marriage",
+    "slug": "adeelahmedrahman",
+    "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "scheme": "butterflyapp",
+    "backgroundColor": "#FFFFFF",
+    "primaryColor": "#F5325B",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.butterflyapp.muslimmarriage",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Butterfly uses the camera for selfie verification and adding profile photos.",
+        "NSPhotoLibraryUsageDescription": "Butterfly accesses your photo library so you can add profile photos.",
+        "NSFaceIDUsageDescription": "Butterfly uses Face ID to secure access to the app and protect your privacy.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "LSApplicationQueriesSchemes": [
+          "itms-apps"
+        ],
+        "UIBackgroundModes": [
+          "fetch",
+          "remote-notification"
+        ]
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "entitlements": {
+        "com.apple.developer.in-app-payments": [
+          "merchant.com.butterflyapp.muslimmarriage"
+        ]
+      },
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "C617.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryDiskSpace",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "E174.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategorySystemBootTime",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "35F9.1"
+            ]
+          }
+        ]
+      },
+      "associatedDomains": []
+    },
+    "android": {
+      "package": "com.butterflyapp.muslimmarriage",
+      "versionCode": 1,
+      "softwareKeyboardLayoutMode": "pan",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F5325B",
+        "monochromeImage": "./assets/adaptive-icon.png"
+      },
+      "splash": {
+        "image": "./assets/splash-icon.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#FFFFFF"
+      },
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_MEDIA_IMAGES",
+        "VIBRATE",
+        "POST_NOTIFICATIONS",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "com.android.vending.BILLING"
+      ],
+      "blockedPermissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "RECORD_AUDIO",
+        "READ_CONTACTS",
+        "READ_CALENDAR",
+        "READ_PHONE_STATE",
+        "READ_SMS",
+        "RECEIVE_SMS",
+        "SEND_SMS",
+        "READ_CALL_LOG",
+        "WRITE_CALL_LOG"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": false,
+          "data": [
+            {
+              "scheme": "butterflyapp",
+              "host": "*"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ],
+      "allowBackup": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "name": "Butterfly — Muslim Marriage App",
+      "shortName": "Butterfly",
+      "themeColor": "#F5325B",
+      "backgroundColor": "#FFFFFF"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Butterfly to use your camera for selfie verification and profile photos"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Butterfly to access your photos to add them to your profile",
+          "cameraPermission": "Allow Butterfly to use your camera for selfie verification and profile photos"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#F5325B",
+          "androidMode": "default",
+          "androidCollapsedTitle": "Butterfly"
+        }
+      ],
+      [
+        "expo-secure-store",
+        {}
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow Butterfly to use Face ID for app lock"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "minSdkVersion": 24,
+            "buildToolsVersion": "35.0.0",
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraProguardRules": "-keep class com.butterflyapp.muslimmarriage.** { *; }"
+          },
+          "ios": {
+            "deploymentTarget": "15.1"
+          }
+        }
+      ],
+      "react-native-iap"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "ecd7fa1d-cb25-4636-9623-a050339bf1fe"
+      }
+    },
+    "owner": "adeelahmedrahman",
+    "updates": {
+      "url": "https://u.expo.dev/ecd7fa1d-cb25-4636-9623-a050339bf1fe",
+      "fallbackToCacheTimeout": 0
+    }
+  }
+}
