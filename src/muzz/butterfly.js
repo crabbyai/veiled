@@ -31,10 +31,10 @@ export function scoreMatch(me, person, feedback = {}) {
   // Intention alignment — critical for a marriage-minded app
   if (me.intention && person.intention === me.intention) {
     score += 12;
-    reasons.push(`Both here for ${person.intention.toLowerCase()}`);
+    reasons.push(`Same timeline — ${person.intention.toLowerCase()}`);
   } else if (
-    (me.intention === 'Marriage' && person.intention === 'Long-term') ||
-    (me.intention === 'Long-term' && person.intention === 'Marriage')
+    (me.intention === 'Ready for nikah' && person.intention === 'Marriage within a year') ||
+    (me.intention === 'Marriage within a year' && person.intention === 'Ready for nikah')
   ) {
     score += 5;
   }
@@ -45,7 +45,7 @@ export function scoreMatch(me, person, feedback = {}) {
     reasons.push(`Both ${person.sect}`);
   }
   if (me.prayerLevel && person.prayerLevel) {
-    const levels = ['Never prays', 'Sometimes prays', 'Usually prays', 'Always prays'];
+    const levels = ['Learning to pray', 'Sometimes prays', 'Usually prays', 'Always prays'];
     const a = levels.indexOf(me.prayerLevel), b = levels.indexOf(person.prayerLevel);
     if (a >= 0 && b >= 0) {
       const gap = Math.abs(a - b);

@@ -9,14 +9,16 @@ import * as H from '../haptics';
 // ── Photo surface ────────────────────────────────────────────────────
 // Renders a real image when `uri` is given, otherwise a deterministic
 // gradient with a soft person silhouette (`silhouette`) or initial.
-export function PhotoTile({ seed = '', name = '', style, rounded = RADIUS.lg, gradient, children, dim = false, silhouette, uri }) {
+// `veiled` draws The Veil: a frosted layer that hides the photo until
+// she unveils it for a match (pass `veilLabel` to explain it inline).
+export function PhotoTile({ seed = '', name = '', style, rounded = RADIUS.lg, gradient, children, dim = false, silhouette, uri, veiled = false, veilLabel }) {
   const g = gradient || gradFor(seed || name);
   const initial = (name || '?').trim().charAt(0).toUpperCase();
   const src = uri ? mediaUrl(uri) : null;
   return (
     <View style={[{ borderRadius: rounded, overflow: 'hidden', backgroundColor: g[1] }, style]}>
       {src ? (
-        <Image source={{ uri: src }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        <Image source={{ uri: src }} style={StyleSheet.absoluteFill} resizeMode="cover" blurRadius={veiled ? 60 : 0} />
       ) : (
         <>
           <LinearGradient colors={g} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
@@ -29,15 +31,37 @@ export function PhotoTile({ seed = '', name = '', style, rounded = RADIUS.lg, gr
             <View style={styles.silhouette}>
               <Ionicons name="person" size={silhouette} color="rgba(255,255,255,0.20)" />
             </View>
-          ) : !children && (
+          ) : !children && !veiled && (
             <View style={styles.center}>
               <Text style={styles.initial}>{initial}</Text>
             </View>
           )}
         </>
       )}
+      {veiled && (
+        <LinearGradient colors={GRAD.veil} start={{ x: 0, y: 0 }} end={{ x: 0.8, y: 1 }} style={styles.center}>
+          <View style={styles.veilIcon}>
+            <Ionicons name="eye-off" size={20} color="#fff" />
+          </View>
+          {!!veilLabel && <Text style={styles.veilText}>{veilLabel}</Text>}
+        </LinearGradient>
+      )}
       {dim && <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.18)' }]} />}
       {children}
+    </View>
+  );
+}
+
+// ── Veil badge ───────────────────────────────────────────────────────
+// Small pill showing her veil style — Hijab or Niqab. Worn with pride.
+export function VeilBadge({ veil, size = 'md', style }) {
+  if (!veil) return null;
+  const isNiqab = veil === 'Niqab';
+  const small = size === 'sm';
+  return (
+    <View style={[styles.veilBadge, isNiqab && { backgroundColor: M.veilDeep }, small && { paddingHorizontal: 8, paddingVertical: 3 }, style]}>
+      <Ionicons name={isNiqab ? 'moon' : 'sparkles'} size={small ? 10 : 12} color="#fff" style={{ marginRight: 4 }} />
+      <Text style={[styles.veilBadgeText, small && { fontSize: 10 }]}>{isNiqab ? 'Niqabi' : 'Hijabi'}</Text>
     </View>
   );
 }
@@ -143,4 +167,17 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.pill, borderWidth: 1, marginRight: 8, marginBottom: 8,
   },
   chipText: { fontWeight: '700', fontSize: 13 },
+  veilIcon: {
+    width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.22)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.45)',
+  },
+  veilText: {
+    color: '#fff', fontWeight: '700', fontSize: 12, textAlign: 'center',
+    marginTop: 8, paddingHorizontal: 14, textShadowColor: 'rgba(0,0,0,0.25)', textShadowRadius: 6,
+  },
+  veilBadge: {
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: RADIUS.pill, backgroundColor: 'rgba(124,58,237,0.92)',
+  },
+  veilBadgeText: { color: '#fff', fontWeight: '800', fontSize: 11.5 },
 });

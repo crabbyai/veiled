@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInRight, FadeInDown } from 'react-native-reanimated';
 import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE } from '../theme';
-import { INTERESTS, VALUES, INTENTIONS, SECTS, PRAYER_LEVELS, HALAL_DIET } from '../data';
+import { INTERESTS, VALUES, INTENTIONS, VEILS, SECTS, PRAYER_LEVELS, HALAL_DIET } from '../data';
 import { useMuzz } from '../store';
 import { GButton, Chip } from '../components/ui';
 import Butterfly from '../components/Butterfly';
@@ -20,8 +20,10 @@ export default function OnboardingScreen() {
   const [name, setName] = useState('');
   const [age, setAge] = useState('27');
   const [gender, setGender] = useState('Man');
+  const [veil, setVeil] = useState(null);
+  const [photoVeiled, setPhotoVeiled] = useState(true);
   const [job, setJob] = useState('');
-  const [intention, setIntention] = useState('Marriage');
+  const [intention, setIntention] = useState('Ready for nikah');
   const [interests, setInterests] = useState([]);
   const [values, setValues] = useState([]);
   const [bio, setBio] = useState('');
@@ -43,7 +45,7 @@ export default function OnboardingScreen() {
   };
 
   const canNext = () => {
-    if (step === STEP.you) return name.trim().length > 1;
+    if (step === STEP.you) return name.trim().length > 1 && (gender !== 'Woman' || !!veil);
     if (step === STEP.interests) return interests.length >= 3;
     if (step === STEP.values) return values.length >= 2;
     if (step === STEP.verify) return verified;
@@ -61,6 +63,8 @@ export default function OnboardingScreen() {
     if (step < total - 1) setStep(step + 1);
     else completeOnboarding({
       name: name.trim(), age: Number(age) || 27, gender, job: job.trim(),
+      veil: gender === 'Woman' ? veil : null,
+      photoVeiled: gender === 'Woman' ? photoVeiled : false,
       intention, interests, values, bio: bio.trim(),
       sect, prayerLevel, halalDiet, waliEnabled: wali, selfieVerified: verified,
     });
@@ -79,16 +83,17 @@ export default function OnboardingScreen() {
         {step === 0 && (
           <Animated.View entering={FadeIn} style={styles.welcome}>
             <View style={styles.bfWrap}><Butterfly size={150} /></View>
-            <Text style={styles.logo}>butterfly<Text style={{ color: M.butterfly }}>·ai</Text></Text>
-            <Text style={styles.welcomeTitle}>Dating, without the swiping</Text>
+            <Text style={styles.logo}>veiled<Text style={{ color: M.butterfly }}>·ai</Text></Text>
+            <Text style={styles.welcomeTitle}>Marriage, on her terms</Text>
             <Text style={styles.welcomeSub}>
-              Meet your AI Butterfly. It learns who you are, then quietly finds the people you'll actually click with — and brings them to you.
+              Every sister on Veiled wears hijab or niqab — and her photos stay veiled until she chooses to unveil them. Your AI Butterfly learns who you are, then quietly brings you the matches that fit.
             </Text>
             <View style={styles.featureList}>
               {[
-                ['sparkles', 'Auto-matching — no endless swiping'],
-                ['shield-checkmark', 'Verified, marriage-minded community'],
-                ['people', 'Muzz Social to share your world'],
+                ['eye-off', 'The Veil — photos hidden until she unveils'],
+                ['sparkles', 'AI auto-matching — no endless swiping'],
+                ['shield-checkmark', 'Verified, nikah-minded community'],
+                ['people', 'Wali / chaperone support built in'],
               ].map(([ic, t]) => (
                 <View key={t} style={styles.featureRow}>
                   <View style={styles.featureIcon}><Ionicons name={ic} size={16} color={M.primary} /></View>
@@ -109,9 +114,27 @@ export default function OnboardingScreen() {
             <Text style={styles.label}>I am a</Text>
             <View style={styles.row}>
               {['Man', 'Woman'].map((g) => (
-                <Chip key={g} label={g} active={gender === g} onPress={() => setGender(g)} />
+                <Chip key={g} label={g === 'Man' ? 'Brother' : 'Sister'} active={gender === g} onPress={() => setGender(g)} />
               ))}
             </View>
+            {gender === 'Woman' && (
+              <Animated.View entering={FadeInDown}>
+                <Text style={styles.label}>My veil</Text>
+                <Text style={styles.helper2}>Veiled is a community of hijabi and niqabi sisters — wear yours with pride.</Text>
+                <View style={[styles.row, { marginTop: 8 }]}>
+                  {VEILS.map((v) => (
+                    <Chip key={v} label={v === 'Hijab' ? 'I wear hijab' : 'I wear niqab'} icon={v === 'Niqab' ? 'moon' : 'sparkles'} active={veil === v} onPress={() => setVeil(v)} />
+                  ))}
+                </View>
+                <Pressable onPress={() => { setPhotoVeiled(!photoVeiled); H.select(); }} style={[styles.bigOpt, { marginTop: 14 }, photoVeiled && styles.bigOptActive]}>
+                  <View style={{ flex: 1, paddingRight: 12 }}>
+                    <Text style={[styles.bigOptText, photoVeiled && { color: M.primary }]}>Keep my photos veiled</Text>
+                    <Text style={styles.helper2}>Photos stay frosted until you unveil them for a match. You stay in control.</Text>
+                  </View>
+                  <Ionicons name={photoVeiled ? 'eye-off' : 'eye'} size={24} color={photoVeiled ? M.primary : M.textMuted} />
+                </Pressable>
+              </Animated.View>
+            )}
             <Text style={styles.label}>Job / occupation</Text>
             <TextInput value={job} onChangeText={setJob} placeholder="What do you do?" placeholderTextColor={M.textMuted} style={styles.input} />
           </Animated.View>
@@ -119,8 +142,8 @@ export default function OnboardingScreen() {
 
         {step === 2 && (
           <Animated.View entering={FadeInRight}>
-            <Text style={styles.q}>What are you here for?</Text>
-            <Text style={styles.helper}>The butterfly prioritises people who want the same.</Text>
+            <Text style={styles.q}>Your marriage timeline</Text>
+            <Text style={styles.helper}>Everyone on Veiled is here for nikah — the butterfly prioritises people on the same timeline.</Text>
             {INTENTIONS.map((opt) => (
               <Pressable key={opt} onPress={() => { setIntention(opt); H.select(); }} style={[styles.bigOpt, intention === opt && styles.bigOptActive]}>
                 <Text style={[styles.bigOptText, intention === opt && { color: M.primary }]}>{opt}</Text>

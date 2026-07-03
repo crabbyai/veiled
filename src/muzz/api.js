@@ -7,7 +7,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const BASE = process.env.EXPO_PUBLIC_API_URL || '';
-const TOKEN_KEY = '@muzz_api_token';
+const TOKEN_KEY = '@veiled_api_token';
 
 let token = null;
 let available = null; // null = unknown, true/false after first probe

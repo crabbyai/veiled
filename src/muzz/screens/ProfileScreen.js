@@ -103,7 +103,7 @@ export default function ProfileScreen({ navigation }) {
           <LinearGradient colors={GRAD.gold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.gold}>
             <Ionicons name="diamond" size={26} color="#fff" />
             <View style={{ flex: 1, marginLeft: 14 }}>
-              <Text style={styles.goldTitle}>Butterfly Gold</Text>
+              <Text style={styles.goldTitle}>Veiled Gold</Text>
               <Text style={styles.goldSub}>See who likes you, unlimited boosts & priority butterfly picks</Text>
             </View>
             <Ionicons name="chevron-forward" size={22} color="#fff" />

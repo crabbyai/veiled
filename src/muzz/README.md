@@ -1,66 +1,56 @@
-# Muzz·ai — Muzz clone with an AI Butterfly matchmaker
+# Veiled — the marriage app for hijabis & niqabis
 
-A full Muzz-style dating + social app built in React Native / Expo. The
-headline feature is the **AI Butterfly**: instead of endless swiping, an
-AI matchmaker learns your profile and feedback, then automatically brings
-you your most compatible people — each with a transparent reason for *why*
-it chose them.
+A full marriage-matchmaking + social app built in React Native / Expo,
+designed to go head-to-head with Muzz — with a twist that is also its
+name: **every sister on Veiled wears hijab or niqab**, and her photos
+stay **veiled** (frosted) until she chooses to unveil them for a match.
 
-`App.js` mounts this experience via `MuzzNavigator`. (The original
-Androgenic looksmaxxing app is still present under
-`src/navigation/AppNavigator.js` if you want to switch back.)
+`App.js` mounts this experience via `MuzzNavigator`.
 
-## Architecture
+## The two signature features
+
+1. **The Veil** — photo privacy as identity. Profiles carry a
+   `veil` style (`Hijab` | `Niqab`) shown as a badge, and a
+   `photoVeiled` flag. Veiled photos render frosted everywhere
+   (Discover cards, profile detail, likes grid) until the two of you
+   match — then her profile shows "Unveiled for you".
+2. **The AI Butterfly** — the matchmaker. It learns interests, values,
+   deen and timeline during onboarding, ranks the deck by
+   compatibility, and auto-delivers picks. No endless swiping.
+
+## Structure
 
 ```
 src/muzz/
-  theme.js              Muzz design system (brand pink-red, light surfaces)
-  haptics.js            Web-safe haptics wrapper
-  data.js               Mock profiles, social posts, interests, prompts
-  butterfly.js          AI matching engine (scoring + reasons + daily pick)
+  theme.js              Veiled design system (amethyst violet, gold, rose butterfly)
+  data.js               Seed sisters (all hijabi/niqabi), prompts, intentions
+  butterfly.js          Compatibility scoring + pick scheduling
   store.js              Global state + AsyncStorage persistence (MuzzProvider)
+  api.js                Backend client (offline-first, mirrors to backend/)
+  realtime.js           Socket.IO client (typing, presence, live messages)
+  notifications.js      Push + local notifications
+  photos.js             Image picker + upload
+  haptics.js            Haptic helpers
   components/
-    ui.js               Avatar / PhotoTile / buttons / chips / verified tick
-    Butterfly.js        Animated flapping SVG butterfly (reanimated)
+    ui.js                   PhotoTile (with veil overlay), VeilBadge, Avatar, buttons, chips
+    Butterfly.js            Animated butterfly
+    Stories.js              Moments rail
   screens/
-    OnboardingScreen        Multi-step setup that "trains" the butterfly
-    ButterflyScreen         Home — auto-match flow with search animation + reasons
-    MatchRevealScreen       "It's a match!" celebration + first message
-    ExploreScreen           Optional manual browse grid (sorted by match %)
-    MatchesScreen           Matches + "Likes you" (Gold-gated) tabs
-    SocialScreen            Muzz Social feed (post / like / comment / filter)
-    PostScreen              Single post with comments
-    MessagesScreen          Conversation list + new-matches strip
-    ChatScreen              1:1 chat: AI icebreakers, Chaperone mode, typing,
-                            auto-replies, voice/video call affordances
-    ProfileDetailScreen     Full profile w/ "Butterfly's take" compatibility
-    ProfileScreen           Your profile, completeness, butterfly settings, stats
-    GoldScreen              Premium paywall (perks + plans)
-    SettingsScreen          Discovery / privacy / notifications / account
-  MuzzNavigator.js      Custom bottom tab bar (butterfly center) + stack
+    OnboardingScreen        Welcome → profile → veil step (sisters) → deen → verify
+    DiscoverScreen          Card stack with veil badges + veiled photos
+    ButterflyScreen         AI matchmaker picks
+    MatchesScreen           Likes-you grid + matches list
+    MatchRevealScreen       Match moment + "she can unveil for you"
+    ChatScreen              Chat with reactions, typing, calls
+    ProfileDetailScreen     Full profile: veil, deen, prompts; unveils on match
+    FiltersScreen           Veil style / sect / prayer / ethnicity filters
+    GoldScreen              Veiled Gold paywall
+    SocialScreen            Community feed (post / like / comment)
+  MuzzNavigator.js      Bottom tabs + stack
 ```
 
-## The AI Butterfly
+## Backend
 
-`butterfly.js` scores every candidate against you using shared interests,
-shared values, intention alignment (marriage / long-term), proximity,
-verification, shared languages, and your learned like/pass feedback, plus a
-deterministic "chemistry" jitter. It returns a 0–100 compatibility score and
-a list of human-readable reasons. The home screen animates the butterfly
-"flying out" to search, then reveals the top pick with its reasoning — the
-whole loop replaces swiping.
-
-## Modern dating features included
-
-Auto-matching, compatibility scoring with explanations, verified profiles,
-Super Likes, boosts, "Likes you" (premium), Muzz Social feed, in-app chat
-with AI-generated icebreakers, **Chaperone** oversight mode, voice/video
-call affordances, profile prompts, advanced filters & travel mode (Gold),
-incognito mode, and a full Gold subscription paywall.
-
-## Notes
-
-- Profile photos are rendered as initial-on-gradient placeholders so the app
-  runs with zero external assets (web + native).
-- All state persists locally via AsyncStorage; "Reset demo data" on the
-  Profile screen clears it.
+`backend/` is a deployable Node/Express + Socket.IO + SQLite API this
+client mirrors to when `EXPO_PUBLIC_API_URL` is set. Offline-first:
+without a backend the app runs fully from local seed data.

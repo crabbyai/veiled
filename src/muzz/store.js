@@ -5,7 +5,7 @@ import * as api from './api';
 import * as realtime from './realtime';
 import { registerForPush, localNotify } from './notifications';
 
-const KEY = '@muzz_state_v1';
+const KEY = '@veiled_state_v1';
 
 const MuzzContext = createContext(null);
 export const useMuzz = () => useContext(MuzzContext);
@@ -31,6 +31,7 @@ const initialState = {
     maxDistance: 50,
     ageMin: 22,
     ageMax: 35,
+    veil: 'Any',
     sect: 'Any',
     prayerLevel: 'Any',
     ethnicity: 'Any',

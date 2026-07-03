@@ -12,7 +12,7 @@ import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE, gradVariantFor } from '../theme';
 import { useMuzz, getPerson } from '../store';
 import { PEOPLE } from '../data';
 import { rankMatches } from '../butterfly';
-import { PhotoTile, Verified, GButton } from '../components/ui';
+import { PhotoTile, Verified, GButton, VeilBadge } from '../components/ui';
 import Stories from '../components/Stories';
 import Butterfly from '../components/Butterfly';
 import * as H from '../haptics';
@@ -21,6 +21,7 @@ const matchesFilters = (p, f) => {
   if (!f) return true;
   if (p.distance > f.maxDistance) return false;
   if (p.age < f.ageMin || p.age > f.ageMax) return false;
+  if (f.veil && f.veil !== 'Any' && p.veil !== f.veil) return false;
   if (f.sect !== 'Any' && p.sect !== f.sect) return false;
   if (f.prayerLevel !== 'Any' && p.prayerLevel !== f.prayerLevel) return false;
   if (f.ethnicity !== 'Any' && p.ethnicity !== f.ethnicity) return false;
@@ -203,7 +204,7 @@ export default function DiscoverScreen({ navigation }) {
     <View style={styles.container}>
       {/* Muzz-style header: lowercase serif wordmark + actions */}
       <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
-        <Text style={styles.wordmark}>butterfly</Text>
+        <Text style={styles.wordmark}>veiled</Text>
         <View style={styles.headerRight}>
           <Pressable onPress={() => { H.tap(); navigation.navigate('MuzzButterflyPicks'); }} style={styles.aiBtn}>
             <Ionicons name="sparkles" size={15} color={M.butterfly} />
@@ -341,7 +342,9 @@ function Card({ m, photoIdx = 0 }) {
     <PhotoTile
       seed={p.id} name={p.name} rounded={RADIUS.xl} style={styles.card}
       uri={p.photos?.[photoIdx]}
-      gradient={gradVariantFor(p.id, photoIdx)} silhouette={300}
+      gradient={gradVariantFor(p.id, photoIdx)} silhouette={p.photoVeiled ? 0 : 300}
+      veiled={!!p.photoVeiled}
+      veilLabel={`${p.name} keeps her photos veiled\nShe can unveil them when you match`}
     >
       <LinearGradient
         colors={['rgba(0,0,0,0.12)', 'transparent', 'transparent', 'rgba(13,10,18,0.88)']}
@@ -353,12 +356,15 @@ function Card({ m, photoIdx = 0 }) {
           <View key={i} style={[styles.pagerSeg, i === photoIdx && styles.pagerSegOn]} />
         ))}
       </View>
-      {p.online && (
-        <View style={styles.onlinePill}>
-          <View style={styles.onlineDot} />
-          <Text style={styles.onlineText}>Online now</Text>
-        </View>
-      )}
+      <View style={styles.topLeftCol}>
+        <VeilBadge veil={p.veil} />
+        {p.online && (
+          <View style={styles.onlinePill}>
+            <View style={styles.onlineDot} />
+            <Text style={styles.onlineText}>Online now</Text>
+          </View>
+        )}
+      </View>
       <View style={styles.aiBadge}>
         <Ionicons name="sparkles" size={11} color="#fff" />
         <Text style={styles.aiBadgeText}>{m.score}%</Text>
@@ -419,15 +425,16 @@ const styles = StyleSheet.create({
   },
   pagerSeg: { flex: 1, height: 3.5, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.35)' },
   pagerSegOn: { backgroundColor: '#fff' },
+  topLeftCol: { position: 'absolute', top: 20, left: 14, alignItems: 'flex-start', gap: 6 },
   onlinePill: {
-    position: 'absolute', top: 20, left: 14, flexDirection: 'row', alignItems: 'center', gap: 5,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
     backgroundColor: 'rgba(13,10,18,0.45)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: RADIUS.pill,
   },
   onlineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: M.online },
   onlineText: { color: '#fff', fontWeight: '700', fontSize: 12 },
   aiBadge: {
     position: 'absolute', top: 20, right: 14, flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: 'rgba(139,92,246,0.92)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: RADIUS.pill,
+    backgroundColor: 'rgba(219,39,119,0.92)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: RADIUS.pill,
   },
   aiBadgeText: { color: '#fff', fontWeight: '900', fontSize: 13 },
   cardInfo: { position: 'absolute', left: 18, right: 18, bottom: 18 },

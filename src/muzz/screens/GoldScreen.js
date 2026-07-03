@@ -50,9 +50,9 @@ export default function GoldScreen({ navigation }) {
           <Butterfly size={110} colorA="#FFD86B" colorB="#F5B400" />
           <LinearGradient colors={GRAD.gold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.goldTag}>
             <Ionicons name="diamond" size={16} color="#fff" />
-            <Text style={styles.goldTagText}>BUTTERFLY GOLD</Text>
+            <Text style={styles.goldTagText}>VEILED GOLD</Text>
           </LinearGradient>
-          <Text style={styles.heroTitle}>Find your one,{'\n'}faster</Text>
+          <Text style={styles.heroTitle}>Find your zawj,{'\n'}faster</Text>
           <Text style={styles.heroSub}>Supercharge your butterfly and stand out</Text>
         </View>
 

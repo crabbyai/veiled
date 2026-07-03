@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Butterfly: Muslim Marriage",
-    "slug": "adeelahmedrahman",
+    "name": "Veiled: Hijabi Marriage",
+    "slug": "veiled",
     "version": "1.0.0",
     "runtimeVersion": {
       "policy": "appVersion"
@@ -10,9 +10,9 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "scheme": "butterflyapp",
+    "scheme": "veiledapp",
     "backgroundColor": "#FFFFFF",
-    "primaryColor": "#F5325B",
+    "primaryColor": "#7C3AED",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -23,12 +23,12 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.butterflyapp.muslimmarriage",
+      "bundleIdentifier": "com.veiledapp.hijabimarriage",
       "buildNumber": "1",
       "infoPlist": {
-        "NSCameraUsageDescription": "Butterfly uses the camera for selfie verification and adding profile photos.",
-        "NSPhotoLibraryUsageDescription": "Butterfly accesses your photo library so you can add profile photos.",
-        "NSFaceIDUsageDescription": "Butterfly uses Face ID to secure access to the app and protect your privacy.",
+        "NSCameraUsageDescription": "Veiled uses the camera for selfie verification and adding profile photos.",
+        "NSPhotoLibraryUsageDescription": "Veiled accesses your photo library so you can add profile photos.",
+        "NSFaceIDUsageDescription": "Veiled uses Face ID to secure access to the app and protect your privacy.",
         "ITSAppUsesNonExemptEncryption": false,
         "LSApplicationQueriesSchemes": [
           "itms-apps"
@@ -43,7 +43,7 @@
       },
       "entitlements": {
         "com.apple.developer.in-app-payments": [
-          "merchant.com.butterflyapp.muslimmarriage"
+          "merchant.com.veiledapp.hijabimarriage"
         ]
       },
       "privacyManifests": {
@@ -77,12 +77,12 @@
       "associatedDomains": []
     },
     "android": {
-      "package": "com.butterflyapp.muslimmarriage",
+      "package": "com.veiledapp.hijabimarriage",
       "versionCode": 1,
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#F5325B",
+        "backgroundColor": "#7C3AED",
         "monochromeImage": "./assets/adaptive-icon.png"
       },
       "splash": {
@@ -124,7 +124,7 @@
           "autoVerify": false,
           "data": [
             {
-              "scheme": "butterflyapp",
+              "scheme": "veiledapp",
               "host": "*"
             }
           ],
@@ -138,32 +138,32 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "name": "Butterfly — Muslim Marriage App",
-      "shortName": "Butterfly",
-      "themeColor": "#F5325B",
+      "name": "Veiled — Hijabi Marriage App",
+      "shortName": "Veiled",
+      "themeColor": "#7C3AED",
       "backgroundColor": "#FFFFFF"
     },
     "plugins": [
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Butterfly to use your camera for selfie verification and profile photos"
+          "cameraPermission": "Allow Veiled to use your camera for selfie verification and profile photos"
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Butterfly to access your photos to add them to your profile",
-          "cameraPermission": "Allow Butterfly to use your camera for selfie verification and profile photos"
+          "photosPermission": "Allow Veiled to access your photos to add them to your profile",
+          "cameraPermission": "Allow Veiled to use your camera for selfie verification and profile photos"
         }
       ],
       [
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
-          "color": "#F5325B",
+          "color": "#7C3AED",
           "androidMode": "default",
-          "androidCollapsedTitle": "Butterfly"
+          "androidCollapsedTitle": "Veiled"
         }
       ],
       [
@@ -173,7 +173,7 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Allow Butterfly to use Face ID for app lock"
+          "faceIDPermission": "Allow Veiled to use Face ID for app lock"
         }
       ],
       [
@@ -186,7 +186,7 @@
             "buildToolsVersion": "35.0.0",
             "enableProguardInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true,
-            "extraProguardRules": "-keep class com.butterflyapp.muslimmarriage.** { *; }"
+            "extraProguardRules": "-keep class com.veiledapp.hijabimarriage.** { *; }"
           },
           "ios": {
             "deploymentTarget": "15.1"
@@ -195,15 +195,6 @@
       ],
       "react-native-iap"
     ],
-    "extra": {
-      "eas": {
-        "projectId": "ecd7fa1d-cb25-4636-9623-a050339bf1fe"
-      }
-    },
-    "owner": "adeelahmedrahman",
-    "updates": {
-      "url": "https://u.expo.dev/ecd7fa1d-cb25-4636-9623-a050339bf1fe",
-      "fallbackToCacheTimeout": 0
-    }
+    "owner": "adeelahmedrahman"
   }
 }

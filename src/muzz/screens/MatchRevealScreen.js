@@ -28,7 +28,7 @@ export default function MatchRevealScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#F5325B', '#A855F7', '#7C3AED']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={['#DB2777', '#A855F7', '#7C3AED']} style={StyleSheet.absoluteFill} />
       <Hearts />
       <Pressable style={styles.close} onPress={() => navigation.goBack()}>
         <Ionicons name="close" size={26} color="#fff" />
@@ -40,6 +40,12 @@ export default function MatchRevealScreen({ route, navigation }) {
         <Animated.Text entering={FadeIn.delay(200)} style={styles.sub}>
           The butterfly was right — you and {person.name} are a {score}% match
         </Animated.Text>
+        {person.photoVeiled && (
+          <Animated.View entering={FadeIn.delay(350)} style={styles.unveilPill}>
+            <Ionicons name="eye" size={14} color="#fff" />
+            <Text style={styles.unveilText}>{person.name} can now unveil her photos for you</Text>
+          </Animated.View>
+        )}
 
         <Animated.View entering={ZoomIn.delay(300).springify()} style={styles.photos}>
           <PhotoTile seed={me.id} name={me.name || 'You'} rounded={RADIUS.lg} style={[styles.photo, { transform: [{ rotate: '-6deg' }] }]} />
@@ -94,4 +100,10 @@ const styles = StyleSheet.create({
   input: { flex: 1, color: '#fff', fontSize: 15, fontWeight: '600', paddingHorizontal: 16, paddingVertical: 10 },
   send: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   keepText: { color: 'rgba(255,255,255,0.95)', fontWeight: '700', fontSize: 15 },
+  unveilPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 14,
+    backgroundColor: 'rgba(255,255,255,0.18)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)',
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: RADIUS.pill,
+  },
+  unveilText: { color: '#fff', fontWeight: '700', fontSize: 12.5 },
 });

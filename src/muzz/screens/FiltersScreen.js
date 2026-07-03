@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { M, RADIUS, SPACE, TYPE } from '../theme';
 import { useMuzz } from '../store';
-import { SECTS, PRAYER_LEVELS, ETHNICITIES } from '../data';
+import { VEILS, SECTS, PRAYER_LEVELS, ETHNICITIES } from '../data';
 import { Chip, GButton } from '../components/ui';
 import * as H from '../haptics';
 
@@ -33,7 +33,7 @@ export default function FiltersScreen({ navigation }) {
   const gold = me.gold;
 
   const apply = () => { setFilters(f); H.success(); navigation.goBack(); };
-  const reset = () => { setF({ maxDistance: 50, ageMin: 22, ageMax: 35, sect: 'Any', prayerLevel: 'Any', ethnicity: 'Any', verifiedOnly: false }); H.tap(); };
+  const reset = () => { setF({ maxDistance: 50, ageMin: 22, ageMax: 35, veil: 'Any', sect: 'Any', prayerLevel: 'Any', ethnicity: 'Any', verifiedOnly: false }); H.tap(); };
 
   return (
     <View style={styles.container}>
@@ -49,6 +49,13 @@ export default function FiltersScreen({ navigation }) {
         <Stepper label="Minimum age" value={f.ageMin} min={18} max={f.ageMax} onChange={(v) => setF({ ...f, ageMin: v })} />
         <Stepper label="Maximum age" value={f.ageMax} min={f.ageMin} max={70} onChange={(v) => setF({ ...f, ageMax: v })} />
         <View style={styles.divider} />
+
+        <Text style={styles.section}>Veil style</Text>
+        <View style={styles.wrap}>
+          {['Any', ...VEILS].map((v) => (
+            <Chip key={v} label={v === 'Hijab' ? 'Hijabi' : v === 'Niqab' ? 'Niqabi' : v} icon={v === 'Niqab' ? 'moon' : v === 'Hijab' ? 'sparkles' : undefined} active={(f.veil || 'Any') === v} onPress={() => setF({ ...f, veil: v })} />
+          ))}
+        </View>
 
         <Text style={styles.section}>Sect</Text>
         <View style={styles.wrap}>

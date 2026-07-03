@@ -7,7 +7,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE, gradVariantFor } from '../theme';
 import { useMuzz, getPerson } from '../store';
 import { scoreMatch, compatLabel } from '../butterfly';
-import { PhotoTile, Verified, Chip } from '../components/ui';
+import { PhotoTile, Verified, Chip, VeilBadge } from '../components/ui';
 import * as H from '../haptics';
 
 const { width } = Dimensions.get('window');
@@ -39,9 +39,11 @@ export default function ProfileDetailScreen({ route, navigation }) {
       <ScrollView contentContainerStyle={{ paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
         {/* Hero photo gallery: tap left/right halves to flick through */}
         <PhotoTile
-          seed={person.id} name={person.name} rounded={0} silhouette={320}
+          seed={person.id} name={person.name} rounded={0} silhouette={person.photoVeiled && !isMatch ? 0 : 320}
           uri={person.photos?.[photoIdx]} gradient={gradVariantFor(person.id, photoIdx)}
           style={{ height: width * 1.15 }}
+          veiled={!!person.photoVeiled && !isMatch}
+          veilLabel={`${person.name}'s photos are veiled\nShe can unveil them once you match`}
         >
           <View style={styles.heroTapRow}>
             <Pressable style={{ flex: 1 }} onPress={() => setPhotoIdx((i) => Math.max(0, i - 1))} />
@@ -65,6 +67,15 @@ export default function ProfileDetailScreen({ route, navigation }) {
               <Text style={styles.heroName}>{person.name}, {person.age}</Text>
               {person.verified && <View style={{ marginLeft: 8 }}><Verified size={20} /></View>}
               {person.online && <View style={styles.onlineTag}><View style={styles.onlineDot} /><Text style={styles.onlineText}>Online</Text></View>}
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
+              <VeilBadge veil={person.veil} />
+              {isMatch && person.photoVeiled && (
+                <View style={styles.unveiledTag}>
+                  <Ionicons name="eye" size={12} color="#fff" />
+                  <Text style={styles.unveiledText}>Unveiled for you</Text>
+                </View>
+              )}
             </View>
             <View style={styles.heroMeta}>
               <Ionicons name="briefcase" size={14} color="#fff" />
@@ -108,9 +119,10 @@ export default function ProfileDetailScreen({ route, navigation }) {
           </View>
         </Section>
 
-        {/* Deen — core to Muzz */}
-        <Section title="Deen">
+        {/* Deen — core to Veiled */}
+        <Section title="Deen & Modesty">
           <View style={styles.facts}>
+            <Fact icon="flower" label="Veil" value={person.veil === 'Niqab' ? 'Niqabi' : 'Hijabi'} />
             <Fact icon="moon" label="Sect" value={person.sect} />
             <Fact icon="time" label="Prayer" value={person.prayerLevel} />
             <Fact icon="restaurant" label="Halal diet" value={person.halalDiet} />
@@ -194,8 +206,10 @@ const styles = StyleSheet.create({
   heroPagerSeg: { flex: 1, height: 3.5, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.35)' },
   heroPagerSegOn: { backgroundColor: '#fff' },
   back: { position: 'absolute', left: 14, width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' },
-  matchPill: { position: 'absolute', right: 14, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(139,92,246,0.92)', paddingHorizontal: 12, paddingVertical: 7, borderRadius: RADIUS.pill },
+  matchPill: { position: 'absolute', right: 14, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(219,39,119,0.92)', paddingHorizontal: 12, paddingVertical: 7, borderRadius: RADIUS.pill },
   matchPillText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+  unveiledTag: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(46,204,113,0.92)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: RADIUS.pill },
+  unveiledText: { color: '#fff', fontWeight: '800', fontSize: 11.5 },
   heroInfo: { position: 'absolute', left: SPACE.xl, right: SPACE.xl, bottom: 20 },
   heroName: { color: '#fff', fontSize: 30, fontWeight: '900', letterSpacing: -0.5 },
   onlineTag: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.4)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, marginLeft: 10 },
