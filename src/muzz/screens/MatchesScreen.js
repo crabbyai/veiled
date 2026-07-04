@@ -79,7 +79,7 @@ export default function MatchesScreen({ navigation }) {
         {tab === 'likes' && (
           <View>
             <View style={styles.likesBanner}>
-              <Ionicons name="lock-closed" size={16} color={M.gold} />
+              <Ionicons name="lock-closed" size={16} color={M.text} />
               <Text style={styles.likesBannerText}>
                 {likedYouPeople.length} people like you. Match instantly with Gold.
               </Text>
@@ -143,8 +143,8 @@ const styles = StyleSheet.create({
   rowName: { ...TYPE.h3, fontSize: 17 },
   rowSub: { ...TYPE.soft, marginTop: 3 },
   newDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: M.primary },
-  likesBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, margin: SPACE.xl, marginBottom: 8, backgroundColor: '#FFF7E0', borderRadius: RADIUS.md, padding: 14, borderWidth: 1, borderColor: '#F6E4A8' },
-  likesBannerText: { flex: 1, fontWeight: '700', color: '#8A6D00', fontSize: 13 },
+  likesBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, margin: SPACE.xl, marginBottom: 8, backgroundColor: M.bgSoft, borderRadius: RADIUS.md, padding: 14, borderWidth: 1, borderColor: M.border },
+  likesBannerText: { flex: 1, fontWeight: '700', color: M.text, fontSize: 13 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: SPACE.xl, gap: 12 },
   likeTile: { width: COL_W, height: COL_W * 1.35, borderRadius: RADIUS.md, overflow: 'hidden', justifyContent: 'flex-end', backgroundColor: M.bgSoft },
   likeTileInfo: { padding: 8, alignItems: 'center' },

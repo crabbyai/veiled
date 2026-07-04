@@ -106,7 +106,7 @@ const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: M.border, marginVertical: 14 },
   section: { ...TYPE.caption, color: M.textSoft, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 18, marginBottom: 10 },
   locked: { color: M.textMuted },
-  goldTag: { color: '#B8860B', fontWeight: '900', fontSize: 10 },
+  goldTag: { color: M.text, fontWeight: '900', fontSize: 10 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap' },
   toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 24, backgroundColor: M.bgSoft, borderRadius: RADIUS.md, padding: 16 },
   toggleLabel: { ...TYPE.body, fontWeight: '700' },

@@ -9,7 +9,7 @@ import Animated, {
 const AView = Animated.View;
 
 // A flapping, gently-bobbing butterfly. `size` controls overall scale.
-export default function Butterfly({ size = 120, idle = true, colorA = '#C084FC', colorB = '#F5325B' }) {
+export default function Butterfly({ size = 120, idle = true, colorA = '#4A4A4E', colorB = '#0E0E10' }) {
   const flap = useSharedValue(0);
   const bob = useSharedValue(0);
 
@@ -57,15 +57,15 @@ export default function Butterfly({ size = 120, idle = true, colorA = '#C084FC',
       <Svg width={w * 0.16} height={w * 0.9} viewBox="0 0 20 110" style={{ position: 'absolute' }}>
         <Defs>
           <SvgGrad id="body" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#3A2B5C" />
-            <Stop offset="1" stopColor="#16121C" />
+            <Stop offset="0" stopColor="#3A3A3E" />
+            <Stop offset="1" stopColor="#0E0E10" />
           </SvgGrad>
         </Defs>
-        <Path d="M6 18 Q3 6 10 4 Q17 6 14 18" stroke="#6B5B95" strokeWidth="2" fill="none" />
-        <Circle cx="6" cy="4" r="2.4" fill="#8B5CF6" />
-        <Circle cx="14" cy="4" r="2.4" fill="#F5325B" />
+        <Path d="M6 18 Q3 6 10 4 Q17 6 14 18" stroke="#8A8A8E" strokeWidth="2" fill="none" />
+        <Circle cx="6" cy="4" r="2.4" fill="#2A2A2E" />
+        <Circle cx="14" cy="4" r="2.4" fill="#0E0E10" />
         <Ellipse cx="10" cy="55" rx="6" ry="42" fill="url(#body)" />
-        <Circle cx="10" cy="18" r="7" fill="#2A2140" />
+        <Circle cx="10" cy="18" r="7" fill="#1C1C20" />
       </Svg>
     </AView>
   );

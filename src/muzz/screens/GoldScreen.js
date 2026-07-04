@@ -40,14 +40,14 @@ export default function GoldScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#16121C', '#2A1B3D', '#16121C']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={['#161618', '#0E0E10', '#161618']} style={StyleSheet.absoluteFill} />
       <Pressable onPress={() => navigation.goBack()} style={[styles.close, { top: insets.top + 8 }]}>
         <Ionicons name="close" size={26} color="#fff" />
       </Pressable>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 30, paddingTop: insets.top + 30 }} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
-          <Butterfly size={110} colorA="#FFD86B" colorB="#F5B400" />
+          <Butterfly size={110} colorA="#F0F0F2" colorB="#B4B4B8" />
           <LinearGradient colors={GRAD.gold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.goldTag}>
             <Ionicons name="diamond" size={16} color="#fff" />
             <Text style={styles.goldTagText}>VEILED GOLD</Text>
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
   perkDesc: { color: 'rgba(255,255,255,0.6)', fontSize: 13, marginTop: 2, lineHeight: 18 },
   plans: { paddingHorizontal: SPACE.xl, marginTop: 30, gap: 12 },
   plan: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: RADIUS.md, padding: 18, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.12)' },
-  planActive: { borderColor: M.gold, backgroundColor: 'rgba(245,180,0,0.1)' },
+  planActive: { borderColor: '#E8E8EA', backgroundColor: 'rgba(255,255,255,0.10)' },
   bestTag: { position: 'absolute', top: -10, left: 16, backgroundColor: M.gold, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 8 },
   bestText: { color: '#16121C', fontWeight: '900', fontSize: 10, letterSpacing: 0.5 },
   planLabel: { color: '#fff', fontWeight: '800', fontSize: 16 },

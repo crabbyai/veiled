@@ -262,10 +262,10 @@ export default function DiscoverScreen({ navigation }) {
                 </View>
                 {/* swipe stamps */}
                 <Animated.View style={[styles.stamp, styles.likeStamp, likeStampStyle]} pointerEvents="none">
-                  <Text style={[styles.stampText, { color: '#2ECC71' }]}>LIKE</Text>
+                  <Text style={[styles.stampText, { color: '#111111' }]}>LIKE</Text>
                 </Animated.View>
                 <Animated.View style={[styles.stamp, styles.nopeStamp, nopeStampStyle]} pointerEvents="none">
-                  <Text style={[styles.stampText, { color: '#FF5A5F' }]}>NOPE</Text>
+                  <Text style={[styles.stampText, { color: '#9A9AA0' }]}>NOPE</Text>
                 </Animated.View>
               </Animated.View>
             </GestureDetector>
@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
   onlineText: { color: '#fff', fontWeight: '700', fontSize: 12 },
   aiBadge: {
     position: 'absolute', top: 20, right: 14, flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: 'rgba(219,39,119,0.92)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: RADIUS.pill,
+    backgroundColor: 'rgba(17,17,17,0.92)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: RADIUS.pill,
   },
   aiBadgeText: { color: '#fff', fontWeight: '900', fontSize: 13 },
   cardInfo: { position: 'absolute', left: 18, right: 18, bottom: 18 },
@@ -486,7 +486,7 @@ const styles = StyleSheet.create({
     position: 'absolute', top: 36, paddingHorizontal: 14, paddingVertical: 6,
     borderWidth: 4, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.12)',
   },
-  likeStamp: { left: 22, borderColor: '#2ECC71', transform: [{ rotate: '-14deg' }] },
-  nopeStamp: { right: 22, borderColor: '#FF5A5F', transform: [{ rotate: '14deg' }] },
+  likeStamp: { left: 22, borderColor: '#111111', transform: [{ rotate: '-14deg' }] },
+  nopeStamp: { right: 22, borderColor: '#9A9AA0', transform: [{ rotate: '14deg' }] },
   stampText: { fontSize: 32, fontWeight: '900', letterSpacing: 2 },
 });

@@ -208,13 +208,13 @@ export const SOCIAL_SEED = [
     id: 's1', authorId: 'p3', authorName: 'Sana', verified: false,
     text: 'Caught the most insane sunrise on the Helvellyn ridge this morning. Fajr with a view — 4am alarm absolutely worth it ☀️🏔️',
     tag: 'Adventure', likes: 142, comments: 23, liked: false, ts: Date.now() - hr * 1,
-    image: ['#EFD27C', '#C99A2C'],
+    image: ['#7A7A7E', '#3A3A3C'],
   },
   {
     id: 's2', authorId: 'p5', authorName: 'Noor', verified: true,
     text: 'Spent the afternoon on a new calligraphy piece — Surah An-Nur. There is something so grounding about ink and patience. ✍️',
     tag: 'Art', likes: 308, comments: 41, liked: true, ts: Date.now() - hr * 3,
-    image: ['#A78BFA', '#7C3AED'],
+    image: ['#5A5A5E', '#242426'],
   },
   {
     id: 's3', authorId: 'p8', authorName: 'Zara', verified: true,
@@ -226,7 +226,7 @@ export const SOCIAL_SEED = [
     id: 's4', authorId: 'p4', authorName: 'Yasmin', verified: true,
     text: 'Halal brunch reviewed: the shakshuka was elite, the queue was not. 7/10 would still queue again. 🍳',
     tag: 'Foodie', likes: 199, comments: 34, liked: false, ts: Date.now() - hr * 10,
-    image: ['#F472B6', '#BE185D'],
+    image: ['#8A8A8E', '#3E3E40'],
   },
   {
     id: 's5', authorId: 'p7', authorName: 'Mariam', verified: true,

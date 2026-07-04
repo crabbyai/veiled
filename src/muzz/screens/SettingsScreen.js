@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
   rowBorder: { borderBottomWidth: 1, borderBottomColor: M.border },
   rowLabel: { flex: 1, ...TYPE.body, fontWeight: '600' },
   rowValue: { ...TYPE.soft, marginRight: 4 },
-  goldChip: { backgroundColor: '#FFF7E0', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginRight: 8 },
-  goldChipText: { color: '#B8860B', fontWeight: '900', fontSize: 10 },
+  goldChip: { backgroundColor: M.bgSoft, borderWidth: 1, borderColor: M.border, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginRight: 8 },
+  goldChipText: { color: M.text, fontWeight: '900', fontSize: 10 },
   version: { ...TYPE.caption, color: M.textMuted, textAlign: 'center', marginTop: 30 },
 });

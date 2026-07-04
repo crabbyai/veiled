@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   },
   veilBadge: {
     flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5,
-    borderRadius: RADIUS.pill, backgroundColor: 'rgba(124,58,237,0.92)',
+    borderRadius: RADIUS.pill, backgroundColor: 'rgba(17,17,17,0.92)',
   },
   veilBadgeText: { color: '#fff', fontWeight: '800', fontSize: 11.5 },
 });

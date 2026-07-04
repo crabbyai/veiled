@@ -28,14 +28,14 @@ export default function MatchRevealScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
-      <LinearGradient colors={['#DB2777', '#A855F7', '#7C3AED']} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={['#2A2A2E', '#161618', '#000000']} style={StyleSheet.absoluteFill} />
       <Hearts />
       <Pressable style={styles.close} onPress={() => navigation.goBack()}>
         <Ionicons name="close" size={26} color="#fff" />
       </Pressable>
 
       <View style={styles.center}>
-        <Animated.View entering={FadeInDown}><Butterfly size={90} colorA="#fff" colorB="#FFD1DD" /></Animated.View>
+        <Animated.View entering={FadeInDown}><Butterfly size={90} colorA="#fff" colorB="#C8C8CC" /></Animated.View>
         <Animated.Text entering={ZoomIn.springify()} style={styles.title}>It's a Match!</Animated.Text>
         <Animated.Text entering={FadeIn.delay(200)} style={styles.sub}>
           The butterfly was right — you and {person.name} are a {score}% match
