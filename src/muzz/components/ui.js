@@ -104,7 +104,7 @@ export function GButton({ label, icon, onPress, gradient = GRAD.primary, style, 
         colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
         style={[styles.gbtn, small && { paddingVertical: 11 }, SHADOW.primary]}
       >
-        {icon && <Ionicons name={icon} size={18} color="#fff" style={{ marginRight: 8 }} />}
+        {icon && <Ionicons name={icon} size={18} color={M.textOnPrimary} style={{ marginRight: 8 }} />}
         <Text style={[styles.gbtnText, small && { fontSize: 14 }, textStyle]}>{label}</Text>
       </LinearGradient>
     </Pressable>
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     paddingVertical: 15, paddingHorizontal: 22, borderRadius: RADIUS.pill,
   },
-  gbtnText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  gbtnText: { color: M.textOnPrimary, fontWeight: '800', fontSize: 16 },
   obtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     paddingVertical: 14, paddingHorizontal: 22, borderRadius: RADIUS.pill,

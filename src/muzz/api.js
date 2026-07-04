@@ -111,6 +111,7 @@ export const likesYou = () => request('/dating/likes-you');
 export const matches = () => request('/dating/matches');
 export const butterflyPick = () => request('/dating/butterfly/pick');
 export const getMessages = (matchId) => request(`/dating/matches/${matchId}/messages`);
+export const unveil = (matchId) => request(`/dating/matches/${matchId}/unveil`, { method: 'POST' });
 export const sendMessage = (matchId, body) =>
   request(`/dating/matches/${matchId}/messages`, { method: 'POST', body: { body } });
 

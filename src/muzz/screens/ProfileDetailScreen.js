@@ -15,12 +15,14 @@ const { width } = Dimensions.get('window');
 export default function ProfileDetailScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
   const { personId } = route.params;
-  const { me, matches, feedback, likePerson, passPerson, likesRemaining } = useMuzz();
+  const { me, matches, feedback, likePerson, passPerson, likesRemaining, isUnveiled } = useMuzz();
   const [photoIdx, setPhotoIdx] = React.useState(0);
   const person = getPerson(personId);
   if (!person) return null;
   const photoCount = Math.max(1, Math.min(5, person.photos?.length || 3));
   const isMatch = matches.includes(personId);
+  const unveiled = isUnveiled(personId);
+  const veiled = !!person.photoVeiled && !unveiled;
   const compat = scoreMatch(me, person, feedback);
 
   const onLike = () => {
@@ -39,11 +41,11 @@ export default function ProfileDetailScreen({ route, navigation }) {
       <ScrollView contentContainerStyle={{ paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
         {/* Hero photo gallery: tap left/right halves to flick through */}
         <PhotoTile
-          seed={person.id} name={person.name} rounded={0} silhouette={person.photoVeiled && !isMatch ? 0 : 320}
+          seed={person.id} name={person.name} rounded={0} silhouette={veiled ? 0 : 320}
           uri={person.photos?.[photoIdx]} gradient={gradVariantFor(person.id, photoIdx)}
           style={{ height: width * 1.15 }}
-          veiled={!!person.photoVeiled && !isMatch}
-          veilLabel={`${person.name}'s photos are veiled\nShe can unveil them once you match`}
+          veiled={veiled}
+          veilLabel={isMatch ? `${person.name} keeps her photos veiled\nAsk her to unveil in chat` : `${person.name}'s photos are veiled\nShe can unveil them once you match`}
         >
           <View style={styles.heroTapRow}>
             <Pressable style={{ flex: 1 }} onPress={() => setPhotoIdx((i) => Math.max(0, i - 1))} />
@@ -70,7 +72,7 @@ export default function ProfileDetailScreen({ route, navigation }) {
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
               <VeilBadge veil={person.veil} />
-              {isMatch && person.photoVeiled && (
+              {person.photoVeiled && unveiled && (
                 <View style={styles.unveiledTag}>
                   <Ionicons name="eye" size={12} color="#fff" />
                   <Text style={styles.unveiledText}>Unveiled for you</Text>
@@ -164,14 +166,14 @@ export default function ProfileDetailScreen({ route, navigation }) {
       {!isMatch ? (
         <View style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <Pressable onPress={onPass} style={[styles.actBtn, styles.passBtn]}><Ionicons name="close" size={28} color={M.textSoft} /></Pressable>
-          <Pressable onPress={() => { H.press(); onLike(); }} style={[styles.actBtn, styles.superBtn]}><Ionicons name="star" size={22} color="#fff" /></Pressable>
-          <Pressable onPress={() => { H.press(); onLike(); }} style={[styles.actBtn, styles.likeBtn]}><Ionicons name="heart" size={28} color="#fff" /></Pressable>
+          <Pressable onPress={() => { H.press(); onLike(); }} style={[styles.actBtn, styles.superBtn]}><Ionicons name="star" size={22} color={M.textOnPrimary} /></Pressable>
+          <Pressable onPress={() => { H.press(); onLike(); }} style={[styles.actBtn, styles.likeBtn]}><Ionicons name="heart" size={28} color={M.textOnPrimary} /></Pressable>
         </View>
       ) : (
         <View style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <Pressable onPress={() => navigation.navigate('MuzzChat', { personId })} style={styles.msgBtn}>
             <LinearGradient colors={GRAD.primary} style={styles.msgGrad}>
-              <Ionicons name="chatbubble" size={18} color="#fff" />
+              <Ionicons name="chatbubble" size={18} color={M.textOnPrimary} />
               <Text style={styles.msgText}>Message {person.name}</Text>
             </LinearGradient>
           </Pressable>
@@ -240,10 +242,10 @@ const styles = StyleSheet.create({
   reportText: { ...TYPE.soft, color: M.textMuted, fontWeight: '600' },
   actionBar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 18, paddingTop: 12, backgroundColor: M.bg, borderTopWidth: 1, borderTopColor: M.border },
   actBtn: { alignItems: 'center', justifyContent: 'center', ...SHADOW.soft },
-  passBtn: { width: 58, height: 58, borderRadius: 29, backgroundColor: '#fff', borderWidth: 1.5, borderColor: M.border },
+  passBtn: { width: 58, height: 58, borderRadius: 29, backgroundColor: M.bgElevated, borderWidth: 1.5, borderColor: M.border },
   superBtn: { width: 50, height: 50, borderRadius: 25, backgroundColor: M.blue },
   likeBtn: { width: 66, height: 66, borderRadius: 33, backgroundColor: M.primary, ...SHADOW.primary },
   msgBtn: { flex: 1 },
   msgGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderRadius: RADIUS.pill },
-  msgText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  msgText: { color: M.textOnPrimary, fontWeight: '800', fontSize: 16 },
 });

@@ -17,6 +17,8 @@ const initialState = {
   matches: [],         // personIds that became matches
   likedYou: ['p2', 'p6', 'p9'], // people who liked you (for Likes tab)
   seen: [],            // butterfly-presented ids
+  unveiled: {},        // { personId: true } — photos unveiled between us
+  chaperones: {},      // { personId: { name } } — wali observing this chat
   chats: {},           // { personId: [{id, text, sender, ts, read}] }
   posts: SOCIAL_SEED,
   postLikes: {},       // local like toggles for social posts
@@ -232,6 +234,32 @@ export function MuzzProvider({ children }) {
     });
   }, [update]);
 
+  // The Veil, per match: unveil photos between me and this person. Mirrors
+  // to the backend's /matches/:id/unveil when connected.
+  const unveilFor = useCallback((personId) => {
+    update((s) => ({ ...s, unveiled: { ...s.unveiled, [personId]: true } }));
+    api.mirror(async () => {
+      const { matches: sm } = await api.matches();
+      const m = sm.find((x) => api.toLocalId(x.person.id) === personId);
+      if (m) await api.unveil(m.matchId);
+    });
+  }, [update]);
+
+  const isUnveiled = useCallback(
+    (personId) => !!state.unveiled[personId],
+    [state.unveiled]
+  );
+
+  // Wali / chaperone oversight for a single conversation.
+  const setChaperone = useCallback((personId, wali) => {
+    update((s) => {
+      const chaperones = { ...s.chaperones };
+      if (wali) chaperones[personId] = wali;
+      else delete chaperones[personId];
+      return { ...s, chaperones };
+    });
+  }, [update]);
+
   const activateBoost = useCallback(() => {
     const until = Date.now() + 30 * 60000;
     update((s) => ({ ...s, boostUntil: until, boosts: Math.max(0, s.boosts - 1) }));
@@ -269,7 +297,8 @@ export function MuzzProvider({ children }) {
     sendMessage, togglePostLike, addPost, update, resetAll,
     likesRemaining, useInstantChat,
     addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson,
-  }), [state, hydrated, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson]);
+    unveilFor, isUnveiled, setChaperone,
+  }), [state, hydrated, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, unveilFor, isUnveiled, setChaperone]);
 
   return <MuzzContext.Provider value={value}>{children}</MuzzContext.Provider>;
 }

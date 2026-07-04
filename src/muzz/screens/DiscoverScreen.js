@@ -283,13 +283,13 @@ export default function DiscoverScreen({ navigation }) {
             <Ionicons name="close" size={30} color="#B9B6C3" />
           </Pressable>
           <Pressable onPress={() => { H.press(); setSuperTarget(top.person); }} style={({ pressed }) => [styles.actBtn, styles.superBtn, pressed && styles.pressed]}>
-            <Ionicons name="star" size={22} color="#fff" />
+            <Ionicons name="star" size={22} color={M.textOnPrimary} />
           </Pressable>
           <Pressable onPress={instant} style={({ pressed }) => [styles.actBtn, styles.instantBtn, pressed && styles.pressed]}>
-            <Ionicons name="flash" size={22} color="#fff" />
+            <Ionicons name="flash" size={22} color={M.textOnPrimary} />
           </Pressable>
           <Pressable onPress={() => swipe(1)} style={({ pressed }) => [styles.actBtn, styles.likeBtn, pressed && styles.pressed]}>
-            <Ionicons name="heart" size={30} color="#fff" />
+            <Ionicons name="heart" size={30} color={M.textOnPrimary} />
           </Pressable>
         </View>
       )}
@@ -454,8 +454,8 @@ const styles = StyleSheet.create({
   },
   actBtn: { alignItems: 'center', justifyContent: 'center', ...SHADOW.soft },
   pressed: { transform: [{ scale: 0.88 }] },
-  rewindBtn: { width: 46, height: 46, borderRadius: 23, backgroundColor: '#fff', borderWidth: 1, borderColor: M.border },
-  passBtn: { width: 58, height: 58, borderRadius: 29, backgroundColor: '#fff', borderWidth: 1, borderColor: M.border },
+  rewindBtn: { width: 46, height: 46, borderRadius: 23, backgroundColor: M.bgElevated, borderWidth: 1, borderColor: M.border },
+  passBtn: { width: 58, height: 58, borderRadius: 29, backgroundColor: M.bgElevated, borderWidth: 1, borderColor: M.border },
   superBtn: { width: 50, height: 50, borderRadius: 25, backgroundColor: M.blue, ...SHADOW.card },
   instantBtn: { width: 50, height: 50, borderRadius: 25, backgroundColor: M.gold, ...SHADOW.card },
   likeBtn: { width: 64, height: 64, borderRadius: 32, backgroundColor: M.primary, ...SHADOW.primary },

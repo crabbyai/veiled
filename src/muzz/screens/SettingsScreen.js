@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { M, RADIUS, SPACE, TYPE } from '../theme';
+import { M, RADIUS, SPACE, TYPE, isDark, setThemeMode } from '../theme';
 import { useMuzz } from '../store';
 import * as H from '../haptics';
 
@@ -57,7 +57,7 @@ const SECTIONS = [
 
 export default function SettingsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { butterflyAuto, update } = useMuzz();
+  const { butterflyAuto, update, me } = useMuzz();
   const [local, setLocal] = React.useState({});
 
   const getToggle = (row) => {
@@ -78,6 +78,41 @@ export default function SettingsScreen({ navigation }) {
         <View style={{ width: 40 }} />
       </View>
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+        {/* Verification + appearance (custom-behaviour rows) */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Verification</Text>
+          <View style={styles.card}>
+            <Pressable onPress={() => { H.tap(); navigation.navigate('MuzzVerify'); }} style={styles.row}>
+              <Ionicons name="shield-checkmark-outline" size={20} color={M.primary} />
+              <Text style={styles.rowLabel}>Selfie verification</Text>
+              {me.selfieVerified ? (
+                <View style={styles.verifiedChip}><Ionicons name="checkmark-circle" size={14} color={M.success} /><Text style={styles.verifiedChipText}>Verified</Text></View>
+              ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.rowValue}>Not verified</Text>
+                  <Ionicons name="chevron-forward" size={18} color={M.textMuted} />
+                </View>
+              )}
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Appearance</Text>
+          <View style={styles.card}>
+            <View style={styles.row}>
+              <Ionicons name={isDark ? 'moon' : 'moon-outline'} size={20} color={M.primary} />
+              <Text style={styles.rowLabel}>Dark mode</Text>
+              <Switch
+                value={isDark}
+                onValueChange={(v) => { H.select(); setThemeMode(v ? 'dark' : 'light'); }}
+                trackColor={{ true: M.primary, false: M.border }}
+                thumbColor={M.bg}
+              />
+            </View>
+          </View>
+        </View>
+
         {SECTIONS.map((sec) => (
           <View key={sec.title} style={styles.section}>
             <Text style={styles.sectionTitle}>{sec.title}</Text>
@@ -100,7 +135,7 @@ export default function SettingsScreen({ navigation }) {
             </View>
           </View>
         ))}
-        <Text style={styles.version}>Butterfly · v1.0.0</Text>
+        <Text style={styles.version}>Veiled · v1.0.0</Text>
       </ScrollView>
     </View>
   );
@@ -120,5 +155,7 @@ const styles = StyleSheet.create({
   rowValue: { ...TYPE.soft, marginRight: 4 },
   goldChip: { backgroundColor: M.bgSoft, borderWidth: 1, borderColor: M.border, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginRight: 8 },
   goldChipText: { color: M.text, fontWeight: '900', fontSize: 10 },
+  verifiedChip: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  verifiedChipText: { color: M.success, fontWeight: '800', fontSize: 12 },
   version: { ...TYPE.caption, color: M.textMuted, textAlign: 'center', marginTop: 30 },
 });

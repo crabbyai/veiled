@@ -21,16 +21,48 @@ export default function ChatScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
   const { personId } = route.params;
   const muzz = useMuzz();
-  const { me, chats, sendMessage, update, reactions, reactToMessage, blockPerson } = muzz;
+  const { me, chats, sendMessage, update, reactions, reactToMessage, blockPerson, chaperones, setChaperone, isUnveiled, unveilFor } = muzz;
   const person = getPerson(personId);
   const messages = chats[personId] || [];
   const listRef = useRef(null);
   const [text, setText] = useState('');
-  const [chaperone, setChaperone] = useState(false);
+  const wali = chaperones[personId];
+  const veiledNow = !!(person && person.photoVeiled && !isUnveiled(personId));
+  const [waliModal, setWaliModal] = useState(false);
+  const [waliName, setWaliName] = useState('');
   const [typing, setTyping] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [reactionFor, setReactionFor] = useState(null);
   const [recording, setRecording] = useState(false);
+
+  // The Veil: ask her to unveil (she reveals after a beat), or — if I'm
+  // the one wearing the veil — unveil my photos for her.
+  const askUnveil = () => {
+    H.press();
+    if (me.photoVeiled) {
+      unveilFor(personId);
+      sendMessage(personId, 'unveil:done', 'me');
+      H.success();
+      return;
+    }
+    sendMessage(personId, `I'd love to get to know you properly — no rush on photos 🤍`, 'me');
+    setTyping(true);
+    setTimeout(() => {
+      setTyping(false);
+      unveilFor(personId);
+      sendMessage(personId, 'unveil:done', 'them');
+      H.success();
+    }, 1700);
+  };
+
+  const confirmWali = () => {
+    const name = waliName.trim();
+    if (!name) return;
+    setChaperone(personId, { name });
+    setWaliModal(false);
+    setWaliName('');
+    H.success();
+  };
 
   const compat = person ? scoreMatch(me, person) : { score: 0, reasons: [] };
 
@@ -138,7 +170,7 @@ export default function ChatScreen({ route, navigation }) {
           <Ionicons name="chevron-back" size={28} color={M.text} />
         </Pressable>
         <Pressable style={styles.hCenter} onPress={() => navigation.navigate('MuzzProfileDetail', { personId })}>
-          <PhotoTile seed={person.id} name={person.name} rounded={20} style={{ width: 40, height: 40 }} />
+          <PhotoTile seed={person.id} name={person.name} rounded={20} style={{ width: 40, height: 40 }} veiled={veiledNow} />
           <View style={{ marginLeft: 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text style={styles.hName}>{person.name}</Text>
@@ -154,13 +186,29 @@ export default function ChatScreen({ route, navigation }) {
         </View>
       </View>
 
-      {/* Chaperone bar */}
-      <Pressable onPress={() => { setChaperone((c) => !c); H.select(); }} style={[styles.chaperone, chaperone && { backgroundColor: M.butterflySoft }]}>
-        <Ionicons name={chaperone ? 'shield-checkmark' : 'shield-outline'} size={15} color={chaperone ? M.butterfly : M.textSoft} />
-        <Text style={[styles.chaperoneText, chaperone && { color: M.butterfly }]}>
-          {chaperone ? 'Chaperone on — a guardian can view this chat' : 'Chaperone off · tap to enable oversight'}
+      {/* Wali / chaperone bar */}
+      <Pressable onPress={() => { if (wali) { setChaperone(personId, null); } else { setWaliModal(true); } H.select(); }} style={[styles.chaperone, wali && { backgroundColor: M.butterflySoft }]}>
+        <Ionicons name={wali ? 'shield-checkmark' : 'shield-outline'} size={15} color={wali ? M.butterfly : M.textSoft} />
+        <Text style={[styles.chaperoneText, wali && { color: M.butterfly }]}>
+          {wali ? `Wali (${wali.name}) is observing this chat` : 'Invite a wali to observe · tap to add'}
         </Text>
       </Pressable>
+
+      {/* The Veil — unveil prompt (until photos are unveiled between you) */}
+      {veiledNow && (
+        <Animated.View entering={FadeIn} style={styles.unveilCard}>
+          <View style={styles.unveilIcon}><Ionicons name="eye-off" size={18} color={M.textOnPrimary} /></View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.unveilTitle}>{me.photoVeiled ? 'Your photos are veiled' : `${person.name}'s photos are veiled`}</Text>
+            <Text style={styles.unveilSub}>
+              {me.photoVeiled ? 'Unveil them for her whenever you feel ready.' : `She'll unveil them for you when she's ready — or you can gently ask.`}
+            </Text>
+          </View>
+          <Pressable onPress={askUnveil} style={styles.unveilBtn}>
+            <Text style={styles.unveilBtnText}>{me.photoVeiled ? 'Unveil' : 'Ask'}</Text>
+          </Pressable>
+        </Animated.View>
+      )}
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
         <FlatList
@@ -170,7 +218,7 @@ export default function ChatScreen({ route, navigation }) {
           contentContainerStyle={{ padding: SPACE.lg, paddingBottom: 12 }}
           ListHeaderComponent={
             <Animated.View entering={FadeIn} style={styles.matchHeader}>
-              <PhotoTile seed={person.id} name={person.name} rounded={44} style={{ width: 88, height: 88 }} />
+              <PhotoTile seed={person.id} name={person.name} rounded={44} style={{ width: 88, height: 88 }} veiled={veiledNow} />
               <Text style={styles.matchHeaderName}>{person.name}, {person.age}</Text>
               <View style={styles.matchChip}>
                 <Ionicons name="sparkles" size={12} color={M.butterfly} />
@@ -180,7 +228,9 @@ export default function ChatScreen({ route, navigation }) {
             </Animated.View>
           }
           renderItem={({ item }) => (
-            <Bubble item={item} reaction={reactions[`${personId}:${item.id}`]} onLongPress={() => { H.press(); setReactionFor(item); }} />
+            item.text === 'unveil:done'
+              ? <UnveilEvent name={item.sender === 'me' ? 'You' : person.name} />
+              : <Bubble item={item} reaction={reactions[`${personId}:${item.id}`]} onLongPress={() => { H.press(); setReactionFor(item); }} />
           )}
           ListFooterComponent={typing ? <TypingBubble /> : <View style={{ height: 4 }} />}
         />
@@ -250,14 +300,48 @@ export default function ChatScreen({ route, navigation }) {
           <Animated.View entering={FadeInUp} style={[styles.menu, { paddingBottom: insets.bottom + 14 }]}>
             <View style={styles.menuHandle} />
             <MenuRow icon="person-outline" label="View profile" onPress={() => { setMenuOpen(false); navigation.navigate('MuzzProfileDetail', { personId }); }} />
-            <MenuRow icon="shield-checkmark-outline" label={`Turn chaperone ${chaperone ? 'off' : 'on'}`} onPress={() => { setChaperone((c) => !c); setMenuOpen(false); }} />
+            <MenuRow icon="shield-checkmark-outline" label={wali ? `Remove wali (${wali.name})` : 'Invite a wali'} onPress={() => { setMenuOpen(false); if (wali) setChaperone(personId, null); else setWaliModal(true); }} />
             <MenuRow icon="notifications-off-outline" label="Mute notifications" onPress={() => setMenuOpen(false)} />
             <MenuRow icon="flag-outline" label="Report" danger onPress={blockAndLeave} />
             <MenuRow icon="hand-left-outline" label="Unmatch & block" danger onPress={blockAndLeave} />
           </Animated.View>
         </Pressable>
       </Modal>
+
+      {/* Wali invite */}
+      <Modal visible={waliModal} transparent animationType="fade" onRequestClose={() => setWaliModal(false)}>
+        <Pressable style={styles.menuBg} onPress={() => setWaliModal(false)}>
+          <Animated.View entering={FadeInUp} style={[styles.waliSheet, { paddingBottom: insets.bottom + 18 }]}>
+            <View style={styles.waliIcon}><Ionicons name="shield-checkmark" size={26} color={M.textOnPrimary} /></View>
+            <Text style={styles.waliTitle}>Invite a wali</Text>
+            <Text style={styles.waliSub}>
+              A wali (guardian) can be given oversight of this conversation, in keeping with an Islamic courtship. They'll be able to view the chat.
+            </Text>
+            <TextInput
+              value={waliName} onChangeText={setWaliName}
+              placeholder="Wali's name (e.g. Br. Yusuf)" placeholderTextColor={M.textMuted}
+              style={styles.waliInput} autoFocus
+            />
+            <Pressable onPress={confirmWali} style={styles.waliConfirm}>
+              <LinearGradient colors={GRAD.primary} style={styles.waliConfirmGrad}>
+                <Ionicons name="shield-checkmark" size={18} color={M.textOnPrimary} />
+                <Text style={styles.waliConfirmText}>Add wali</Text>
+              </LinearGradient>
+            </Pressable>
+            <Pressable onPress={() => setWaliModal(false)} style={{ marginTop: 12 }}><Text style={styles.waliCancel}>Not now</Text></Pressable>
+          </Animated.View>
+        </Pressable>
+      </Modal>
     </View>
+  );
+}
+
+function UnveilEvent({ name }) {
+  return (
+    <Animated.View entering={ZoomIn.springify().damping(14)} style={styles.unveilEvent}>
+      <Ionicons name="eye" size={14} color={M.text} />
+      <Text style={styles.unveilEventText}>{name === 'You' ? 'You unveiled your photos 🤍' : `${name} unveiled her photos for you 🤍`}</Text>
+    </Animated.View>
   );
 }
 
@@ -337,6 +421,30 @@ const styles = StyleSheet.create({
   hStatus: { ...TYPE.caption, color: M.online, marginTop: 1 },
   chaperone: { flexDirection: 'row', alignItems: 'center', gap: 7, justifyContent: 'center', paddingVertical: 9, backgroundColor: M.bgSoft },
   chaperoneText: { ...TYPE.caption, color: M.textSoft, fontSize: 12 },
+  unveilCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: SPACE.lg, marginTop: 12,
+    backgroundColor: M.bgSoft, borderRadius: RADIUS.lg, padding: 14, borderWidth: 1, borderColor: M.border,
+  },
+  unveilIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: M.primary, alignItems: 'center', justifyContent: 'center' },
+  unveilTitle: { ...TYPE.h3, fontSize: 14.5 },
+  unveilSub: { ...TYPE.caption, marginTop: 2, lineHeight: 16 },
+  unveilBtn: { backgroundColor: M.primary, paddingHorizontal: 16, paddingVertical: 9, borderRadius: RADIUS.pill },
+  unveilBtnText: { color: M.textOnPrimary, fontWeight: '800', fontSize: 13 },
+  unveilEvent: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'center',
+    backgroundColor: M.bgSoft, borderWidth: 1, borderColor: M.border,
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: RADIUS.pill, marginVertical: 8,
+  },
+  unveilEventText: { ...TYPE.caption, color: M.text, fontWeight: '700' },
+  waliSheet: { backgroundColor: M.bg, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: SPACE.xl, paddingTop: 24, alignItems: 'center' },
+  waliIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: M.primary, alignItems: 'center', justifyContent: 'center', ...SHADOW.card },
+  waliTitle: { ...TYPE.h2, marginTop: 14, textAlign: 'center' },
+  waliSub: { ...TYPE.soft, textAlign: 'center', marginTop: 6, marginBottom: 16, fontSize: 14, lineHeight: 20 },
+  waliInput: { alignSelf: 'stretch', backgroundColor: M.bgInput, borderRadius: RADIUS.md, padding: 14, fontSize: 15, color: M.text, marginBottom: 16 },
+  waliConfirm: { alignSelf: 'stretch' },
+  waliConfirmGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 15, borderRadius: RADIUS.pill },
+  waliConfirmText: { color: M.textOnPrimary, fontWeight: '800', fontSize: 16 },
+  waliCancel: { ...TYPE.body, color: M.textSoft, fontWeight: '700' },
   matchHeader: { alignItems: 'center', paddingVertical: 20 },
   matchHeaderName: { ...TYPE.h2, marginTop: 12 },
   matchChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: M.butterflySoft, paddingHorizontal: 12, paddingVertical: 6, borderRadius: RADIUS.pill, marginTop: 8 },

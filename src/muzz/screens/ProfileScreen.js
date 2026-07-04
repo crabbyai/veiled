@@ -87,6 +87,18 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </Animated.View>
 
+        {/* Verify banner */}
+        {!me.selfieVerified && (
+          <Pressable onPress={() => { H.tap(); navigation.navigate('MuzzVerify'); }} style={styles.verifyBanner}>
+            <View style={styles.verifyIcon}><Ionicons name="shield-checkmark" size={20} color={M.textOnPrimary} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.verifyTitle}>Get verified</Text>
+              <Text style={styles.verifySub}>Earn the verified tick — a quick selfie, never shown on your profile.</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={M.textMuted} />
+          </Pressable>
+        )}
+
         {/* Stats */}
         <View style={styles.stats}>
           {[['heart', matches.length, 'Matches'], ['eye', (me.interests?.length || 0) * 7 + 12, 'Profile views'], ['star', muzz.superLikes, 'Super likes']].map(([ic, v, l]) => (
@@ -199,6 +211,10 @@ const styles = StyleSheet.create({
   toggleOn: { backgroundColor: M.butterfly },
   knob: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#fff' },
   knobOn: { alignSelf: 'flex-end' },
+  verifyBanner: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: SPACE.xl, marginTop: 16, backgroundColor: M.bgSoft, borderRadius: RADIUS.lg, padding: 14, borderWidth: 1, borderColor: M.border },
+  verifyIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: M.primary, alignItems: 'center', justifyContent: 'center' },
+  verifyTitle: { ...TYPE.h3, fontSize: 15 },
+  verifySub: { ...TYPE.caption, marginTop: 2, lineHeight: 15 },
   stats: { flexDirection: 'row', gap: 12, paddingHorizontal: SPACE.xl, marginTop: 16 },
   stat: { flex: 1, backgroundColor: M.bgSoft, borderRadius: RADIUS.md, padding: 14, alignItems: 'center' },
   statVal: { fontSize: 22, fontWeight: '900', color: M.text, marginTop: 6 },
