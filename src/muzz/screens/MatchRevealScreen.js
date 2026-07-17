@@ -48,9 +48,9 @@ export default function MatchRevealScreen({ route, navigation }) {
         )}
 
         <Animated.View entering={ZoomIn.delay(300).springify()} style={styles.photos}>
-          <PhotoTile seed={me.id} name={me.name || 'You'} rounded={RADIUS.lg} style={[styles.photo, { transform: [{ rotate: '-6deg' }] }]} />
+          <PhotoTile seed={me.id} name={me.name || 'You'} rounded={RADIUS.lg} pattern style={[styles.photo, { transform: [{ rotate: '-6deg' }] }]} />
           <View style={styles.heartBubble}><Ionicons name="heart" size={26} color={M.primary} /></View>
-          <PhotoTile seed={person.id} name={person.name} rounded={RADIUS.lg} style={[styles.photo, { transform: [{ rotate: '6deg' }], marginLeft: -24 }]} />
+          <PhotoTile seed={person.id} name={person.name} rounded={RADIUS.lg} pattern veiled={!!person.photoVeiled} style={[styles.photo, { transform: [{ rotate: '6deg' }], marginLeft: -24 }]} />
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(450)} style={styles.composer}>

@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { M, GRAD, RADIUS, SHADOW, gradFor } from '../theme';
 import { mediaUrl } from '../api';
+import { IslamicPattern } from './Pattern';
 import * as H from '../haptics';
 
 // ── Photo surface ────────────────────────────────────────────────────
@@ -11,7 +12,7 @@ import * as H from '../haptics';
 // gradient with a soft person silhouette (`silhouette`) or initial.
 // `veiled` draws The Veil: a frosted layer that hides the photo until
 // she unveils it for a match (pass `veilLabel` to explain it inline).
-export function PhotoTile({ seed = '', name = '', style, rounded = RADIUS.lg, gradient, children, dim = false, silhouette, uri, veiled = false, veilLabel }) {
+export function PhotoTile({ seed = '', name = '', style, rounded = RADIUS.lg, gradient, children, dim = false, silhouette, uri, veiled = false, veilLabel, pattern = false }) {
   const g = gradient || gradFor(seed || name);
   const initial = (name || '?').trim().charAt(0).toUpperCase();
   const src = uri ? mediaUrl(uri) : null;
@@ -27,6 +28,7 @@ export function PhotoTile({ seed = '', name = '', style, rounded = RADIUS.lg, gr
             colors={['rgba(255,255,255,0.18)', 'transparent', 'rgba(0,0,0,0.10)']}
             start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFill}
           />
+          {pattern && !veiled && <IslamicPattern color="#FFFFFF" opacity={0.06} tile={54} />}
           {silhouette ? (
             <View style={styles.silhouette}>
               <Ionicons name="person" size={silhouette} color="rgba(255,255,255,0.20)" />
@@ -40,6 +42,8 @@ export function PhotoTile({ seed = '', name = '', style, rounded = RADIUS.lg, gr
       )}
       {veiled && (
         <LinearGradient colors={GRAD.veil} start={{ x: 0, y: 0 }} end={{ x: 0.8, y: 1 }} style={styles.center}>
+          {/* The Veil as a mashrabiya screen */}
+          <IslamicPattern color="#FFFFFF" opacity={0.16} tile={44} strokeWidth={1.1} />
           <View style={styles.veilIcon}>
             <Ionicons name="eye-off" size={20} color="#fff" />
           </View>

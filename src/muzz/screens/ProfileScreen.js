@@ -54,7 +54,7 @@ export default function ProfileScreen({ navigation }) {
 
         {/* Hero card */}
         <View style={styles.heroCard}>
-          <PhotoTile seed="me" name={me.name || 'You'} uri={photos[0]} silhouette={150} rounded={RADIUS.lg} style={styles.heroPhoto}>
+          <PhotoTile seed="me" name={me.name || 'You'} uri={photos[0]} silhouette={150} pattern rounded={RADIUS.lg} style={styles.heroPhoto}>
             <LinearGradient colors={['transparent', 'rgba(20,16,26,0.8)']} style={StyleSheet.absoluteFill} />
             <View style={styles.heroInfo}>
               <Text style={styles.heroName}>{me.name || 'Your name'}, {me.age}</Text>

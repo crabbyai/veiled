@@ -15,6 +15,7 @@ import { rankMatches } from '../butterfly';
 import { PhotoTile, Verified, GButton, VeilBadge } from '../components/ui';
 import Stories from '../components/Stories';
 import Butterfly from '../components/Butterfly';
+import PrayerBar from '../components/PrayerBar';
 import * as H from '../haptics';
 
 const matchesFilters = (p, f) => {
@@ -222,6 +223,9 @@ export default function DiscoverScreen({ navigation }) {
       {/* Stories / moments rail */}
       <Stories people={onlinePeople} me={me} />
 
+      {/* Next salah + countdown */}
+      <PrayerBar />
+
       {boostActive ? (
         <Animated.View entering={FadeInUp} style={styles.boostBanner}>
           <Ionicons name="flash" size={14} color="#fff" />
@@ -343,6 +347,7 @@ function Card({ m, photoIdx = 0 }) {
       seed={p.id} name={p.name} rounded={RADIUS.xl} style={styles.card}
       uri={p.photos?.[photoIdx]}
       gradient={gradVariantFor(p.id, photoIdx)} silhouette={p.photoVeiled ? 0 : 300}
+      pattern
       veiled={!!p.photoVeiled}
       veilLabel={`${p.name} keeps her photos veiled\nShe can unveil them when you match`}
     >

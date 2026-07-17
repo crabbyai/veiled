@@ -44,6 +44,7 @@ export default function ProfileDetailScreen({ route, navigation }) {
           seed={person.id} name={person.name} rounded={0} silhouette={veiled ? 0 : 320}
           uri={person.photos?.[photoIdx]} gradient={gradVariantFor(person.id, photoIdx)}
           style={{ height: width * 1.15 }}
+          pattern
           veiled={veiled}
           veilLabel={isMatch ? `${person.name} keeps her photos veiled\nAsk her to unveil in chat` : `${person.name}'s photos are veiled\nShe can unveil them once you match`}
         >
