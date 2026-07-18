@@ -12,7 +12,7 @@
     "newArchEnabled": true,
     "scheme": "veiledapp",
     "backgroundColor": "#FFFFFF",
-    "primaryColor": "#7C3AED",
+    "primaryColor": "#111111",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -82,7 +82,7 @@
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#7C3AED",
+        "backgroundColor": "#0E0E10",
         "monochromeImage": "./assets/adaptive-icon.png"
       },
       "splash": {
@@ -140,7 +140,7 @@
       "favicon": "./assets/favicon.png",
       "name": "Veiled — Hijabi Marriage App",
       "shortName": "Veiled",
-      "themeColor": "#7C3AED",
+      "themeColor": "#111111",
       "backgroundColor": "#FFFFFF"
     },
     "plugins": [
@@ -161,7 +161,7 @@
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
-          "color": "#7C3AED",
+          "color": "#111111",
           "androidMode": "default",
           "androidCollapsedTitle": "Veiled"
         }
