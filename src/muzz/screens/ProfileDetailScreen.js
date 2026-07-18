@@ -91,6 +91,19 @@ export default function ProfileDetailScreen({ route, navigation }) {
 
         {/* Rounded content sheet overlapping the hero */}
         <View style={styles.sheet}>
+        {/* Photo gallery thumbnails — frosted until unveiled */}
+        <View style={styles.thumbs}>
+          {[...Array(photoCount)].map((_, i) => (
+            <Pressable key={i} onPress={() => { H.select(); setPhotoIdx(i); }}>
+              <PhotoTile
+                seed={person.id} name={person.name} rounded={RADIUS.md}
+                gradient={gradVariantFor(person.id, i)} veiled={veiled}
+                silhouette={veiled ? 0 : 26}
+                style={[styles.thumb, i === photoIdx && styles.thumbOn]}
+              />
+            </Pressable>
+          ))}
+        </View>
         {/* Butterfly insight */}
         <Animated.View entering={FadeInDown} style={styles.insight}>
           <View style={styles.insightHead}>
@@ -224,6 +237,9 @@ const styles = StyleSheet.create({
     marginTop: -26, borderTopLeftRadius: 28, borderTopRightRadius: 28,
     backgroundColor: M.bg, paddingTop: 8,
   },
+  thumbs: { flexDirection: 'row', gap: 8, paddingHorizontal: SPACE.xl, paddingTop: 16 },
+  thumb: { flex: 1, aspectRatio: 0.82, opacity: 0.7 },
+  thumbOn: { opacity: 1, borderWidth: 2, borderColor: M.primary },
   insight: { margin: SPACE.xl, marginBottom: 4, backgroundColor: M.butterflySoft, borderRadius: RADIUS.lg, padding: 18 },
   insightHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   bfBadge: { width: 26, height: 26, borderRadius: 13, backgroundColor: M.butterfly, alignItems: 'center', justifyContent: 'center' },

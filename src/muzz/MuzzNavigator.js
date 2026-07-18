@@ -29,6 +29,7 @@ import GoldScreen from './screens/GoldScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import PostScreen from './screens/PostScreen';
 import VerifyScreen from './screens/VerifyScreen';
+import EventsScreen from './screens/EventsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -125,6 +126,7 @@ function Root() {
             <Stack.Screen name="MuzzPost" component={PostScreen} />
             <Stack.Screen name="MuzzSettings" component={SettingsScreen} />
             <Stack.Screen name="MuzzVerify" component={VerifyScreen} />
+            <Stack.Screen name="MuzzEvents" component={EventsScreen} />
             <Stack.Screen name="MuzzMatchReveal" component={MatchRevealScreen} options={{ animation: 'fade' }} />
             <Stack.Screen name="MuzzGold" component={GoldScreen} options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           </>

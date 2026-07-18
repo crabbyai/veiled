@@ -33,10 +33,21 @@ export default function ProfileScreen({ navigation }) {
     if (uri) { addPhoto(uri); H.success(); }
   };
 
-  const completeness = Math.min(100, Math.round(
-    ((me.name ? 20 : 0) + (me.bio ? 20 : 0) + (me.job ? 15 : 0) +
-     Math.min(25, (me.interests?.length || 0) * 4) + Math.min(20, (me.values?.length || 0) * 5))
-  ));
+  // Nikah-readiness: weighted checklist of what makes a marriage-serious
+  // profile. Tapping an incomplete item nudges you to complete it.
+  const readiness = [
+    { key: 'Photos', done: (me.photos?.length || 0) >= 1, w: 16, nudge: 'Add a photo', act: () => setEdit(true) },
+    { key: 'About you', done: !!me.bio, w: 12, nudge: 'Write a short bio', act: () => setEdit(true) },
+    { key: 'Interests', done: (me.interests?.length || 0) >= 3, w: 10, nudge: 'Pick 3+ interests', act: () => setEdit(true) },
+    { key: 'Values', done: (me.values?.length || 0) >= 2, w: 8, nudge: 'Add your values', act: () => setEdit(true) },
+    { key: 'Deen details', done: !!(me.prayerLevel && me.sect), w: 14, nudge: 'Complete your deen' },
+    { key: 'Verified', done: !!me.selfieVerified, w: 16, nudge: 'Get verified', act: () => navigation.navigate('MuzzVerify') },
+    { key: 'Intention', done: !!me.intention, w: 10, nudge: 'Set your timeline' },
+    { key: 'Wali added', done: !!me.waliEnabled, w: 8, nudge: 'Add a wali' },
+  ];
+  const readyScore = Math.min(100, readiness.filter((r) => r.done).reduce((a, r) => a + r.w, 0));
+  const todo = readiness.filter((r) => !r.done);
+  const readyLabel = readyScore >= 90 ? 'Ready for nikah' : readyScore >= 65 ? 'Almost there' : readyScore >= 40 ? 'Getting there' : 'Just started';
 
   const saveEdit = () => {
     setMe({ bio: bio.trim(), job: job.trim(), interests, values });
@@ -63,14 +74,31 @@ export default function ProfileScreen({ navigation }) {
             <Pressable onPress={() => setEdit(true)} style={styles.editFab}><Ionicons name="pencil" size={18} color="#fff" /></Pressable>
           </PhotoTile>
 
-          {/* completeness */}
+          {/* Nikah readiness */}
           <View style={styles.complete}>
             <View style={styles.completeTop}>
-              <Text style={styles.completeLabel}>Profile strength</Text>
-              <Text style={styles.completePct}>{completeness}%</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Ionicons name="ribbon" size={15} color={M.primary} />
+                <Text style={styles.completeLabel}>Nikah readiness</Text>
+              </View>
+              <Text style={styles.completePct}>{readyScore}% · {readyLabel}</Text>
             </View>
-            <View style={styles.bar}><View style={[styles.barFill, { width: `${completeness}%` }]} /></View>
-            <Text style={styles.completeHint}>A fuller profile gives the butterfly more to work with.</Text>
+            <View style={styles.bar}><View style={[styles.barFill, { width: `${readyScore}%` }]} /></View>
+            {todo.length > 0 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingTop: 12 }}>
+                {todo.map((r) => (
+                  <Pressable key={r.key} onPress={() => { H.tap(); r.act ? r.act() : setEdit(true); }} style={styles.todoChip}>
+                    <Ionicons name="add-circle-outline" size={14} color={M.primary} />
+                    <Text style={styles.todoChipText}>{r.nudge}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            ) : (
+              <View style={styles.readyDone}>
+                <Ionicons name="checkmark-circle" size={16} color={M.success} />
+                <Text style={styles.readyDoneText}>Masha’Allah — your profile is complete and ready.</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -201,6 +229,10 @@ const styles = StyleSheet.create({
   bar: { height: 7, borderRadius: 4, backgroundColor: M.border, marginTop: 10, overflow: 'hidden' },
   barFill: { height: 7, borderRadius: 4, backgroundColor: M.primary },
   completeHint: { ...TYPE.caption, marginTop: 8 },
+  todoChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: M.bg, borderWidth: 1, borderColor: M.border, paddingHorizontal: 11, paddingVertical: 7, borderRadius: RADIUS.pill },
+  todoChipText: { ...TYPE.caption, color: M.text, fontWeight: '700' },
+  readyDone: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 12 },
+  readyDoneText: { ...TYPE.caption, color: M.textSoft, fontWeight: '600', flex: 1 },
   bfCard: { flexDirection: 'row', alignItems: 'center', margin: SPACE.xl, marginBottom: 0, backgroundColor: M.butterflySoft, borderRadius: RADIUS.lg, padding: 14 },
   bfMini: { width: 70, height: 70, alignItems: 'center', justifyContent: 'center' },
   bfTitle: { ...TYPE.h3, color: M.butterfly },

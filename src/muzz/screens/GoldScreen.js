@@ -8,6 +8,7 @@ import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE } from '../theme';
 import { useMuzz } from '../store';
 import { GButton } from '../components/ui';
 import Butterfly from '../components/Butterfly';
+import { IslamicPattern } from '../components/Pattern';
 import * as H from '../haptics';
 
 const { width } = Dimensions.get('window');
@@ -41,6 +42,9 @@ export default function GoldScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <LinearGradient colors={['#161618', '#0E0E10', '#161618']} style={StyleSheet.absoluteFill} />
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 360 }}>
+        <IslamicPattern color="#FFFFFF" opacity={0.06} tile={52} />
+      </View>
       <Pressable onPress={() => navigation.goBack()} style={[styles.close, { top: insets.top + 8 }]}>
         <Ionicons name="close" size={26} color="#fff" />
       </Pressable>

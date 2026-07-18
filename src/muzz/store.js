@@ -19,6 +19,7 @@ const initialState = {
   seen: [],            // butterfly-presented ids
   unveiled: {},        // { personId: true } — photos unveiled between us
   chaperones: {},      // { personId: { name } } — wali observing this chat
+  rsvps: {},           // { eventId: true } — community events I'm attending
   chats: {},           // { personId: [{id, text, sender, ts, read}] }
   posts: SOCIAL_SEED,
   postLikes: {},       // local like toggles for social posts
@@ -250,6 +251,15 @@ export function MuzzProvider({ children }) {
     [state.unveiled]
   );
 
+  const toggleRsvp = useCallback((eventId) => {
+    update((s) => {
+      const rsvps = { ...s.rsvps };
+      if (rsvps[eventId]) delete rsvps[eventId];
+      else rsvps[eventId] = true;
+      return { ...s, rsvps };
+    });
+  }, [update]);
+
   // Wali / chaperone oversight for a single conversation.
   const setChaperone = useCallback((personId, wali) => {
     update((s) => {
@@ -297,8 +307,8 @@ export function MuzzProvider({ children }) {
     sendMessage, togglePostLike, addPost, update, resetAll,
     likesRemaining, useInstantChat,
     addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson,
-    unveilFor, isUnveiled, setChaperone,
-  }), [state, hydrated, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, unveilFor, isUnveiled, setChaperone]);
+    unveilFor, isUnveiled, setChaperone, toggleRsvp,
+  }), [state, hydrated, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, unveilFor, isUnveiled, setChaperone, toggleRsvp]);
 
   return <MuzzContext.Provider value={value}>{children}</MuzzContext.Provider>;
 }

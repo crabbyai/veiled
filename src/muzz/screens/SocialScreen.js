@@ -46,10 +46,16 @@ export default function SocialScreen({ navigation }) {
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Text style={styles.title}>Social</Text>
-        <Pressable onPress={() => { setComposeOpen(true); H.tap(); }} style={styles.composeBtn}>
-          <Ionicons name="add" size={20} color="#fff" />
-          <Text style={styles.composeText}>Post</Text>
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Pressable onPress={() => { H.tap(); navigation.navigate('MuzzEvents'); }} style={styles.eventsBtn}>
+            <Ionicons name="calendar-outline" size={18} color={M.text} />
+            <Text style={styles.eventsText}>Events</Text>
+          </Pressable>
+          <Pressable onPress={() => { setComposeOpen(true); H.tap(); }} style={styles.composeBtn}>
+            <Ionicons name="add" size={20} color={M.textOnPrimary} />
+            <Text style={styles.composeText}>Post</Text>
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}
@@ -145,7 +151,9 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACE.xl, paddingBottom: 8 },
   title: { fontSize: 28, fontWeight: '900', color: M.text, letterSpacing: -0.6 },
   composeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: M.primary, paddingLeft: 10, paddingRight: 14, paddingVertical: 8, borderRadius: RADIUS.pill, ...SHADOW.primary },
-  composeText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  composeText: { color: M.textOnPrimary, fontWeight: '800', fontSize: 14 },
+  eventsBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: M.bgSoft, borderWidth: 1, borderColor: M.border, paddingHorizontal: 12, paddingVertical: 8, borderRadius: RADIUS.pill },
+  eventsText: { color: M.text, fontWeight: '800', fontSize: 13 },
   tagBarWrap: { backgroundColor: M.bg, borderBottomWidth: 1, borderBottomColor: M.border },
   tag: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: RADIUS.pill, backgroundColor: M.bgSoft },
   tagOn: { backgroundColor: M.text },
