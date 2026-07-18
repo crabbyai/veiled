@@ -1,99 +1,92 @@
 import React, { useEffect } from 'react';
 import { View } from 'react-native';
-import Svg, { Path, Defs, LinearGradient as SvgGrad, Stop, Ellipse, Circle } from 'react-native-svg';
+import Svg, { Path, Defs, LinearGradient as SvgGrad, Stop, Ellipse } from 'react-native-svg';
 import Animated, {
-  useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence,
-  Easing, interpolate,
+  useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing, interpolate,
 } from 'react-native-reanimated';
 
 const AView = Animated.View;
 
-// A flapping, gently-bobbing butterfly. `size` controls overall scale.
-export default function Butterfly({ size = 120, idle = true, colorA = '#4A4A4E', colorB = '#0E0E10' }) {
-  const flap = useSharedValue(0);
+// ─── The Matchmaker — a veiled niqabi silhouette ────────────────────
+// Veiled's mascot: a serene, veiled figure with a niqab eye-slit. Kept
+// under the original file/prop names so every call site (size, idle,
+// colorA→colorB gradient) updates in place.
+
+// The veil silhouette: head + shoulders draped as a khimar/niqab bell.
+export const VEIL_PATH =
+  'M14 116 C 12 84 13 58 22 42 C 28 25 38 17 50 17 C 62 17 72 25 78 42 '
+  + 'C 87 58 88 84 86 116 Z';
+
+// Choose an eye-slit colour that contrasts with the veil fill.
+function eyeColorFor(hex) {
+  if (typeof hex !== 'string') return '#F5F5F6';
+  let h = hex.replace('#', '');
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  if (h.length !== 6) return '#F5F5F6';
+  const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+  const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+  return lum > 140 ? '#1C1C20' : '#F2F2F4';
+}
+
+// Static glyph — used for tab bar / small marks.
+export function VeilGlyph({ size = 26, color = '#111' }) {
+  const eye = eyeColorFor(color);
+  return (
+    <Svg width={size} height={size} viewBox="0 0 100 118">
+      <Path d={VEIL_PATH} fill={color} />
+      <Path d="M35 49 Q50 43 65 49 Q50 55 35 49 Z" fill={eye} opacity={0.95} />
+    </Svg>
+  );
+}
+
+// Animated mascot — a gentle, calm bob + sway.
+export default function Butterfly({ size = 120, idle = true, colorA = '#2A2A2E', colorB = '#0E0E10' }) {
   const bob = useSharedValue(0);
 
   useEffect(() => {
-    flap.value = withRepeat(
-      withTiming(1, { duration: 520, easing: Easing.inOut(Easing.sin) }),
-      -1, true
-    );
     if (idle) {
       bob.value = withRepeat(
-        withTiming(1, { duration: 2600, easing: Easing.inOut(Easing.sin) }),
+        withTiming(1, { duration: 3200, easing: Easing.inOut(Easing.sin) }),
         -1, true
       );
     }
   }, [idle]);
 
-  const leftWing = useAnimatedStyle(() => ({
-    transform: [{ perspective: 400 }, { rotateY: `${interpolate(flap.value, [0, 1], [-8, 58])}deg` }],
-  }));
-  const rightWing = useAnimatedStyle(() => ({
-    transform: [{ perspective: 400 }, { rotateY: `${interpolate(flap.value, [0, 1], [8, -58])}deg` }],
-  }));
   const container = useAnimatedStyle(() => ({
     transform: [
-      { translateY: interpolate(bob.value, [0, 1], [0, -10]) },
-      { rotate: `${interpolate(bob.value, [0, 1], [-3, 3])}deg` },
+      { translateY: interpolate(bob.value, [0, 1], [0, -8]) },
+      { rotate: `${interpolate(bob.value, [0, 1], [-2, 2])}deg` },
     ],
   }));
 
+  const eye = eyeColorFor(colorA);
   const w = size;
-  const wingW = w * 0.46;
-  const wingH = w * 0.78;
 
   return (
     <AView style={[{ width: w, height: w, alignItems: 'center', justifyContent: 'center' }, container]}>
-      {/* Left wing */}
-      <AView style={[{ position: 'absolute', right: '50%' }, leftWing]}>
-        <Wing width={wingW} height={wingH} colorA={colorA} colorB={colorB} flip />
-      </AView>
-      {/* Right wing */}
-      <AView style={[{ position: 'absolute', left: '50%' }, rightWing]}>
-        <Wing width={wingW} height={wingH} colorA={colorA} colorB={colorB} />
-      </AView>
-      {/* Body + antennae */}
-      <Svg width={w * 0.16} height={w * 0.9} viewBox="0 0 20 110" style={{ position: 'absolute' }}>
+      <Svg width={w * 0.82} height={w} viewBox="0 0 100 118">
         <Defs>
-          <SvgGrad id="body" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#3A3A3E" />
-            <Stop offset="1" stopColor="#0E0E10" />
+          <SvgGrad id="veilFill" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={colorA} />
+            <Stop offset="1" stopColor={colorB} />
           </SvgGrad>
         </Defs>
-        <Path d="M6 18 Q3 6 10 4 Q17 6 14 18" stroke="#8A8A8E" strokeWidth="2" fill="none" />
-        <Circle cx="6" cy="4" r="2.4" fill="#2A2A2E" />
-        <Circle cx="14" cy="4" r="2.4" fill="#0E0E10" />
-        <Ellipse cx="10" cy="55" rx="6" ry="42" fill="url(#body)" />
-        <Circle cx="10" cy="18" r="7" fill="#1C1C20" />
+        {/* Veil */}
+        <Path d={VEIL_PATH} fill="url(#veilFill)" />
+        {/* Soft inner drape fold for depth */}
+        <Path
+          d="M50 24 C 40 24 33 33 30 46 C 27 62 27 86 29 112"
+          stroke={eye} strokeOpacity={0.12} strokeWidth={2} fill="none"
+        />
+        <Path
+          d="M50 24 C 60 24 67 33 70 46 C 73 62 73 86 71 112"
+          stroke={eye} strokeOpacity={0.12} strokeWidth={2} fill="none"
+        />
+        {/* Niqab eye-slit */}
+        <Path d="M34 50 Q50 43 66 50 Q50 57 34 50 Z" fill={eye} opacity={0.95} />
+        <Ellipse cx="44" cy="50" rx="2.1" ry="2.4" fill={colorB} opacity={0.55} />
+        <Ellipse cx="56" cy="50" rx="2.1" ry="2.4" fill={colorB} opacity={0.55} />
       </Svg>
     </AView>
-  );
-}
-
-function Wing({ width, height, colorA, colorB, flip }) {
-  return (
-    <Svg width={width} height={height} viewBox="0 0 120 200" style={flip ? { transform: [{ scaleX: -1 }] } : undefined}>
-      <Defs>
-        <SvgGrad id={flip ? 'wgL' : 'wgR'} x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor={colorA} />
-          <Stop offset="1" stopColor={colorB} />
-        </SvgGrad>
-      </Defs>
-      {/* Upper wing lobe */}
-      <Path
-        d="M6 96 C 0 30, 60 -8, 110 18 C 124 40, 110 78, 70 92 C 44 100, 18 100, 6 96 Z"
-        fill={flip ? 'url(#wgL)' : 'url(#wgR)'} opacity="0.96"
-      />
-      {/* Lower wing lobe */}
-      <Path
-        d="M8 104 C 2 150, 40 198, 86 182 C 110 170, 100 128, 62 110 C 40 100, 18 100, 8 104 Z"
-        fill={flip ? 'url(#wgL)' : 'url(#wgR)'} opacity="0.88"
-      />
-      {/* Spots */}
-      <Circle cx="86" cy="46" r="11" fill="#FFFFFF" opacity="0.85" />
-      <Circle cx="86" cy="46" r="5" fill="#16121C" opacity="0.55" />
-      <Circle cx="64" cy="150" r="7" fill="#FFFFFF" opacity="0.7" />
-    </Svg>
   );
 }

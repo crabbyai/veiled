@@ -98,7 +98,7 @@ export default function ChatScreen({ route, navigation }) {
     const shared = (me.interests || []).filter((i) => person.interests.includes(i));
     if (shared.length) out.push(`I saw we both love ${shared[0].toLowerCase()} — what got you into it?`);
     if (person.prompts?.[0]) out.push(`You said "${person.prompts[0].a}" — tell me more!`);
-    out.push(`Salaam ${person.name}! The butterfly clearly knew what it was doing 🦋`);
+    out.push(`Salaam ${person.name}! Our matchmaker clearly knew what it was doing.`);
     return out.slice(0, 3);
   }, [person, me]);
 
@@ -109,7 +109,7 @@ export default function ChatScreen({ route, navigation }) {
       `Haha I love that! ${person.interests[0]} is honestly my favourite thing.`,
       `Aw that's so sweet. So what does a perfect weekend look like for you?`,
       `Okay you have good taste 😄 What's your go-to coffee order?`,
-      `I'm so glad we matched. What made you swipe... oh wait, the butterfly did it 🦋`,
+      `I'm so glad we matched. The matchmaker really knew what it was doing.`,
       `That's really thoughtful. Tell me something most people don't know about you?`,
     ];
     const reply = pool[messages.length % pool.length];
@@ -222,7 +222,7 @@ export default function ChatScreen({ route, navigation }) {
               <Text style={styles.matchHeaderName}>{person.name}, {person.age}</Text>
               <View style={styles.matchChip}>
                 <Ionicons name="sparkles" size={12} color={M.butterfly} />
-                <Text style={styles.matchChipText}>{compat.score}% match · the butterfly introduced you</Text>
+                <Text style={styles.matchChipText}>{compat.score}% match · your matchmaker introduced you</Text>
               </View>
               {compat.reasons[0] && <Text style={styles.matchReason}>{compat.reasons[0]}</Text>}
             </Animated.View>
@@ -238,7 +238,7 @@ export default function ChatScreen({ route, navigation }) {
         {/* Icebreakers (only before first message) */}
         {messages.length === 0 && (
           <View style={styles.iceWrap}>
-            <Text style={styles.iceLabel}>🦋 Butterfly icebreakers</Text>
+            <Text style={styles.iceLabel}>Suggested openers</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: SPACE.lg, gap: 8 }}>
               {icebreakers().map((s, i) => (
                 <Pressable key={i} onPress={() => send(s)} style={styles.iceChip}>

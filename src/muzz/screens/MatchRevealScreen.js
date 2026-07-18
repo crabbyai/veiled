@@ -38,7 +38,7 @@ export default function MatchRevealScreen({ route, navigation }) {
         <Animated.View entering={FadeInDown}><Butterfly size={90} colorA="#fff" colorB="#C8C8CC" /></Animated.View>
         <Animated.Text entering={ZoomIn.springify()} style={styles.title}>It's a Match!</Animated.Text>
         <Animated.Text entering={FadeIn.delay(200)} style={styles.sub}>
-          The butterfly was right — you and {person.name} are a {score}% match
+          Your matchmaker was right — you and {person.name} are a {score}% match
         </Animated.Text>
         {person.photoVeiled && (
           <Animated.View entering={FadeIn.delay(350)} style={styles.unveilPill}>

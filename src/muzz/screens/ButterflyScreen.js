@@ -99,7 +99,7 @@ export default function ButterflyScreen({ navigation }) {
             </Pressable>
           )}
           <View>
-            <Text style={styles.brand}>Butterfly picks</Text>
+            <Text style={styles.brand}>Matchmaker picks</Text>
             <Text style={styles.subBrand}>Your AI matchmaker</Text>
           </View>
         </View>
@@ -119,7 +119,7 @@ export default function ButterflyScreen({ navigation }) {
             </Text>
             <Text style={styles.stageSub}>
               {queueCount > 0
-                ? `I've been flying around ${me.city || 'the city'} and found people I think you'll love. Want to meet the best one?`
+                ? `I've searched across ${me.city || 'the city'} and found people I think you'll love. Want to meet the best one?`
                 : `I've shown you my top picks for now. Check back soon — I'm always searching.`}
             </Text>
 
@@ -138,7 +138,7 @@ export default function ButterflyScreen({ navigation }) {
             </Pressable>
 
             <GButton
-              label={queueCount > 0 ? 'Let the butterfly fly' : 'Search again'}
+              label={queueCount > 0 ? 'Find my matches' : 'Search again'}
               icon="sparkles"
               gradient={GRAD.butterfly}
               onPress={fly}
@@ -240,7 +240,7 @@ export default function ButterflyScreen({ navigation }) {
         {/* "Coming up" preview row */}
         {phase === 'idle' && queueCount > 1 && (
           <Animated.View entering={FadeInDown.delay(150)} style={styles.upNext}>
-            <Text style={styles.upNextTitle}>In your butterfly's sights</Text>
+            <Text style={styles.upNextTitle}>Next in line</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: SPACE.xl, gap: 12 }}>
               {ranked.filter((m) => !seen.includes(m.person.id)).slice(1, 7).map((m) => (
                 <Pressable key={m.person.id} onPress={() => navigation.navigate('MuzzProfileDetail', { personId: m.person.id })}>

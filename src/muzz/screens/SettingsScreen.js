@@ -39,7 +39,7 @@ const SECTIONS = [
   {
     title: 'Notifications',
     rows: [
-      { icon: 'sparkles-outline', label: 'New butterfly picks', plain: true, def: true },
+      { icon: 'sparkles-outline', label: 'New matchmaker picks', plain: true, def: true },
       { icon: 'heart-outline', label: 'New matches', plain: true, def: true },
       { icon: 'chatbubble-outline', label: 'Messages', plain: true, def: true },
     ],

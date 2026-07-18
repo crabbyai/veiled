@@ -47,8 +47,8 @@ export default function MatchesScreen({ navigation }) {
             <Empty
               icon="heart"
               title="No matches yet"
-              sub="Let your butterfly fly — it's already found people for you."
-              cta="See Butterfly picks" onPress={() => navigation.navigate('MuzzButterflyPicks')}
+              sub="Let your matchmaker work — it's already found people for you."
+              cta="See matchmaker picks" onPress={() => navigation.navigate('MuzzButterflyPicks')}
             />
           ) : (
             <View style={styles.list}>

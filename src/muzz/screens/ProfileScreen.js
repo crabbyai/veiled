@@ -106,7 +106,7 @@ export default function ProfileScreen({ navigation }) {
         <Animated.View entering={FadeInDown} style={styles.bfCard}>
           <View style={styles.bfMini}><Butterfly size={66} /></View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.bfTitle}>Your Butterfly</Text>
+            <Text style={styles.bfTitle}>Your Matchmaker</Text>
             <Text style={styles.bfSub}>Trained on {me.interests?.length || 0} interests · {me.values?.length || 0} values</Text>
             <Pressable onPress={() => { update((s) => ({ ...s, butterflyAuto: !s.butterflyAuto })); H.select(); }} style={styles.bfToggleRow}>
               <Text style={styles.bfToggleLabel}>Auto-matching</Text>
@@ -144,7 +144,7 @@ export default function ProfileScreen({ navigation }) {
             <Ionicons name="diamond" size={26} color="#fff" />
             <View style={{ flex: 1, marginLeft: 14 }}>
               <Text style={styles.goldTitle}>Veiled Gold</Text>
-              <Text style={styles.goldSub}>See who likes you, unlimited boosts & priority butterfly picks</Text>
+              <Text style={styles.goldSub}>See who likes you, unlimited boosts & priority matchmaker picks</Text>
             </View>
             <Ionicons name="chevron-forward" size={22} color="#fff" />
           </LinearGradient>

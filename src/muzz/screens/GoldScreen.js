@@ -21,7 +21,7 @@ const PERKS = [
   ['flame', '2 free weekly boosts', 'Be the top profile in your area for 30 minutes'],
   ['refresh', 'Rematch', 'Bring back expired matches for a second chance'],
   ['options', 'Advanced filters', 'Filter by prayer level, sect, ethnicity, education & more'],
-  ['sparkles', 'Priority butterfly picks', 'Your AI matchmaker works around the clock for you'],
+  ['sparkles', 'Priority matchmaker picks', 'Your AI matchmaker works around the clock for you'],
   ['ribbon', 'VIP badge', 'Stand out with a gold badge on your profile'],
   ['eye-off', 'Invisible mode', 'Browse privately — only people you like can see you'],
 ];
@@ -56,8 +56,8 @@ export default function GoldScreen({ navigation }) {
             <Ionicons name="diamond" size={16} color="#fff" />
             <Text style={styles.goldTagText}>VEILED GOLD</Text>
           </LinearGradient>
-          <Text style={styles.heroTitle}>Find your zawj,{'\n'}faster</Text>
-          <Text style={styles.heroSub}>Supercharge your butterfly and stand out</Text>
+          <Text style={styles.heroTitle}>Find the one,{'\n'}faster</Text>
+          <Text style={styles.heroSub}>Supercharge your matchmaker and stand out</Text>
         </View>
 
         <View style={styles.perks}>

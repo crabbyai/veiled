@@ -34,7 +34,7 @@ export default function OnboardingScreen() {
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState(false);
 
-  const steps = ['Welcome', 'You', 'Looking for', 'Deen', 'Interests', 'Values', 'Verify', 'Butterfly'];
+  const steps = ['Welcome', 'You', 'Looking for', 'Deen', 'Interests', 'Values', 'Verify', 'Ready'];
   const total = steps.length;
   const STEP = { welcome: 0, you: 1, looking: 2, deen: 3, interests: 4, values: 5, verify: 6, done: 7 };
 
@@ -86,7 +86,7 @@ export default function OnboardingScreen() {
             <Text style={styles.logo}>veiled<Text style={{ color: M.butterfly }}>·ai</Text></Text>
             <Text style={styles.welcomeTitle}>Marriage, on her terms</Text>
             <Text style={styles.welcomeSub}>
-              Every sister on Veiled wears hijab or niqab — and her photos stay veiled until she chooses to unveil them. Your AI Butterfly learns who you are, then quietly brings you the matches that fit.
+              Every sister on Veiled wears hijab or niqab — and her photos stay veiled until she chooses to unveil them. Your AI matchmaker learns who you are, then quietly brings you the matches that fit.
             </Text>
             <View style={styles.featureList}>
               {[
@@ -143,7 +143,7 @@ export default function OnboardingScreen() {
         {step === 2 && (
           <Animated.View entering={FadeInRight}>
             <Text style={styles.q}>Your marriage timeline</Text>
-            <Text style={styles.helper}>Everyone on Veiled is here for nikah — the butterfly prioritises people on the same timeline.</Text>
+            <Text style={styles.helper}>Everyone on Veiled is here for nikah — your matchmaker prioritises people on the same timeline.</Text>
             {INTENTIONS.map((opt) => (
               <Pressable key={opt} onPress={() => { setIntention(opt); H.select(); }} style={[styles.bigOpt, intention === opt && styles.bigOptActive]}>
                 <Text style={[styles.bigOptText, intention === opt && { color: M.primary }]}>{opt}</Text>
@@ -182,7 +182,7 @@ export default function OnboardingScreen() {
         {step === STEP.interests && (
           <Animated.View entering={FadeInRight}>
             <Text style={styles.q}>What do you love?</Text>
-            <Text style={styles.helper}>Pick at least 3 — these teach the butterfly.</Text>
+            <Text style={styles.helper}>Pick at least 3 — these teach your matchmaker.</Text>
             <View style={styles.wrap}>
               {INTERESTS.map((i) => (
                 <Chip key={i} label={i} active={interests.includes(i)} onPress={() => toggle(interests, setInterests, i, 8)} />
@@ -236,9 +236,9 @@ export default function OnboardingScreen() {
         {step === STEP.done && (
           <Animated.View entering={FadeIn} style={styles.welcome}>
             <View style={styles.bfWrap}><Butterfly size={160} /></View>
-            <Text style={styles.welcomeTitle}>Your butterfly is ready</Text>
+            <Text style={styles.welcomeTitle}>Your matchmaker is ready</Text>
             <Text style={styles.welcomeSub}>
-              {name ? `Nice to meet you, ${name}. ` : ''}I've learned {interests.length} interests and {values.length} values. From now on, I'll fly out and bring your best matches straight to you — no swiping required.
+              {name ? `Nice to meet you, ${name}. ` : ''}I've learned {interests.length} interests and {values.length} values. From now on, I'll bring your best matches straight to you — no swiping required.
             </Text>
             <Animated.View entering={FadeInDown.delay(300)} style={styles.statRow}>
               {[['Interests', interests.length], ['Values', values.length], ['Daily picks', '∞']].map(([l, v]) => (
@@ -259,7 +259,7 @@ export default function OnboardingScreen() {
           </Pressable>
         )}
         <GButton
-          label={step === 0 ? 'Get started' : step === total - 1 ? 'Release the butterfly' : 'Continue'}
+          label={step === 0 ? 'Get started' : step === total - 1 ? 'Start matching' : 'Continue'}
           icon={step === total - 1 ? 'sparkles' : undefined}
           onPress={next}
           gradient={step === total - 1 ? GRAD.butterfly : GRAD.primary}

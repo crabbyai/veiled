@@ -108,7 +108,7 @@ export default function ProfileDetailScreen({ route, navigation }) {
         <Animated.View entering={FadeInDown} style={styles.insight}>
           <View style={styles.insightHead}>
             <View style={styles.bfBadge}><Ionicons name="sparkles" size={14} color="#fff" /></View>
-            <Text style={styles.insightTitle}>Butterfly's take</Text>
+            <Text style={styles.insightTitle}>Matchmaker's take</Text>
           </View>
           {compat.reasons.slice(0, 3).map((r, i) => (
             <View key={i} style={styles.reasonRow}>

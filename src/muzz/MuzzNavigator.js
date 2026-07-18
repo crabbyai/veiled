@@ -5,9 +5,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
-import Svg, { Path, Circle } from 'react-native-svg';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
+import { VeilGlyph } from './components/Butterfly';
 import { M } from './theme';
 import { MuzzProvider, useMuzz } from './store';
 import * as H from './haptics';
@@ -33,17 +33,9 @@ import EventsScreen from './screens/EventsScreen';
 
 const Stack = createNativeStackNavigator();
 
-// ── Mini static butterfly glyph for the tab bar ──────────────────────
+// ── Mini veiled-silhouette glyph for the tab bar ─────────────────────
 function ButterflyGlyph({ color = '#fff', size = 26 }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 48 48">
-      <Path d="M24 24 C 14 6, 2 10, 4 22 C 5 32, 18 30, 24 24 Z" fill={color} />
-      <Path d="M24 24 C 34 6, 46 10, 44 22 C 43 32, 30 30, 24 24 Z" fill={color} />
-      <Path d="M24 25 C 16 28, 8 40, 16 44 C 22 46, 25 34, 24 25 Z" fill={color} opacity={0.92} />
-      <Path d="M24 25 C 32 28, 40 40, 32 44 C 26 46, 23 34, 24 25 Z" fill={color} opacity={0.92} />
-      <Circle cx="24" cy="24" r="3" fill={color} />
-    </Svg>
-  );
+  return <VeilGlyph color={color} size={size} />;
 }
 
 // Muzz-style flat tab bar: 5 even tabs, pink active state, no center FAB.

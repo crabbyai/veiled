@@ -234,7 +234,7 @@ export default function DiscoverScreen({ navigation }) {
       ) : butterflyAuto && top ? (
         <View style={styles.autoChip}>
           <Ionicons name="sparkles" size={12} color={M.butterfly} />
-          <Text style={styles.autoChipText}>Sorted by your butterfly — top pick {top.score}% compatible</Text>
+          <Text style={styles.autoChipText}>Sorted by your matchmaker — top pick {top.score}% compatible</Text>
         </View>
       ) : null}
 
@@ -244,7 +244,7 @@ export default function DiscoverScreen({ navigation }) {
           <Animated.View entering={FadeIn} style={styles.empty}>
             <Butterfly size={120} />
             <Text style={styles.emptyTitle}>You're all caught up</Text>
-            <Text style={styles.emptySub}>New people join every day. Your butterfly will keep searching for you.</Text>
+            <Text style={styles.emptySub}>New people join every day. Your matchmaker will keep searching for you.</Text>
           </Animated.View>
         ) : (
           <>

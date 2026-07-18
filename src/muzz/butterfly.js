@@ -81,7 +81,7 @@ export function scoreMatch(me, person, feedback = {}) {
 
   score = Math.max(2, Math.min(99, Math.round(score)));
 
-  if (!reasons.length) reasons.push(`A fresh face the butterfly thinks you'll click with`);
+  if (!reasons.length) reasons.push(`A fresh face your matchmaker thinks you'll click with`);
 
   return { score, reasons };
 }
@@ -112,11 +112,11 @@ export function compatLabel(score) {
 
 // A short, warm line the butterfly "says" when revealing a match.
 const OPENERS = [
-  'I fluttered across the city and stopped here.',
+  'I looked across the city and stopped here.',
   'Trust me on this one — I have a good feeling.',
   'Out of everyone today, this one stood out.',
   'I think your story and theirs could rhyme.',
-  'My wings tingled. That usually means something.',
+  'Something about this match feels right.',
 ];
 export function butterflyLine(score) {
   let i = Math.floor(score) % OPENERS.length;
