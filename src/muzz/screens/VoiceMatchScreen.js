@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInUp, FadeInDown, ZoomIn, useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing, interpolate } from 'react-native-reanimated';
-import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE, gradVariantFor } from '../theme';
+import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE, gradVariantFor, isDark } from '../theme';
 import { useMuzz } from '../store';
 import { rankMatches } from '../butterfly';
 import { PhotoTile, VeilBadge, Verified, GButton } from '../components/ui';
@@ -12,6 +12,10 @@ import Butterfly from '../components/Butterfly';
 import * as H from '../haptics';
 
 const { width } = Dimensions.get('window');
+
+const HERO_ART = isDark
+  ? require('../../../assets/art/niqabi-hero-dark.jpg')
+  : require('../../../assets/art/niqabi-hero.png');
 
 // ─── Voice matchmaking ──────────────────────────────────────────────
 // No swiping, no browsing: you *talk* to your matchmaker about what you
@@ -93,7 +97,7 @@ export default function VoiceMatchScreen({ navigation }) {
       {phase === 'intro' ? (
         <Animated.View entering={FadeIn} style={styles.intro}>
           <View style={styles.heroCard}>
-            <Image source={require('../../../assets/art/niqabi-hero.png')} style={styles.heroArt} resizeMode="cover" />
+            <Image source={HERO_ART} style={styles.heroArt} resizeMode="cover" />
           </View>
           <Text style={styles.introTitle}>Tell me what you're{'\n'}looking for</Text>
           <Text style={styles.introSub}>
@@ -227,7 +231,7 @@ const styles = StyleSheet.create({
   subtitle: { ...TYPE.caption, marginTop: 1 },
   intro: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SPACE.xxl },
   heroCard: {
-    backgroundColor: '#F2F2F4', borderRadius: 28,
+    backgroundColor: isDark ? '#0B0B0D' : '#F2F2F4', borderRadius: 28,
     borderWidth: 1, borderColor: M.border, ...SHADOW.card, overflow: 'hidden',
   },
   heroArt: { width: 156, height: 204 },

@@ -5,7 +5,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInRight, FadeInDown } from 'react-native-reanimated';
-import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE } from '../theme';
+import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE, isDark } from '../theme';
 import { INTERESTS, VALUES, INTENTIONS, VEILS, SECTS, PRAYER_LEVELS, HALAL_DIET } from '../data';
 import { useMuzz } from '../store';
 import { GButton, Chip } from '../components/ui';
@@ -13,6 +13,12 @@ import Butterfly from '../components/Butterfly';
 import * as H from '../haptics';
 
 const { width } = Dimensions.get('window');
+
+// Theme-aware hero artwork: a lighter portrait on light, a darker one
+// on dark, each framed on a matching card.
+const HERO_ART = isDark
+  ? require('../../../assets/art/niqabi-hero-dark.jpg')
+  : require('../../../assets/art/niqabi-hero.png');
 
 export default function OnboardingScreen() {
   const { completeOnboarding } = useMuzz();
@@ -83,7 +89,7 @@ export default function OnboardingScreen() {
         {step === 0 && (
           <Animated.View entering={FadeIn} style={styles.welcome}>
             <View style={styles.heroCard}>
-              <Image source={require('../../../assets/art/niqabi-hero.png')} style={styles.heroArt} resizeMode="cover" />
+              <Image source={HERO_ART} style={styles.heroArt} resizeMode="cover" />
             </View>
             <Text style={styles.logo}>veiled<Text style={{ color: M.butterfly }}>·ai</Text></Text>
             <Text style={styles.welcomeTitle}>Marriage, on her terms</Text>
@@ -281,7 +287,7 @@ const styles = StyleSheet.create({
   welcome: { alignItems: 'center', paddingTop: 10 },
   bfWrap: { height: 170, alignItems: 'center', justifyContent: 'center' },
   heroCard: {
-    backgroundColor: '#F2F2F4', borderRadius: 28, marginBottom: 12,
+    backgroundColor: isDark ? '#0B0B0D' : '#F2F2F4', borderRadius: 28, marginBottom: 12,
     borderWidth: 1, borderColor: M.border, ...SHADOW.card, overflow: 'hidden',
   },
   heroArt: { width: 176, height: 230 },
