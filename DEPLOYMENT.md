@@ -9,12 +9,22 @@ Everything needed to ship Veiled to the App Store is in this repo:
 | iPad 13" screenshots (2048×2732) | `store/screenshots/ipad-13/` |
 | All App Store Connect text (name, subtitle, description, keywords, review notes, privacy answers) | `store/metadata.md` |
 | Build config | `eas.json`, `app.json` |
+| Privacy policy (ready to host) | `store/privacy-policy.html` |
 | Backend (optional for v1 — app runs fully offline) | `backend/` |
 
 ## 0. Prerequisites (one-time)
 1. **Apple Developer Program** membership ($99/yr) on developer.apple.com.
 2. On your machine: `npm install -g eas-cli`, then `eas login` (your Expo
    account — `owner` in app.json is already `adeelahmedrahman`).
+3. **Host the privacy policy** (required URL for the listing). Fastest
+   path with zero extra accounts — GitHub Pages on this repo:
+   1. Copy `store/privacy-policy.html` to `docs/index.html` on your
+      default branch and push.
+   2. GitHub → repo **Settings → Pages** → Source: *Deploy from a
+      branch* → branch `main`, folder `/docs` → Save.
+   3. Your URL becomes `https://<user>.github.io/veiled/` — paste it in
+      App Store Connect as the Privacy Policy URL (and Support URL).
+   Any other static host (Netlify/Vercel drop, your own site) works too.
 
 ## 1. Build the iOS binary
 ```bash
