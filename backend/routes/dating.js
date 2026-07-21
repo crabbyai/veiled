@@ -67,6 +67,7 @@ const parseProfile = (row, viewerId = null) => {
     values: JSON.parse(row.values || '[]'),
     languages: JSON.parse(row.languages || '["English"]'),
     prompts: JSON.parse(row.prompts || '[]'),
+    friendTakes: JSON.parse(row.friend_takes || '[]'),
     waliEnabled: !!row.wali_enabled,
     photoPrivacy: !!row.photo_privacy,
     verified: !!row.selfie_verified,
@@ -202,8 +203,8 @@ router.put('/profile', authenticate, (req, res) => {
         (user_id, name, age, gender, city, distance, job, bio, height, intention,
          veil, photo_veiled,
          sect, prayer_level, ethnicity, halal_diet, interests, "values", languages,
-         prompts, wali_enabled, photo_privacy, selfie_verified, is_gold, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         prompts, friend_takes, wali_enabled, photo_privacy, selfie_verified, is_gold, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(user_id) DO UPDATE SET
         name=excluded.name, age=excluded.age, gender=excluded.gender,
         city=excluded.city, distance=excluded.distance, job=excluded.job,
@@ -213,6 +214,7 @@ router.put('/profile', authenticate, (req, res) => {
         ethnicity=excluded.ethnicity, halal_diet=excluded.halal_diet,
         interests=excluded.interests, "values"=excluded."values",
         languages=excluded.languages, prompts=excluded.prompts,
+        friend_takes=excluded.friend_takes,
         wali_enabled=excluded.wali_enabled, photo_privacy=excluded.photo_privacy,
         selfie_verified=excluded.selfie_verified, is_gold=excluded.is_gold,
         updated_at=excluded.updated_at
@@ -224,6 +226,7 @@ router.put('/profile', authenticate, (req, res) => {
       p.ethnicity || 'Other', p.halalDiet || 'Mostly halal',
       JSON.stringify(p.interests || []), JSON.stringify(p.values || []),
       JSON.stringify(p.languages || ['English']), JSON.stringify(p.prompts || []),
+      JSON.stringify(p.friendTakes || []),
       p.waliEnabled ? 1 : 0, p.photoPrivacy ? 1 : 0,
       p.selfieVerified ? 1 : 0, p.gold ? 1 : 0, Date.now()
     );

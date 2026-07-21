@@ -1,69 +1,88 @@
-# Veiled — App Store submission checklist
+# Veiled — complete App Store deployment guide
 
-This documents the fixes for the three review rejections and how to
-prepare a clean resubmission.
+Everything needed to ship Veiled to the App Store is in this repo:
 
-## Rejection fixes
+| What | Where |
+|---|---|
+| App icon (1024, no alpha) | `store/icon/icon-1024.png` (also baked into the build via `assets/icon.png`) |
+| iPhone 6.9" screenshots (1290×2796) | `store/screenshots/iphone-6.9/` |
+| iPad 13" screenshots (2048×2732) | `store/screenshots/ipad-13/` |
+| All App Store Connect text (name, subtitle, description, keywords, review notes, privacy answers) | `store/metadata.md` |
+| Build config | `eas.json`, `app.json` |
+| Backend (optional for v1 — app runs fully offline) | `backend/` |
 
-### 2.1.0 — App Completeness (placeholder icon) ✅ fixed in code
-The app previously shipped an inherited placeholder icon. It now uses a
-real branded Veiled mark (white butterfly on near-black with a
-mashrabiya halo). Files: `assets/icon.png` (1024×1024, no alpha),
-`assets/adaptive-icon.png`, `assets/splash-icon.png`, `assets/favicon.png`.
-Stale brand colours were also purged from `app.json`.
+## 0. Prerequisites (one-time)
+1. **Apple Developer Program** membership ($99/yr) on developer.apple.com.
+2. On your machine: `npm install -g eas-cli`, then `eas login` (your Expo
+   account — `owner` in app.json is already `adeelahmedrahman`).
 
-Action: rebuild (`eas build`) so the binary carries the new icon. In App
-Store Connect the icon is taken from the build automatically.
-
-### 5.6.0 — Developer Code of Conduct (fake social proof) ✅ not present
-Audited: the Veiled paywall (`src/muzz/screens/GoldScreen.js`) contains
-**no** fabricated social proof — no rotating "X from Y just subscribed"
-toasts and no time-varying fake subscriber counts. The only live counter
-in the app is the prayer-times widget, which is genuine. Nothing to
-remove. (If you add testimonials later, keep them real and attributable.)
-
-### 2.3.8 — Accurate Metadata (App Preview videos) — action required
-The previous rejection was because the App Preview videos were static
-**screenshot slideshows**, which Apple treats as not representing real
-app usage.
-
-**Recommended fix (simplest, fully compliant): don't upload App Preview
-videos at all.** They are optional. Screenshots alone satisfy the store.
-In App Store Connect, delete any uploaded previews from the iPhone and
-iPad "App Previews" rows and leave them empty.
-
-Use the screenshots in `store/screenshots/` instead (generated from the
-real running app, at the exact required sizes):
-- iPhone 6.9" — 1290×2796
-- iPad 12.9"/13" — 2048×2732
-
-### If you still want App Preview videos
-They must be genuine screen recordings, H.264, matching the slot size
-(iPad 12.9"/13" is 1200×1600 or 1600×1200; 15–30s). The easiest way with
-no physical device:
-1. Run the app in Xcode's iOS Simulator on a Mac.
-2. Record with QuickTime (File → New Screen Recording) or
-   `xcrun simctl io booted recordVideo preview.mov`.
-3. Format to the exact spec:
-
+## 1. Build the iOS binary
 ```bash
-ffmpeg -i preview.mov \
-  -vf "scale=1200:1600:force_original_aspect_ratio=decrease,\
-pad=1200:1600:(ow-iw)/2:(oh-ih)/2:color=black,fps=30" \
-  -t 19 -c:v libx264 -pix_fmt yuv420p -profile:v high -level 4.0 \
-  -an output.mp4
+git clone <this repo> && cd veiled
+npm install --legacy-peer-deps
+eas build --platform ios --profile production
 ```
+- First run, EAS asks to register a bundle ID and create signing
+  credentials — say **yes** to everything (it talks to your Apple
+  account; bundle ID `com.veiledapp.hijabimarriage` comes from app.json).
+- Wait for the build to finish (~15–25 min on EAS servers).
 
-Note: real H.264 encoding can't be produced in the CI/web sandbox this
-repo was built in (the bundled ffmpeg is VP8/webm-only), which is why the
-recordings must be captured on a Mac/simulator.
+## 2. Create the app record in App Store Connect
+1. appstoreconnect.apple.com → My Apps → **+ → New App**.
+2. Platform iOS · Name **Veiled: Hijabi Marriage** · primary language
+   English (U.K.) · Bundle ID `com.veiledapp.hijabimarriage` · SKU
+   `veiled-ios-001`.
+3. Copy the numeric **Apple ID** of the app (App Information page) into
+   `eas.json` → `submit.production.ios.ascAppId`.
 
-## Pre-submit checklist
-- [ ] `app.json` bundle ids, version, buildNumber correct
-- [ ] New icon present in the build (2.1.0)
-- [ ] No App Preview videos, or real H.264 recordings only (2.3.8)
-- [ ] Screenshots uploaded for every required device size
-- [ ] Privacy policy URL set; data-collection questionnaire completed
-- [ ] `EXPO_PUBLIC_API_URL` pointed at your deployed backend (see
-      `backend/README.md`) if you want live data; the app also runs fully
-      offline from seed data
+## 3. Upload the build
+```bash
+eas submit --platform ios --latest
+```
+(or download the .ipa from the EAS build page and upload with Apple's
+Transporter app.) The build appears in App Store Connect → TestFlight
+after ~10 min of processing.
+
+## 4. Fill in the listing (all text is pre-written)
+Open `store/metadata.md` and copy each block into App Store Connect:
+- Name, subtitle, category, promotional text, description, keywords
+- Support URL + **Privacy Policy URL** (host one first — required)
+- Age rating questionnaire (select the Dating category honestly → 17+)
+- App Privacy: "Data Not Collected" while the app ships offline-only
+- **Screenshots**: drag the PNGs from `store/screenshots/iphone-6.9/`
+  and `store/screenshots/ipad-13/` into the matching device rows.
+  **Leave App Previews (videos) empty** — optional, and slideshow-style
+  videos are what triggered rejection 2.3.8 previously.
+- App Review Information → paste the "Notes for App Review" block.
+
+## 5. Select the build & submit
+Version page → Build section → pick the processed build → **Add for
+Review** → **Submit to App Review**.
+
+## Why the previous rejections stay fixed
+- **2.1.0 (placeholder icon)** — real branded icon is in the binary
+  (`assets/icon.png`, veiled-silhouette mark, 1024, no alpha).
+- **5.6.0 (fake social proof)** — audited: no fabricated activity
+  anywhere; the only live counter is the genuine prayer timer.
+- **3.1.1 / 2.3.2 (purchases)** — the Gold paywall ships with
+  `IAP_ENABLED = false` (`src/muzz/screens/GoldScreen.js`): no prices
+  shown, Gold is a free launch perk. Flip to `true` only after creating
+  real auto-renewable subscriptions in App Store Connect and wiring
+  them through `react-native-iap`.
+- **2.3.8 (preview videos)** — submit with screenshots only.
+
+## Optional: go live with the backend
+The app is fully reviewable offline. To run live accounts/matching/chat:
+```bash
+cd backend && docker build -t veiled-api .
+docker run -p 3000:3000 -e JWT_SECRET="$(openssl rand -hex 32)" \
+  -v veiled-data:/data -e DB_PATH=/data/veiled.db -e UPLOAD_DIR=/data/uploads veiled-api
+```
+Then rebuild the app with `EXPO_PUBLIC_API_URL=https://your-api.example.com`
+set (eas.json env, or `eas secret:create`). Remember to update the App
+Privacy questionnaire per `store/metadata.md` once the backend is live.
+
+## Version bumps for future submissions
+`eas.json` has `autoIncrement: true` — EAS bumps the build number
+automatically. Bump the marketing `version` in app.json when you ship
+feature releases.

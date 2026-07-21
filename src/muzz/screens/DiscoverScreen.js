@@ -207,6 +207,10 @@ export default function DiscoverScreen({ navigation }) {
       <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
         <Text style={styles.wordmark}>veiled</Text>
         <View style={styles.headerRight}>
+          <Pressable onPress={() => { H.tap(); navigation.navigate('MuzzVoice'); }} style={styles.aiBtn}>
+            <Ionicons name="mic" size={15} color={M.butterfly} />
+            <Text style={styles.aiBtnText}>Voice</Text>
+          </Pressable>
           <Pressable onPress={() => { H.tap(); navigation.navigate('MuzzButterflyPicks'); }} style={styles.aiBtn}>
             <Ionicons name="sparkles" size={15} color={M.butterfly} />
             <Text style={styles.aiBtnText}>AI picks</Text>
@@ -346,7 +350,7 @@ function Card({ m, photoIdx = 0 }) {
     <PhotoTile
       seed={p.id} name={p.name} rounded={RADIUS.xl} style={styles.card}
       uri={p.photos?.[photoIdx]}
-      gradient={gradVariantFor(p.id, photoIdx)} silhouette={p.photoVeiled ? 0 : 300}
+      gradient={gradVariantFor(p.id, photoIdx)} figure={p.photoVeiled ? null : p.veil}
       pattern
       veiled={!!p.photoVeiled}
       veilLabel={`${p.name} keeps her photos veiled\nShe can unveil them when you match`}

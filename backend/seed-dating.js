@@ -34,12 +34,25 @@ function seedDating() {
   const ids = {};
   const insertUser = db.prepare('INSERT OR IGNORE INTO users (email, password_hash, display_name) VALUES (?, ?, ?)');
   const getUser = db.prepare('SELECT id FROM users WHERE email = ?');
+  const TAKES = {
+    Layla: [
+      { by: 'Amina', rel: 'Best friend', kind: 'text', text: 'Layla remembers everything you tell her. Whoever marries her is winning.' },
+      { by: 'Umm Layla', rel: 'Mother', kind: 'voice', secs: 14 },
+    ],
+    Sana: [{ by: 'Hafsa', rel: 'Hiking buddy', kind: 'text', text: 'She will genuinely wake you for fajr on a mountain and make it feel like a gift.' }],
+    Noor: [
+      { by: 'Fatima', rel: 'Sister', kind: 'text', text: 'Noor’s calligraphy is beautiful, but her character is more so.' },
+      { by: 'Br. Hamza', rel: 'Brother & wali', kind: 'voice', secs: 11 },
+    ],
+    Aaliyah: [{ by: 'Khadija', rel: 'Cousin', kind: 'voice', secs: 9 }],
+  };
+
   const insertProfile = db.prepare(`
     INSERT OR REPLACE INTO dating_profiles
       (user_id, name, age, gender, veil, photo_veiled, city, distance, job, bio, height, intention,
        sect, prayer_level, ethnicity, halal_diet, interests, "values", languages,
-       prompts, selfie_verified, is_bot, online)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
+       prompts, friend_takes, selfie_verified, is_bot, online)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)
   `);
 
   for (const b of BOTS) {
@@ -51,7 +64,8 @@ function seedDating() {
       id, b.name, b.age, b.gender, b.veil, b.photoVeiled, b.city, b.distance, b.job, b.bio, b.height,
       b.intention, b.sect, b.prayer, b.ethnicity, b.halal,
       JSON.stringify(b.interests), JSON.stringify(b.values),
-      JSON.stringify(b.languages), JSON.stringify(b.prompts), b.verified, b.online
+      JSON.stringify(b.languages), JSON.stringify(b.prompts),
+      JSON.stringify(TAKES[b.name] || []), b.verified, b.online
     );
   }
 

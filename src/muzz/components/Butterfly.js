@@ -1,45 +1,39 @@
 import React, { useEffect } from 'react';
-import { View } from 'react-native';
-import Svg, { Path, Defs, LinearGradient as SvgGrad, Stop, Ellipse } from 'react-native-svg';
+import Svg, { Path, Rect } from 'react-native-svg';
 import Animated, {
   useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing, interpolate,
 } from 'react-native-reanimated';
+import { NiqabiFigure } from './Figures';
 
 const AView = Animated.View;
 
-// ─── The Matchmaker — a veiled niqabi silhouette ────────────────────
-// Veiled's mascot: a serene, veiled figure with a niqab eye-slit. Kept
-// under the original file/prop names so every call site (size, idle,
-// colorA→colorB gradient) updates in place.
+// ─── The Matchmaker mascot ──────────────────────────────────────────
+// An elegant veiled niqabi figure (see Figures.js) with a gentle,
+// serene idle motion. Kept under the original file/prop names so every
+// call site (size, idle, colorA→colorB gradient) works unchanged.
 
-// The veil silhouette: head + shoulders draped as a khimar/niqab bell.
-export const VEIL_PATH =
-  'M14 116 C 12 84 13 58 22 42 C 28 25 38 17 50 17 C 62 17 72 25 78 42 '
-  + 'C 87 58 88 84 86 116 Z';
-
-// Choose an eye-slit colour that contrasts with the veil fill.
-function eyeColorFor(hex) {
-  if (typeof hex !== 'string') return '#F5F5F6';
-  let h = hex.replace('#', '');
-  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
-  if (h.length !== 6) return '#F5F5F6';
-  const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
-  const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-  return lum > 140 ? '#1C1C20' : '#F2F2F4';
-}
-
-// Static glyph — used for tab bar / small marks.
+// Static glyph for the tab bar / small marks: the drape + eye veil.
 export function VeilGlyph({ size = 26, color = '#111' }) {
-  const eye = eyeColorFor(color);
+  const eye = (() => {
+    let h = (color || '').replace('#', '');
+    if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+    if (h.length !== 6) return '#F5F5F6';
+    const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+    return (0.299 * r + 0.587 * g + 0.114 * b) > 140 ? '#1C1C20' : '#F2F2F4';
+  })();
   return (
-    <Svg width={size} height={size} viewBox="0 0 100 118">
-      <Path d={VEIL_PATH} fill={color} />
-      <Path d="M35 49 Q50 43 65 49 Q50 55 35 49 Z" fill={eye} opacity={0.95} />
+    <Svg width={size} height={size} viewBox="0 0 100 120">
+      <Path
+        d="M50 8 C 33 8 23 21 20 39 C 17 57 15 88 12 118 L 88 118 C 85 88 83 57 80 39 C 77 21 67 8 50 8 Z"
+        fill={color}
+      />
+      <Rect x="30" y="38.5" width="40" height="13.5" rx="6.75" fill={eye} />
+      <Path d="M35.5 45.2 Q40.5 41.4 45.5 45.2 Q40.5 48.8 35.5 45.2 Z" fill={color} />
+      <Path d="M54.5 45.2 Q59.5 41.4 64.5 45.2 Q59.5 48.8 54.5 45.2 Z" fill={color} />
     </Svg>
   );
 }
 
-// Animated mascot — a gentle, calm bob + sway.
 export default function Butterfly({ size = 120, idle = true, colorA = '#2A2A2E', colorB = '#0E0E10' }) {
   const bob = useSharedValue(0);
 
@@ -55,38 +49,13 @@ export default function Butterfly({ size = 120, idle = true, colorA = '#2A2A2E',
   const container = useAnimatedStyle(() => ({
     transform: [
       { translateY: interpolate(bob.value, [0, 1], [0, -8]) },
-      { rotate: `${interpolate(bob.value, [0, 1], [-2, 2])}deg` },
+      { rotate: `${interpolate(bob.value, [0, 1], [-1.6, 1.6])}deg` },
     ],
   }));
 
-  const eye = eyeColorFor(colorA);
-  const w = size;
-
   return (
-    <AView style={[{ width: w, height: w, alignItems: 'center', justifyContent: 'center' }, container]}>
-      <Svg width={w * 0.82} height={w} viewBox="0 0 100 118">
-        <Defs>
-          <SvgGrad id="veilFill" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={colorA} />
-            <Stop offset="1" stopColor={colorB} />
-          </SvgGrad>
-        </Defs>
-        {/* Veil */}
-        <Path d={VEIL_PATH} fill="url(#veilFill)" />
-        {/* Soft inner drape fold for depth */}
-        <Path
-          d="M50 24 C 40 24 33 33 30 46 C 27 62 27 86 29 112"
-          stroke={eye} strokeOpacity={0.12} strokeWidth={2} fill="none"
-        />
-        <Path
-          d="M50 24 C 60 24 67 33 70 46 C 73 62 73 86 71 112"
-          stroke={eye} strokeOpacity={0.12} strokeWidth={2} fill="none"
-        />
-        {/* Niqab eye-slit */}
-        <Path d="M34 50 Q50 43 66 50 Q50 57 34 50 Z" fill={eye} opacity={0.95} />
-        <Ellipse cx="44" cy="50" rx="2.1" ry="2.4" fill={colorB} opacity={0.55} />
-        <Ellipse cx="56" cy="50" rx="2.1" ry="2.4" fill={colorB} opacity={0.55} />
-      </Svg>
+    <AView style={[{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }, container]}>
+      <NiqabiFigure width={size * 0.82} height={size} colorA={colorA} colorB={colorB} preserveAspectRatio="xMidYMid meet" />
     </AView>
   );
 }

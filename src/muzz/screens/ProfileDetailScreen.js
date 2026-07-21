@@ -15,9 +15,11 @@ const { width } = Dimensions.get('window');
 export default function ProfileDetailScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
   const { personId } = route.params;
-  const { me, matches, feedback, likePerson, passPerson, likesRemaining, isUnveiled } = useMuzz();
+  const { me, matches, feedback, likePerson, passPerson, likesRemaining, isUnveiled, markProfileRead } = useMuzz();
   const [photoIdx, setPhotoIdx] = React.useState(0);
   const person = getPerson(personId);
+  // Signals: opening a full profile counts as a genuine read.
+  React.useEffect(() => { if (person) markProfileRead(personId); }, [personId]);
   if (!person) return null;
   const photoCount = Math.max(1, Math.min(5, person.photos?.length || 3));
   const isMatch = matches.includes(personId);
@@ -41,7 +43,7 @@ export default function ProfileDetailScreen({ route, navigation }) {
       <ScrollView contentContainerStyle={{ paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
         {/* Hero photo gallery: tap left/right halves to flick through */}
         <PhotoTile
-          seed={person.id} name={person.name} rounded={0} silhouette={veiled ? 0 : 320}
+          seed={person.id} name={person.name} rounded={0} figure={veiled ? null : person.veil}
           uri={person.photos?.[photoIdx]} gradient={gradVariantFor(person.id, photoIdx)}
           style={{ height: width * 1.15 }}
           pattern
@@ -162,6 +164,33 @@ export default function ProfileDetailScreen({ route, navigation }) {
           </View>
         </Section>
 
+        {/* Friend's Take — family & friends vouch for her */}
+        {(person.friendTakes || []).length > 0 && (
+          <Section title="Friend's Take">
+            {(person.friendTakes || []).map((t, i) => (
+              <View key={i} style={styles.takeCard}>
+                {t.kind === 'voice' ? (
+                  <View style={styles.takeVoice}>
+                    <View style={styles.takePlay}><Ionicons name="play" size={15} color={M.textOnPrimary} /></View>
+                    <View style={styles.takeWave}>
+                      {[...Array(16)].map((_, j) => (
+                        <View key={j} style={[styles.takeBar, { height: 4 + ((j * 5) % 14) }]} />
+                      ))}
+                    </View>
+                    <Text style={styles.takeSecs}>0:{String(t.secs).padStart(2, '0')}</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.takeText}>“{t.text}”</Text>
+                )}
+                <View style={styles.takeBy}>
+                  <Ionicons name="people" size={13} color={M.textSoft} />
+                  <Text style={styles.takeByText}>{t.by} · {t.rel}</Text>
+                </View>
+              </View>
+            ))}
+          </Section>
+        )}
+
         {/* Prompts */}
         {(person.prompts || []).map((p, i) => (
           <Section key={i} title={p.q}>
@@ -255,6 +284,15 @@ const styles = StyleSheet.create({
   factValue: { ...TYPE.h3, fontSize: 15, marginTop: 2 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap' },
   promptA: { ...TYPE.h2, fontSize: 19, fontWeight: '700', lineHeight: 27, color: M.text },
+  takeCard: { backgroundColor: M.bgSoft, borderRadius: RADIUS.md, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: M.border },
+  takeText: { ...TYPE.body, fontSize: 15, lineHeight: 22, fontStyle: 'italic' },
+  takeVoice: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  takePlay: { width: 32, height: 32, borderRadius: 16, backgroundColor: M.primary, alignItems: 'center', justifyContent: 'center' },
+  takeWave: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 2.5 },
+  takeBar: { width: 2.5, borderRadius: 2, backgroundColor: M.primaryLight },
+  takeSecs: { ...TYPE.caption, fontWeight: '800' },
+  takeBy: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10 },
+  takeByText: { ...TYPE.caption, fontWeight: '700', color: M.textSoft },
   report: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 30 },
   reportText: { ...TYPE.soft, color: M.textMuted, fontWeight: '600' },
   actionBar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 18, paddingTop: 12, backgroundColor: M.bg, borderTopWidth: 1, borderTopColor: M.border },

@@ -20,8 +20,16 @@ const GRID_W = (width - SPACE.xl * 2 - 20) / 3;
 export default function ProfileScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const muzz = useMuzz();
-  const { me, matches, butterflyAuto, update, setMe, resetAll, addPhoto, removePhoto } = muzz;
+  const { me, matches, butterflyAuto, update, setMe, resetAll, addPhoto, removePhoto, chats, signalsReads } = muzz;
   const [edit, setEdit] = useState(false);
+  const [invited, setInvited] = useState(false);
+
+  // Signals: earned by reading full profiles and actually replying.
+  const reads = (signalsReads || []).length;
+  const convos = Object.keys(chats || {}).filter((id) => (chats[id] || []).some((m) => m.sender === 'me')).length;
+  const signalScore = reads + convos * 2;
+  const signalLevel = signalScore >= 12 ? 'Exemplary' : signalScore >= 7 ? 'Intentional' : signalScore >= 3 ? 'Attentive' : 'Getting started';
+  const signalNext = signalScore >= 12 ? null : signalScore >= 7 ? 12 : signalScore >= 3 ? 7 : 3;
   const [bio, setBio] = useState(me.bio);
   const [job, setJob] = useState(me.job);
   const [interests, setInterests] = useState(me.interests || []);
@@ -126,6 +134,37 @@ export default function ProfileScreen({ navigation }) {
             <Ionicons name="chevron-forward" size={20} color={M.textMuted} />
           </Pressable>
         )}
+
+        {/* Signals badge — rewards reading profiles & replying */}
+        <View style={styles.signals}>
+          <View style={styles.signalsHead}>
+            <View style={styles.signalsBadge}><Ionicons name="pulse" size={16} color={M.textOnPrimary} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.signalsTitle}>Signals · {signalLevel}</Text>
+              <Text style={styles.signalsSub}>Earned by reading profiles fully and replying to your matches</Text>
+            </View>
+          </View>
+          <View style={styles.signalsRow}>
+            <View style={styles.signalStat}><Text style={styles.signalVal}>{reads}</Text><Text style={styles.signalLabel}>Profiles read</Text></View>
+            <View style={styles.signalStat}><Text style={styles.signalVal}>{convos}</Text><Text style={styles.signalLabel}>Conversations</Text></View>
+            <View style={styles.signalStat}>
+              <Text style={styles.signalVal}>{signalNext ? `${signalScore}/${signalNext}` : '★'}</Text>
+              <Text style={styles.signalLabel}>{signalNext ? 'To next badge' : 'Top badge'}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Friend's Take — let people who love you vouch for you */}
+        <View style={styles.takeInvite}>
+          <View style={styles.takeInviteIcon}><Ionicons name="people" size={19} color={M.textOnPrimary} /></View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.takeInviteTitle}>Friend's Take</Text>
+            <Text style={styles.takeInviteSub}>Let family & friends add a note or voice message vouching for you — it shows on your profile.</Text>
+          </View>
+          <Pressable onPress={() => { setInvited(true); H.success(); }} style={styles.takeInviteBtn}>
+            <Text style={styles.takeInviteBtnText}>{invited ? 'Link copied ✓' : 'Invite'}</Text>
+          </Pressable>
+        </View>
 
         {/* Stats */}
         <View style={styles.stats}>
@@ -247,6 +286,21 @@ const styles = StyleSheet.create({
   verifyIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: M.primary, alignItems: 'center', justifyContent: 'center' },
   verifyTitle: { ...TYPE.h3, fontSize: 15 },
   verifySub: { ...TYPE.caption, marginTop: 2, lineHeight: 15 },
+  signals: { marginHorizontal: SPACE.xl, marginTop: 16, backgroundColor: M.bgSoft, borderRadius: RADIUS.lg, padding: 16, borderWidth: 1, borderColor: M.border },
+  signalsHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  signalsBadge: { width: 36, height: 36, borderRadius: 18, backgroundColor: M.primary, alignItems: 'center', justifyContent: 'center' },
+  signalsTitle: { ...TYPE.h3, fontSize: 15 },
+  signalsSub: { ...TYPE.caption, marginTop: 2, lineHeight: 15 },
+  signalsRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
+  signalStat: { flex: 1, backgroundColor: M.bg, borderRadius: RADIUS.md, paddingVertical: 10, alignItems: 'center', borderWidth: 1, borderColor: M.border },
+  signalVal: { fontSize: 17, fontWeight: '900', color: M.text },
+  signalLabel: { ...TYPE.caption, fontSize: 10.5, marginTop: 2, textAlign: 'center' },
+  takeInvite: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: SPACE.xl, marginTop: 12, backgroundColor: M.bgSoft, borderRadius: RADIUS.lg, padding: 14, borderWidth: 1, borderColor: M.border },
+  takeInviteIcon: { width: 38, height: 38, borderRadius: 19, backgroundColor: M.primary, alignItems: 'center', justifyContent: 'center' },
+  takeInviteTitle: { ...TYPE.h3, fontSize: 15 },
+  takeInviteSub: { ...TYPE.caption, marginTop: 2, lineHeight: 15 },
+  takeInviteBtn: { backgroundColor: M.primary, paddingHorizontal: 14, paddingVertical: 9, borderRadius: RADIUS.pill },
+  takeInviteBtnText: { color: M.textOnPrimary, fontWeight: '800', fontSize: 12.5 },
   stats: { flexDirection: 'row', gap: 12, paddingHorizontal: SPACE.xl, marginTop: 16 },
   stat: { flex: 1, backgroundColor: M.bgSoft, borderRadius: RADIUS.md, padding: 14, alignItems: 'center' },
   statVal: { fontSize: 22, fontWeight: '900', color: M.text, marginTop: 6 },

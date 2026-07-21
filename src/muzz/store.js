@@ -20,6 +20,7 @@ const initialState = {
   unveiled: {},        // { personId: true } — photos unveiled between us
   chaperones: {},      // { personId: { name } } — wali observing this chat
   rsvps: {},           // { eventId: true } — community events I'm attending
+  signalsReads: [],    // personIds whose full profile I've read (Signals)
   chats: {},           // { personId: [{id, text, sender, ts, read}] }
   posts: SOCIAL_SEED,
   postLikes: {},       // local like toggles for social posts
@@ -251,6 +252,11 @@ export function MuzzProvider({ children }) {
     [state.unveiled]
   );
 
+  // Signals: reward genuinely reading profiles (not skimming a deck).
+  const markProfileRead = useCallback((personId) => {
+    update((s) => (s.signalsReads.includes(personId) ? s : { ...s, signalsReads: [...s.signalsReads, personId] }));
+  }, [update]);
+
   const toggleRsvp = useCallback((eventId) => {
     update((s) => {
       const rsvps = { ...s.rsvps };
@@ -307,8 +313,8 @@ export function MuzzProvider({ children }) {
     sendMessage, togglePostLike, addPost, update, resetAll,
     likesRemaining, useInstantChat,
     addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson,
-    unveilFor, isUnveiled, setChaperone, toggleRsvp,
-  }), [state, hydrated, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, unveilFor, isUnveiled, setChaperone, toggleRsvp]);
+    unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead,
+  }), [state, hydrated, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead]);
 
   return <MuzzContext.Provider value={value}>{children}</MuzzContext.Provider>;
 }

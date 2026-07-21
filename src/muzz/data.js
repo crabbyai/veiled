@@ -63,6 +63,10 @@ export const PEOPLE = [
     ],
     sect: 'Sunni', prayerLevel: 'Usually prays', ethnicity: 'Arab', halalDiet: 'Always halal',
     height: `5'6"`, languages: ['English', 'Arabic'],
+    friendTakes: [
+      { by: 'Amina', rel: 'Best friend', kind: 'text', text: 'Layla remembers everything you tell her — your exam, your mum\'s surgery, all of it. Whoever marries her is winning.' },
+      { by: 'Umm Layla', rel: 'Mother', kind: 'voice', secs: 14 },
+    ],
   },
   {
     id: 'p2', name: 'Amara', age: 24, city: 'London', distance: 7,
@@ -93,6 +97,9 @@ export const PEOPLE = [
     ],
     sect: 'Sunni', prayerLevel: 'Always prays', ethnicity: 'South Asian', halalDiet: 'Always halal',
     height: `5'7"`, languages: ['English', 'Urdu'],
+    friendTakes: [
+      { by: 'Hafsa', rel: 'Hiking buddy', kind: 'text', text: 'She will genuinely wake you for fajr on a mountain and make it feel like a gift. 10/10.' },
+    ],
   },
   {
     id: 'p4', name: 'Yasmin', age: 25, city: 'London', distance: 2,
@@ -123,6 +130,10 @@ export const PEOPLE = [
     ],
     sect: 'Shia', prayerLevel: 'Always prays', ethnicity: 'Persian', halalDiet: 'Always halal',
     height: `5'3"`, languages: ['English', 'Arabic', 'Farsi'],
+    friendTakes: [
+      { by: 'Fatima', rel: 'Sister', kind: 'text', text: 'Noor\'s calligraphy is beautiful, but her character is more so. She is the calm in our family.' },
+      { by: 'Br. Hamza', rel: 'Brother & wali', kind: 'voice', secs: 11 },
+    ],
   },
   {
     id: 'p6', name: 'Hana', age: 23, city: 'London', distance: 5,
@@ -198,6 +209,9 @@ export const PEOPLE = [
     ],
     sect: 'Sunni', prayerLevel: 'Always prays', ethnicity: 'South Asian', halalDiet: 'Always halal',
     height: `5'4"`, languages: ['English', 'Gujarati'],
+    friendTakes: [
+      { by: 'Khadija', rel: 'Cousin', kind: 'voice', secs: 9 },
+    ],
   },
 ];
 
@@ -249,6 +263,7 @@ export const DEFAULT_ME = {
   languages: ['English'],
   prompts: [],
   photos: [],
+  friendTakes: [],
   sect: 'Sunni', prayerLevel: 'Usually prays', ethnicity: 'Other', halalDiet: 'Mostly halal',
   veil: null,            // set when a sister creates her profile: 'Hijab' | 'Niqab'
   photoVeiled: true,     // sisters' photos start veiled by default

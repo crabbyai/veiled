@@ -159,6 +159,7 @@ const ensure = (table, col, ddl) => {
   if (!cols(table).includes(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`);
 };
 ensure('dating_profiles', 'veil', 'veil TEXT');
+ensure('dating_profiles', 'friend_takes', "friend_takes TEXT DEFAULT '[]'");
 ensure('dating_profiles', 'photo_veiled', 'photo_veiled INTEGER DEFAULT 0');
 ensure('dating_matches', 'unveiled_a', 'unveiled_a INTEGER DEFAULT 0');
 ensure('dating_matches', 'unveiled_b', 'unveiled_b INTEGER DEFAULT 0');

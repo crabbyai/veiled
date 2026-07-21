@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { M, GRAD, RADIUS, SHADOW, gradFor } from '../theme';
 import { mediaUrl } from '../api';
 import { IslamicPattern } from './Pattern';
+import { VeilFigure } from './Figures';
 import * as H from '../haptics';
 
 // ── Photo surface ────────────────────────────────────────────────────
@@ -12,7 +13,7 @@ import * as H from '../haptics';
 // gradient with a soft person silhouette (`silhouette`) or initial.
 // `veiled` draws The Veil: a frosted layer that hides the photo until
 // she unveils it for a match (pass `veilLabel` to explain it inline).
-export function PhotoTile({ seed = '', name = '', style, rounded = RADIUS.lg, gradient, children, dim = false, silhouette, uri, veiled = false, veilLabel, pattern = false }) {
+export function PhotoTile({ seed = '', name = '', style, rounded = RADIUS.lg, gradient, children, dim = false, silhouette, uri, veiled = false, veilLabel, pattern = false, figure = null }) {
   const g = gradient || gradFor(seed || name);
   const initial = (name || '?').trim().charAt(0).toUpperCase();
   const src = uri ? mediaUrl(uri) : null;
@@ -29,7 +30,15 @@ export function PhotoTile({ seed = '', name = '', style, rounded = RADIUS.lg, gr
             start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFill}
           />
           {pattern && !veiled && <IslamicPattern color="#FFFFFF" opacity={0.06} tile={54} />}
-          {silhouette ? (
+          {figure && !veiled ? (
+            <View style={styles.figureWrap}>
+              <VeilFigure
+                veil={figure}
+                colorA="rgba(255,255,255,0.55)" colorB="rgba(255,255,255,0.28)"
+                face="#F2ECE4" line="rgba(0,0,0,0.18)"
+              />
+            </View>
+          ) : silhouette ? (
             <View style={styles.silhouette}>
               <Ionicons name="person" size={silhouette} color="rgba(255,255,255,0.20)" />
             </View>
@@ -149,6 +158,7 @@ export function Chip({ label, icon, active, onPress, color = M.primary }) {
 const styles = StyleSheet.create({
   center: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
   silhouette: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'flex-end', overflow: 'hidden' },
+  figureWrap: { position: 'absolute', left: '8%', right: '8%', top: '14%', bottom: 0 },
   initial: { color: 'rgba(255,255,255,0.92)', fontWeight: '800', fontSize: 22 },
   dot: {
     position: 'absolute', right: -1, bottom: -1, backgroundColor: M.online,

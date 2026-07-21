@@ -32,6 +32,13 @@ const PLANS = [
   { id: '12m', label: '12 months', price: '£9.99', per: '/mo', save: 'Save 67%' },
 ];
 
+// App Store safety: keep this false until real auto-renewable
+// subscriptions are configured in App Store Connect and wired through
+// react-native-iap. While false, no prices are shown and Gold is granted
+// as a free launch perk — showing prices without a real purchase flow is
+// a guideline 3.1.1 rejection.
+const IAP_ENABLED = false;
+
 export default function GoldScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { setMe } = useMuzz();
@@ -73,7 +80,7 @@ export default function GoldScreen({ navigation }) {
         </View>
 
         <View style={styles.plans}>
-          {PLANS.map((p) => (
+          {IAP_ENABLED && PLANS.map((p) => (
             <Pressable key={p.id} onPress={() => { setPlan(p.id); H.select(); }} style={[styles.plan, plan === p.id && styles.planActive]}>
               {p.best && <View style={styles.bestTag}><Text style={styles.bestText}>BEST VALUE</Text></View>}
               <View style={{ flex: 1 }}>
@@ -89,8 +96,13 @@ export default function GoldScreen({ navigation }) {
         </View>
 
         <View style={{ paddingHorizontal: SPACE.xl, marginTop: 20 }}>
-          <GButton label="Continue" gradient={GRAD.gold} onPress={subscribe} textStyle={{ color: '#16121C' }} />
-          <Text style={styles.terms}>Recurring billing · Cancel anytime · Terms apply</Text>
+          <GButton
+            label={IAP_ENABLED ? 'Continue' : 'Join Gold — free during launch'}
+            gradient={GRAD.gold} onPress={subscribe} textStyle={{ color: '#16121C' }}
+          />
+          <Text style={styles.terms}>
+            {IAP_ENABLED ? 'Recurring billing · Cancel anytime · Terms apply' : 'Gold is free while Veiled launches — paid plans coming later'}
+          </Text>
         </View>
       </ScrollView>
     </View>
