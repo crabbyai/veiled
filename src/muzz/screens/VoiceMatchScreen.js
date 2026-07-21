@@ -93,7 +93,7 @@ export default function VoiceMatchScreen({ navigation }) {
       {phase === 'intro' ? (
         <Animated.View entering={FadeIn} style={styles.intro}>
           <View style={styles.heroCard}>
-            <Image source={require('../../../assets/art/niqabi-hero.jpeg')} style={styles.heroArt} resizeMode="cover" />
+            <Image source={require('../../../assets/art/niqabi-hero.png')} style={styles.heroArt} resizeMode="cover" />
           </View>
           <Text style={styles.introTitle}>Tell me what you're{'\n'}looking for</Text>
           <Text style={styles.introSub}>
@@ -227,10 +227,10 @@ const styles = StyleSheet.create({
   subtitle: { ...TYPE.caption, marginTop: 1 },
   intro: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SPACE.xxl },
   heroCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 28, padding: 6,
+    backgroundColor: '#F2F2F4', borderRadius: 28,
     borderWidth: 1, borderColor: M.border, ...SHADOW.card, overflow: 'hidden',
   },
-  heroArt: { width: 150, height: 196, borderRadius: 23 },
+  heroArt: { width: 156, height: 204 },
   introTitle: { ...TYPE.h1, fontSize: 26, textAlign: 'center', marginTop: 16, lineHeight: 31 },
   introSub: { ...TYPE.soft, fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 12 },
   introPoints: { alignSelf: 'stretch', gap: 12, marginTop: 24 },

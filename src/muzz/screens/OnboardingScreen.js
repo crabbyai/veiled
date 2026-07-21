@@ -83,7 +83,7 @@ export default function OnboardingScreen() {
         {step === 0 && (
           <Animated.View entering={FadeIn} style={styles.welcome}>
             <View style={styles.heroCard}>
-              <Image source={require('../../../assets/art/niqabi-hero.jpeg')} style={styles.heroArt} resizeMode="cover" />
+              <Image source={require('../../../assets/art/niqabi-hero.png')} style={styles.heroArt} resizeMode="cover" />
             </View>
             <Text style={styles.logo}>veiled<Text style={{ color: M.butterfly }}>·ai</Text></Text>
             <Text style={styles.welcomeTitle}>Marriage, on her terms</Text>
@@ -281,10 +281,10 @@ const styles = StyleSheet.create({
   welcome: { alignItems: 'center', paddingTop: 10 },
   bfWrap: { height: 170, alignItems: 'center', justifyContent: 'center' },
   heroCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 28, padding: 6, marginBottom: 10,
+    backgroundColor: '#F2F2F4', borderRadius: 28, marginBottom: 12,
     borderWidth: 1, borderColor: M.border, ...SHADOW.card, overflow: 'hidden',
   },
-  heroArt: { width: 168, height: 220, borderRadius: 23 },
+  heroArt: { width: 176, height: 230 },
   logo: { fontSize: 34, fontWeight: '900', color: M.primary, letterSpacing: -1, marginTop: 4 },
   welcomeTitle: { ...TYPE.h1, fontSize: 26, textAlign: 'center', marginTop: 18 },
   welcomeSub: { ...TYPE.soft, fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 12, paddingHorizontal: 6 },
