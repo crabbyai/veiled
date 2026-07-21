@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Dimensions, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -92,7 +92,9 @@ export default function VoiceMatchScreen({ navigation }) {
 
       {phase === 'intro' ? (
         <Animated.View entering={FadeIn} style={styles.intro}>
-          <Butterfly size={140} />
+          <View style={styles.heroCard}>
+            <Image source={require('../../../assets/art/niqabi-hero.jpeg')} style={styles.heroArt} resizeMode="cover" />
+          </View>
           <Text style={styles.introTitle}>Tell me what you're{'\n'}looking for</Text>
           <Text style={styles.introSub}>
             Answer three questions in your own voice. I'll listen, then introduce you to one person — the one I'd pick for you myself.
@@ -224,6 +226,11 @@ const styles = StyleSheet.create({
   title: { ...TYPE.h3 },
   subtitle: { ...TYPE.caption, marginTop: 1 },
   intro: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SPACE.xxl },
+  heroCard: {
+    backgroundColor: '#FFFFFF', borderRadius: 28, padding: 6,
+    borderWidth: 1, borderColor: M.border, ...SHADOW.card, overflow: 'hidden',
+  },
+  heroArt: { width: 150, height: 196, borderRadius: 23 },
   introTitle: { ...TYPE.h1, fontSize: 26, textAlign: 'center', marginTop: 16, lineHeight: 31 },
   introSub: { ...TYPE.soft, fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 12 },
   introPoints: { alignSelf: 'stretch', gap: 12, marginTop: 24 },

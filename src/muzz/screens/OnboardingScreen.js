@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TextInput, Pressable, SafeAreaView, Dimensions,
+  View, Text, StyleSheet, ScrollView, TextInput, Pressable, SafeAreaView, Dimensions, Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -82,7 +82,9 @@ export default function OnboardingScreen() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {step === 0 && (
           <Animated.View entering={FadeIn} style={styles.welcome}>
-            <View style={styles.bfWrap}><Butterfly size={150} /></View>
+            <View style={styles.heroCard}>
+              <Image source={require('../../../assets/art/niqabi-hero.jpeg')} style={styles.heroArt} resizeMode="cover" />
+            </View>
             <Text style={styles.logo}>veiled<Text style={{ color: M.butterfly }}>·ai</Text></Text>
             <Text style={styles.welcomeTitle}>Marriage, on her terms</Text>
             <Text style={styles.welcomeSub}>
@@ -278,6 +280,11 @@ const styles = StyleSheet.create({
   scroll: { padding: SPACE.xl, paddingBottom: 30, flexGrow: 1 },
   welcome: { alignItems: 'center', paddingTop: 10 },
   bfWrap: { height: 170, alignItems: 'center', justifyContent: 'center' },
+  heroCard: {
+    backgroundColor: '#FFFFFF', borderRadius: 28, padding: 6, marginBottom: 10,
+    borderWidth: 1, borderColor: M.border, ...SHADOW.card, overflow: 'hidden',
+  },
+  heroArt: { width: 168, height: 220, borderRadius: 23 },
   logo: { fontSize: 34, fontWeight: '900', color: M.primary, letterSpacing: -1, marginTop: 4 },
   welcomeTitle: { ...TYPE.h1, fontSize: 26, textAlign: 'center', marginTop: 18 },
   welcomeSub: { ...TYPE.soft, fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: 12, paddingHorizontal: 6 },

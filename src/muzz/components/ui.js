@@ -35,7 +35,7 @@ export function PhotoTile({ seed = '', name = '', style, rounded = RADIUS.lg, gr
               <VeilFigure
                 veil={figure}
                 colorA="rgba(255,255,255,0.55)" colorB="rgba(255,255,255,0.28)"
-                line="rgba(0,0,0,0.20)"
+                face="#F2ECE4" line="rgba(0,0,0,0.18)"
               />
             </View>
           ) : silhouette ? (
