@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,7 +15,7 @@ const { width } = Dimensions.get('window');
 export default function ProfileDetailScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
   const { personId } = route.params;
-  const { me, matches, feedback, likePerson, passPerson, likesRemaining, isUnveiled, markProfileRead } = useMuzz();
+  const { me, matches, feedback, likePerson, passPerson, likesRemaining, isUnveiled, markProfileRead, reportPerson, blockPerson } = useMuzz();
   const [photoIdx, setPhotoIdx] = React.useState(0);
   const person = getPerson(personId);
   // Signals: opening a full profile counts as a genuine read.
@@ -37,6 +37,21 @@ export default function ProfileDetailScreen({ route, navigation }) {
     navigation.replace('MuzzMatchReveal', { personId, score: compat.score });
   };
   const onPass = () => { passPerson(personId); H.tap(); navigation.goBack(); };
+
+  // Report or block — files a moderation report and removes the profile.
+  const onReport = () => {
+    H.tap();
+    const done = (msg) => { navigation.goBack(); setTimeout(() => Alert.alert('Thank you', msg), 250); };
+    Alert.alert(
+      `Report or block ${person.name}?`,
+      'This sends a report to our moderation team. You can also block so you never see each other again.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Report', onPress: () => { reportPerson(personId, 'inappropriate'); done('Your report has been sent to our team.'); } },
+        { text: 'Block', style: 'destructive', onPress: () => { blockPerson(personId, 'Blocked from profile'); done(`You won't see ${person.name} again.`); } },
+      ],
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -198,7 +213,7 @@ export default function ProfileDetailScreen({ route, navigation }) {
           </Section>
         ))}
 
-        <Pressable onPress={H.tap} style={styles.report}>
+        <Pressable onPress={onReport} style={styles.report}>
           <Ionicons name="flag-outline" size={16} color={M.textMuted} />
           <Text style={styles.reportText}>Report or block</Text>
         </Pressable>

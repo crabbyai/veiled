@@ -48,7 +48,8 @@ Set `JWT_SECRET` in production. Mount a volume for `DB_PATH` and
 - `GET|PUT /api/dating/profile` (women must carry `veil: "Hijab"|"Niqab"`)
 - `GET /api/dating/discover[?veil=Hijab|Niqab]` — butterfly-ranked candidates
 - `GET /api/dating/butterfly/pick`
-- `POST /api/dating/swipe|super-like|instant-chat|boost|block`
+- `POST /api/dating/swipe|super-like|instant-chat|boost|block|report`
+  (`report` files a moderation report — required for App Store UGC review)
 - `GET /api/dating/likes-you`
 - `GET /api/dating/matches`, `GET|POST /api/dating/matches/:id/messages`
 - `POST /api/dating/matches/:id/unveil` — lift The Veil for one match (emits `unveil` + push)
@@ -56,5 +57,18 @@ Set `JWT_SECRET` in production. Mount a volume for `DB_PATH` and
 - `POST|DELETE /api/dating/photos` — veiled photos are only served to
   matches you've unveiled for
 - `GET|POST /api/dating/social/posts`, likes + comments
+- Friend's Take (vouches):
+  - `POST /api/dating/friend-takes/invite` — mint a shareable link
+  - `GET /api/dating/friend-takes/invite/:token` — public preview (no auth)
+  - `POST /api/dating/friend-takes/invite/:token` — friend submits a vouch (no auth)
+- Signals (engagement rewards):
+  - `GET /api/dating/signals` — your score + badge tier
+  - `POST /api/dating/signals/read` — credit reading a full profile
+  - `POST /api/dating/signals/reply` — credit replying in a match
 - `POST /api/dating/push-token`
-- Socket.IO: `message:new`, `match:new`, `unveil`, `typing`, `presence`
+- Socket.IO: `message:new`, `match:new`, `unveil`, `typing`, `presence`,
+  `friendtake:new`
+
+In production the server refuses to boot on the built-in dev
+`JWT_SECRET`; set a strong secret. `trust proxy` is enabled so rate
+limiting sees the real client IP behind a load balancer.

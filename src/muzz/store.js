@@ -255,6 +255,7 @@ export function MuzzProvider({ children }) {
   // Signals: reward genuinely reading profiles (not skimming a deck).
   const markProfileRead = useCallback((personId) => {
     update((s) => (s.signalsReads.includes(personId) ? s : { ...s, signalsReads: [...s.signalsReads, personId] }));
+    api.mirror(() => api.signalRead(personId));
   }, [update]);
 
   const toggleRsvp = useCallback((eventId) => {
@@ -293,6 +294,17 @@ export function MuzzProvider({ children }) {
     api.mirror(() => api.block(personId, reason));
   }, [update]);
 
+  // Safety: report to moderation. Reporting also removes them from view.
+  const reportPerson = useCallback((personId, reason = 'other', detail = null) => {
+    update((s) => ({
+      ...s,
+      matches: s.matches.filter((id) => id !== personId),
+      feedback: { ...s.feedback, [personId]: 'passed' },
+      seen: s.seen.includes(personId) ? s.seen : [...s.seen, personId],
+    }));
+    api.mirror(() => api.report(personId, { reason, detail }));
+  }, [update]);
+
   const togglePostLike = useCallback((postId) => {
     update((s) => {
       const cur = s.postLikes[postId];
@@ -312,9 +324,9 @@ export function MuzzProvider({ children }) {
     setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen,
     sendMessage, togglePostLike, addPost, update, resetAll,
     likesRemaining, useInstantChat,
-    addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson,
+    addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson,
     unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead,
-  }), [state, hydrated, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead]);
+  }), [state, hydrated, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson, unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead]);
 
   return <MuzzContext.Provider value={value}>{children}</MuzzContext.Provider>;
 }

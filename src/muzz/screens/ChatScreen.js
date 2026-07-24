@@ -21,7 +21,7 @@ export default function ChatScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
   const { personId } = route.params;
   const muzz = useMuzz();
-  const { me, chats, sendMessage, update, reactions, reactToMessage, blockPerson, chaperones, setChaperone, isUnveiled, unveilFor } = muzz;
+  const { me, chats, sendMessage, update, reactions, reactToMessage, reportPerson, chaperones, setChaperone, isUnveiled, unveilFor } = muzz;
   const person = getPerson(personId);
   const messages = chats[personId] || [];
   const listRef = useRef(null);
@@ -155,7 +155,7 @@ export default function ChatScreen({ route, navigation }) {
 
   const blockAndLeave = () => {
     setMenuOpen(false);
-    blockPerson(personId, 'Reported from chat');
+    reportPerson(personId, 'harassment', 'Reported from chat');
     H.warn();
     navigation.goBack();
   };

@@ -151,6 +151,48 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_dating_messages_match ON dating_messages(match_id, created_at);
   CREATE INDEX IF NOT EXISTS idx_dating_posts_date ON dating_posts(created_at);
   CREATE INDEX IF NOT EXISTS idx_dating_photos_user ON dating_photos(user_id, position);
+
+  -- ── Safety: reports ────────────────────────────────────────────────
+  -- User- and content-level reports for moderation review.
+  CREATE TABLE IF NOT EXISTS dating_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    reporter_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    target_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL DEFAULT 'profile',   -- profile | message | post | photo
+    ref_id INTEGER,                          -- id of the offending message/post/photo
+    reason TEXT NOT NULL DEFAULT 'other',
+    detail TEXT,
+    status TEXT NOT NULL DEFAULT 'open',     -- open | reviewed | actioned | dismissed
+    created_at INTEGER DEFAULT (strftime('%s','now') * 1000)
+  );
+
+  -- ── Friend's Take: vouch invites ───────────────────────────────────
+  -- A member generates a shareable token; a friend/family member opens
+  -- it and submits a vouch without needing an account.
+  CREATE TABLE IF NOT EXISTS dating_friend_take_invites (
+    token TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    relationship TEXT,                       -- suggested relationship, optional
+    used_at INTEGER,                         -- filled when a take is submitted
+    expires_at INTEGER,
+    created_at INTEGER DEFAULT (strftime('%s','now') * 1000)
+  );
+
+  -- ── Signals: reward genuine engagement ─────────────────────────────
+  -- One row per (reader → profile) read event, plus reply credits. The
+  -- score is derived; a UNIQUE key keeps a single read per profile.
+  CREATE TABLE IF NOT EXISTS dating_signals (
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL DEFAULT 'read',       -- read | reply
+    ref_id INTEGER NOT NULL,                  -- profile read / match replied to
+    points INTEGER NOT NULL DEFAULT 1,
+    created_at INTEGER DEFAULT (strftime('%s','now') * 1000),
+    UNIQUE(user_id, kind, ref_id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_dating_reports_target ON dating_reports(target_id, status);
+  CREATE INDEX IF NOT EXISTS idx_dating_fti_user ON dating_friend_take_invites(user_id);
+  CREATE INDEX IF NOT EXISTS idx_dating_signals_user ON dating_signals(user_id);
 `);
 
 // ── Lightweight migrations for columns added after initial release ────

@@ -27,6 +27,12 @@ const upload = multer({
 const photosFor = (userId) =>
   db.prepare('SELECT id, url, position FROM dating_photos WHERE user_id = ? ORDER BY position ASC, id ASC').all(userId);
 
+// Coerce an incoming id (server int, or a mapped string) to an integer.
+const toInt = (v) => {
+  const n = parseInt(v, 10);
+  return Number.isNaN(n) ? 0 : n;
+};
+
 const FREE_LIKES_PER_WINDOW = 5;
 const LIKE_WINDOW_MS = 12 * 3600000;
 const FREE_INSTANT_CHATS_PER_DAY = 1;
@@ -693,6 +699,175 @@ router.post('/push-token', authenticate, (req, res) => {
 });
 
 // ── Safety: block & report ───────────────────────────────────────────
+
+const REPORT_REASONS = new Set([
+  'inappropriate', 'harassment', 'fake', 'spam', 'nudity', 'underage', 'scam', 'other',
+]);
+const REPORT_KINDS = new Set(['profile', 'message', 'post', 'photo']);
+
+// POST /api/dating/report { targetId, kind, refId, reason, detail }
+// Files a moderation report against a user or a specific piece of content.
+router.post('/report', authenticate, (req, res) => {
+  try {
+    const { targetId, kind = 'profile', refId = null, reason = 'other', detail = null } = req.body || {};
+    if (!targetId && !refId) return res.status(400).json({ error: 'targetId or refId required' });
+    const k = REPORT_KINDS.has(kind) ? kind : 'profile';
+    const r = REPORT_REASONS.has(reason) ? reason : 'other';
+    const tId = targetId ? toInt(targetId) : null;
+    const info = db.prepare(`
+      INSERT INTO dating_reports (reporter_id, target_id, kind, ref_id, reason, detail)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(req.userId, tId, k, refId ? toInt(refId) : null, r, detail ? String(detail).slice(0, 1000) : null);
+    res.status(201).json({ ok: true, reportId: info.lastInsertRowid });
+  } catch (err) {
+    console.error('Report error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ── Friend's Take: vouch invites ─────────────────────────────────────
+// A member generates a shareable link; a friend or family member opens
+// it and submits a short vouch (with an optional voice note) — no
+// account needed. Vouches attach to the member's profile.
+
+const publicTake = (row) => ({
+  author: row.author, relationship: row.relationship, text: row.text,
+  voiceUrl: row.voiceUrl || null, createdAt: row.createdAt,
+});
+
+// POST /api/dating/friend-takes/invite { relationship? } — generate a link
+router.post('/friend-takes/invite', authenticate, (req, res) => {
+  try {
+    const { relationship = null } = req.body || {};
+    const token = uuidv4().replace(/-/g, '');
+    const expires = Date.now() + 30 * 24 * 3600000; // 30 days
+    db.prepare(`
+      INSERT INTO dating_friend_take_invites (token, user_id, relationship, expires_at)
+      VALUES (?, ?, ?, ?)
+    `).run(token, req.userId, relationship, expires);
+    res.status(201).json({ ok: true, token, path: `/vouch/${token}`, expiresAt: expires });
+  } catch (err) {
+    console.error('Invite error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/dating/friend-takes/invite/:token — public preview (no auth)
+// Shows the friend who they're vouching for, without exposing photos.
+router.get('/friend-takes/invite/:token', (req, res) => {
+  try {
+    const inv = db.prepare('SELECT * FROM dating_friend_take_invites WHERE token = ?').get(req.params.token);
+    if (!inv) return res.status(404).json({ error: 'Invite not found' });
+    if (inv.expires_at && inv.expires_at < Date.now()) return res.status(410).json({ error: 'Invite expired' });
+    if (inv.used_at) return res.status(410).json({ error: 'Invite already used' });
+    const p = db.prepare('SELECT name, veil, city FROM dating_profiles WHERE user_id = ?').get(inv.user_id);
+    if (!p) return res.status(404).json({ error: 'Profile not found' });
+    res.json({ name: p.name, veil: p.veil, city: p.city, relationship: inv.relationship });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/dating/friend-takes/invite/:token — submit a vouch (no auth)
+// { author, relationship, text, voiceUrl? }
+router.post('/friend-takes/invite/:token', (req, res) => {
+  try {
+    const inv = db.prepare('SELECT * FROM dating_friend_take_invites WHERE token = ?').get(req.params.token);
+    if (!inv) return res.status(404).json({ error: 'Invite not found' });
+    if (inv.expires_at && inv.expires_at < Date.now()) return res.status(410).json({ error: 'Invite expired' });
+    if (inv.used_at) return res.status(410).json({ error: 'Invite already used' });
+
+    const { author, relationship, text, voiceUrl } = req.body || {};
+    const clean = (v, n) => (v == null ? '' : String(v).trim().slice(0, n));
+    const take = {
+      author: clean(author, 60) || 'A friend',
+      relationship: clean(relationship || inv.relationship, 40) || 'Friend',
+      text: clean(text, 500),
+      voiceUrl: voiceUrl ? clean(voiceUrl, 500) : null,
+      createdAt: Date.now(),
+    };
+    if (!take.text && !take.voiceUrl) return res.status(400).json({ error: 'A note or voice vouch is required' });
+
+    const row = db.prepare('SELECT friend_takes FROM dating_profiles WHERE user_id = ?').get(inv.user_id);
+    if (!row) return res.status(404).json({ error: 'Profile not found' });
+    const takes = JSON.parse(row.friend_takes || '[]');
+    takes.push(take);
+    db.prepare('UPDATE dating_profiles SET friend_takes = ?, updated_at = ? WHERE user_id = ?')
+      .run(JSON.stringify(takes), Date.now(), inv.user_id);
+    db.prepare('UPDATE dating_friend_take_invites SET used_at = ? WHERE token = ?').run(Date.now(), inv.token);
+
+    emitToUser(inv.user_id, 'friendtake:new', { take: publicTake(take) });
+    sendPush(inv.user_id, 'A new vouch 💬', `${take.author} shared a Friend's Take on your profile`, {});
+    res.status(201).json({ ok: true });
+  } catch (err) {
+    console.error('Vouch error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ── Signals: reward genuine engagement ───────────────────────────────
+// Reading a full profile earns 1 signal; replying in a match earns 2.
+// The score drives a badge tier the app shows on your profile.
+
+const SIGNAL_POINTS = { read: 1, reply: 2 };
+const signalBadge = (score) =>
+  score >= 60 ? 'Radiant' : score >= 30 ? 'Attentive' : score >= 10 ? 'Present' : 'New';
+
+const signalsSummary = (userId) => {
+  const rows = db.prepare(
+    "SELECT kind, SUM(points) AS pts, COUNT(*) AS n FROM dating_signals WHERE user_id = ? GROUP BY kind"
+  ).all(userId);
+  let score = 0, reads = 0, replies = 0;
+  for (const r of rows) {
+    score += r.pts;
+    if (r.kind === 'read') reads = r.n;
+    else if (r.kind === 'reply') replies = r.n;
+  }
+  return { score, reads, replies, badge: signalBadge(score) };
+};
+
+const recordSignal = (userId, kind, refId) => {
+  const points = SIGNAL_POINTS[kind] || 1;
+  return db.prepare(`
+    INSERT INTO dating_signals (user_id, kind, ref_id, points) VALUES (?, ?, ?, ?)
+    ON CONFLICT(user_id, kind, ref_id) DO NOTHING
+  `).run(userId, kind, toInt(refId), points).changes > 0;
+};
+
+// GET /api/dating/signals — my signals score + badge
+router.get('/signals', authenticate, (req, res) => {
+  try {
+    res.json(signalsSummary(req.userId));
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/dating/signals/read { profileId } — credit a genuine read
+router.post('/signals/read', authenticate, (req, res) => {
+  try {
+    const { profileId } = req.body || {};
+    if (!profileId) return res.status(400).json({ error: 'profileId required' });
+    const pid = toInt(profileId);
+    if (pid === req.userId) return res.json(signalsSummary(req.userId));
+    const awarded = recordSignal(req.userId, 'read', pid);
+    res.json({ ...signalsSummary(req.userId), awarded });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/dating/signals/reply { matchId } — credit a real reply
+router.post('/signals/reply', authenticate, (req, res) => {
+  try {
+    const { matchId } = req.body || {};
+    if (!matchId) return res.status(400).json({ error: 'matchId required' });
+    const awarded = recordSignal(req.userId, 'reply', toInt(matchId));
+    res.json({ ...signalsSummary(req.userId), awarded });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
 // POST /api/dating/block { targetId, reason }
 router.post('/block', authenticate, (req, res) => {

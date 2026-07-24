@@ -12,8 +12,20 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+// In production, refuse to boot with the built-in dev JWT secret — a
+// predictable secret would let anyone forge auth tokens.
+if (process.env.NODE_ENV === 'production' &&
+    (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'veiled-dev-secret')) {
+  console.error('FATAL: set a strong JWT_SECRET before running in production');
+  process.exit(1);
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Behind a proxy/load balancer (Fly, Render, etc.) so rate limiting and
+// secure cookies read the real client IP from X-Forwarded-For.
+app.set('trust proxy', 1);
 
 // ---- Middleware ----
 

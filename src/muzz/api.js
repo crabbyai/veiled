@@ -124,6 +124,32 @@ export const block = (targetId, reason) =>
   request('/dating/block', { method: 'POST', body: { targetId: toServerId(targetId), reason } });
 export const deletePhoto = (photoId) => request(`/dating/photos/${photoId}`, { method: 'DELETE' });
 
+// ── Safety: report ───────────────────────────────────────────────────
+export const report = (targetId, { kind = 'profile', refId = null, reason = 'other', detail = null } = {}) =>
+  request('/dating/report', {
+    method: 'POST',
+    body: { targetId: targetId ? toServerId(targetId) : null, kind, refId, reason, detail },
+  });
+
+// ── Friend's Take: vouch invites ─────────────────────────────────────
+// Member creates a shareable link; a friend opens it (public preview),
+// then submits a vouch — no account needed.
+export const createVouchInvite = (relationship) =>
+  request('/dating/friend-takes/invite', { method: 'POST', body: { relationship } });
+export const getVouchInvite = (token) =>
+  request(`/dating/friend-takes/invite/${token}`, { auth: false });
+export const submitVouch = (token, { author, relationship, text, voiceUrl } = {}) =>
+  request(`/dating/friend-takes/invite/${token}`, {
+    method: 'POST', auth: false, body: { author, relationship, text, voiceUrl },
+  });
+
+// ── Signals ──────────────────────────────────────────────────────────
+export const getSignals = () => request('/dating/signals');
+export const signalRead = (profileId) =>
+  request('/dating/signals/read', { method: 'POST', body: { profileId: toServerId(profileId) } });
+export const signalReply = (matchId) =>
+  request('/dating/signals/reply', { method: 'POST', body: { matchId } });
+
 // Upload a local photo (uri from image picker) as multipart form data.
 export async function uploadPhoto(uri) {
   if (!BASE) throw new Error('API not configured');
