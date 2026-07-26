@@ -33,6 +33,18 @@ const toInt = (v) => {
   return Number.isNaN(n) ? 0 : n;
 };
 
+// SQL fragment: candidate `p.user_id` is hidden if a block exists in
+// EITHER direction with the viewer. Append `me, me` to the params.
+const NOT_BLOCKED = `
+  AND p.user_id NOT IN (SELECT blocked_id FROM dating_blocks WHERE user_id = ?)
+  AND p.user_id NOT IN (SELECT user_id FROM dating_blocks WHERE blocked_id = ?)`;
+
+// True if either user has blocked the other — gates matching & messaging.
+const isBlockedPair = (a, b) =>
+  !!db.prepare(
+    'SELECT 1 FROM dating_blocks WHERE (user_id = ? AND blocked_id = ?) OR (user_id = ? AND blocked_id = ?)'
+  ).get(a, b, b, a);
+
 const FREE_LIKES_PER_WINDOW = 5;
 const LIKE_WINDOW_MS = 12 * 3600000;
 const FREE_INSTANT_CHATS_PER_DAY = 1;
@@ -256,8 +268,8 @@ router.get('/discover', authenticate, (req, res) => {
       WHERE p.user_id != ?
         AND p.gender != ?
         AND p.user_id NOT IN (SELECT target_id FROM dating_swipes WHERE user_id = ?)
-        AND p.user_id NOT IN (SELECT blocked_id FROM dating_blocks WHERE user_id = ?)
-    `).all(req.userId, me.gender, req.userId, req.userId);
+        ${NOT_BLOCKED}
+    `).all(req.userId, me.gender, req.userId, req.userId, req.userId);
     const veilFilter = req.query.veil;
     const ranked = rows
       .map((r) => parseProfile(r, req.userId))
@@ -287,7 +299,8 @@ router.get('/butterfly/pick', authenticate, (req, res) => {
       SELECT p.* FROM dating_profiles p
       WHERE p.user_id != ? AND p.gender != ?
         AND p.user_id NOT IN (SELECT target_id FROM dating_swipes WHERE user_id = ?)
-    `).all(req.userId, me.gender, req.userId);
+        ${NOT_BLOCKED}
+    `).all(req.userId, me.gender, req.userId, req.userId, req.userId);
     const ranked = rows.map((r) => parseProfile(r, req.userId)).map((person) => ({ person, ...scoreMatch(me, person) }))
       .sort((x, y) => y.score - x.score);
     if (!ranked.length) return res.json({ pick: null });
@@ -307,6 +320,9 @@ router.post('/swipe', authenticate, (req, res) => {
     }
     const me = getProfile(req.userId);
     if (!me) return res.status(400).json({ error: 'Create your profile first' });
+    if (isBlockedPair(req.userId, toInt(targetId))) {
+      return res.status(403).json({ error: 'Unavailable' });
+    }
 
     if (action === 'like') {
       const remaining = likesRemaining(req.userId, me.gold);
@@ -350,6 +366,9 @@ router.post('/instant-chat', authenticate, (req, res) => {
     if (!targetId) return res.status(400).json({ error: 'targetId required' });
     const me = getProfile(req.userId);
     if (!me) return res.status(400).json({ error: 'Create your profile first' });
+    if (isBlockedPair(req.userId, toInt(targetId))) {
+      return res.status(403).json({ error: 'Unavailable' });
+    }
 
     const today = new Date().toDateString();
     const lim = getLimits(req.userId);
@@ -380,7 +399,8 @@ router.get('/likes-you', authenticate, (req, res) => {
           SELECT CASE WHEN user_a = ? THEN user_b ELSE user_a END
           FROM dating_matches WHERE user_a = ? OR user_b = ?
         )
-    `).all(req.userId, req.userId, req.userId, req.userId);
+        ${NOT_BLOCKED}
+    `).all(req.userId, req.userId, req.userId, req.userId, req.userId, req.userId);
     const people = rows.map((r) => parseProfile(r, req.userId));
     res.json({
       count: people.length,
@@ -461,10 +481,21 @@ router.get('/matches/:id/messages', authenticate, (req, res) => {
     db.prepare(
       'UPDATE dating_messages SET read_at = ? WHERE match_id = ? AND sender_id != ? AND read_at IS NULL'
     ).run(Date.now(), m.id, req.userId);
-    const messages = db.prepare(
-      'SELECT id, sender_id AS senderId, body, read_at AS readAt, created_at AS ts FROM dating_messages WHERE match_id = ? ORDER BY created_at ASC'
-    ).all(m.id);
-    res.json({ messages });
+    // Paginate newest-first, then return ascending so the client can
+    // scroll back through history. The cursor is the message id (not the
+    // timestamp) so rows written in the same millisecond still page
+    // cleanly: ?before=<id>&limit=<n> (max 100).
+    const limit = Math.min(100, Math.max(1, toInt(req.query.limit) || 50));
+    const before = req.query.before ? toInt(req.query.before) : null;
+    const rows = before
+      ? db.prepare(
+          'SELECT id, sender_id AS senderId, body, read_at AS readAt, created_at AS ts FROM dating_messages WHERE match_id = ? AND id < ? ORDER BY id DESC LIMIT ?'
+        ).all(m.id, before, limit)
+      : db.prepare(
+          'SELECT id, sender_id AS senderId, body, read_at AS readAt, created_at AS ts FROM dating_messages WHERE match_id = ? ORDER BY id DESC LIMIT ?'
+        ).all(m.id, limit);
+    const messages = rows.reverse();
+    res.json({ messages, hasMore: rows.length === limit });
   } catch (err) {
     console.error('Messages error:', err);
     res.status(500).json({ error: 'Server error' });
@@ -476,20 +507,27 @@ router.post('/matches/:id/messages', authenticate, (req, res) => {
   try {
     const { body } = req.body || {};
     if (!body || !body.trim()) return res.status(400).json({ error: 'Message body required' });
+    const text = body.trim().slice(0, 2000);
     const m = db.prepare('SELECT * FROM dating_matches WHERE id = ?').get(req.params.id);
     if (!m || (m.user_a !== req.userId && m.user_b !== req.userId)) {
       return res.status(404).json({ error: 'Match not found' });
     }
+    const otherId = m.user_a === req.userId ? m.user_b : m.user_a;
+    if (isBlockedPair(req.userId, otherId)) {
+      return res.status(403).json({ error: 'This conversation is no longer available' });
+    }
     const r = db.prepare(
       'INSERT INTO dating_messages (match_id, sender_id, body) VALUES (?, ?, ?)'
-    ).run(m.id, req.userId, body.trim());
-    const message = { id: r.lastInsertRowid, senderId: req.userId, body: body.trim(), ts: Date.now() };
+    ).run(m.id, req.userId, text);
+    const message = { id: r.lastInsertRowid, senderId: req.userId, body: text, ts: Date.now() };
+    // Signals: a genuine reply in a conversation earns credit (deduped
+    // per match), rewarding real back-and-forth over drive-by likes.
+    recordSignal(req.userId, 'reply', m.id);
     // Live-deliver to the other participant; push if they're offline
-    const otherId = m.user_a === req.userId ? m.user_b : m.user_a;
     emitToUser(otherId, 'message:new', { matchId: m.id, message });
     if (!isOnline(otherId)) {
       const sender = getProfile(req.userId, otherId);
-      sendPush(otherId, sender ? sender.name : 'New message', body.trim().slice(0, 120), { matchId: m.id });
+      sendPush(otherId, sender ? sender.name : 'New message', text.slice(0, 120), { matchId: m.id });
     }
     res.status(201).json({ message });
   } catch (err) {

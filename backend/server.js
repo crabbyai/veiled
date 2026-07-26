@@ -66,9 +66,101 @@ seedDating();
 app.use('/api/auth', authRoutes);
 app.use('/api/dating', datingRoutes);
 
-// Health check
+// Health check — also probes the database so load balancers can tell a
+// live-but-broken instance from a healthy one.
+const db = require('./db');
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', app: 'veiled', timestamp: Date.now(), version: '1.0.0' });
+  let dbOk = false;
+  try { dbOk = db.prepare('SELECT 1 AS ok').get().ok === 1; } catch { dbOk = false; }
+  res.status(dbOk ? 200 : 503).json({
+    status: dbOk ? 'ok' : 'degraded', app: 'veiled', db: dbOk,
+    timestamp: Date.now(), version: '1.0.0',
+  });
+});
+
+// ── Friend's Take: public vouch page ─────────────────────────────────
+// The shareable link a member sends to family/friends. It's a tiny
+// self-contained page that reads the invite preview and submits a vouch
+// through the public API — no app install or account required.
+app.get('/vouch/:token', (req, res) => {
+  const token = String(req.params.token).replace(/[^a-zA-Z0-9]/g, '');
+  res.type('html').send(`<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vouch on Veiled</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background:#0E0E10; color:#F2ECE4; display:flex; min-height:100vh; align-items:center; justify-content:center; padding:24px; }
+  .card { width:100%; max-width:440px; background:#17171A; border:1px solid #2A2A2E; border-radius:24px; padding:28px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  p.sub { color:#A6A0A8; margin:0 0 22px; font-size:15px; line-height:1.4; }
+  label { display:block; font-size:13px; font-weight:700; margin:16px 0 6px; color:#C9C3CB; }
+  input, textarea, select { width:100%; padding:13px 14px; border-radius:14px; border:1px solid #2A2A2E;
+    background:#0E0E10; color:#F2ECE4; font-size:15px; font-family:inherit; }
+  textarea { min-height:110px; resize:vertical; }
+  button { width:100%; margin-top:22px; padding:15px; border:0; border-radius:999px; font-size:16px; font-weight:800;
+    color:#111; background:linear-gradient(90deg,#EBE4D8,#C9BFA9); cursor:pointer; }
+  button:disabled { opacity:.5; }
+  .ok, .err { text-align:center; padding:8px; border-radius:12px; margin-top:16px; font-size:14px; display:none; }
+  .ok { background:#14361f; color:#8fe0aa; } .err { background:#3a1414; color:#e08f8f; }
+  .done { text-align:center; }
+</style></head>
+<body>
+  <div class="card" id="card">
+    <div id="form-wrap">
+      <h1 id="title">A word for someone you love</h1>
+      <p class="sub" id="sub">Loading…</p>
+      <div id="form" style="display:none">
+        <label>Your name</label>
+        <input id="author" maxlength="60" placeholder="e.g. Aisha" />
+        <label>How you know them</label>
+        <input id="relationship" maxlength="40" placeholder="e.g. Sister, close friend" />
+        <label>Your vouch</label>
+        <textarea id="text" maxlength="500" placeholder="Share honestly what makes them a wonderful person to marry."></textarea>
+        <button id="submit">Send vouch</button>
+        <div class="ok" id="ok">Thank you — your vouch has been added. 🤍</div>
+        <div class="err" id="err"></div>
+      </div>
+    </div>
+  </div>
+<script>
+  var token = ${JSON.stringify(token)};
+  var base = '/api/dating/friend-takes/invite/' + token;
+  var sub = document.getElementById('sub'), form = document.getElementById('form');
+  var title = document.getElementById('title');
+  fetch(base).then(function(r){ return r.json().then(function(d){ return { ok:r.ok, d:d }; }); })
+    .then(function(res){
+      if (!res.ok) { sub.textContent = res.d.error || 'This invite is no longer valid.'; return; }
+      title.textContent = 'Vouch for ' + res.d.name;
+      sub.textContent = 'You have been asked to share a Friend\\'s Take on ' + res.d.name +
+        (res.d.city ? ' in ' + res.d.city : '') + '. It will appear on their Veiled profile.';
+      if (res.d.relationship) document.getElementById('relationship').value = res.d.relationship;
+      form.style.display = 'block';
+    })
+    .catch(function(){ sub.textContent = 'Something went wrong loading this invite.'; });
+
+  document.getElementById('submit') && document.getElementById('submit').addEventListener('click', function(){
+    var btn = this, ok = document.getElementById('ok'), err = document.getElementById('err');
+    err.style.display = 'none';
+    var payload = {
+      author: document.getElementById('author').value.trim(),
+      relationship: document.getElementById('relationship').value.trim(),
+      text: document.getElementById('text').value.trim()
+    };
+    if (!payload.text) { err.textContent = 'Please write a short vouch.'; err.style.display='block'; return; }
+    btn.disabled = true;
+    fetch(base, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+      .then(function(r){ return r.json().then(function(d){ return { ok:r.ok, d:d }; }); })
+      .then(function(res){
+        if (res.ok) { form.innerHTML = '<div class="done"><h1>Thank you 🤍</h1><p class="sub">Your vouch has been added to their profile.</p></div>'; }
+        else { err.textContent = res.d.error || 'Could not submit.'; err.style.display='block'; btn.disabled=false; }
+      })
+      .catch(function(){ err.textContent = 'Network error — please try again.'; err.style.display='block'; btn.disabled=false; });
+  });
+</script>
+</body></html>`);
 });
 
 // 404 handler
@@ -95,5 +187,22 @@ httpServer.listen(PORT, () => {
   console.log(`Health check: http://localhost:${PORT}/api/health`);
   console.log(`Realtime: socket.io attached`);
 });
+
+// Graceful shutdown: stop accepting connections, then checkpoint & close
+// the database so a WAL isn't left mid-write when the platform restarts us.
+let shuttingDown = false;
+const shutdown = (signal) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`${signal} received — shutting down gracefully`);
+  httpServer.close(() => {
+    try { db.pragma('wal_checkpoint(TRUNCATE)'); db.close(); } catch (e) { console.error('DB close error:', e.message); }
+    process.exit(0);
+  });
+  // Failsafe: don't hang forever if a connection won't drain.
+  setTimeout(() => process.exit(0), 10000).unref();
+};
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 module.exports = app;

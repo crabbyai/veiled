@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Pressable, Dimensions, TextInput, Modal,
+  View, Text, StyleSheet, ScrollView, Pressable, Dimensions, TextInput, Modal, Share, Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE } from '../theme';
 import { useMuzz } from '../store';
+import * as api from '../api';
 import { INTERESTS, VALUES } from '../data';
 import { PhotoTile, Verified, Chip, GButton, OButton } from '../components/ui';
 import Butterfly from '../components/Butterfly';
@@ -39,6 +40,36 @@ export default function ProfileScreen({ navigation }) {
   const addPhotoTap = async () => {
     const uri = await pickAndUpload();
     if (uri) { addPhoto(uri); H.success(); }
+  };
+
+  // Friend's Take: mint a real invite and open the native share sheet so
+  // family/friends can vouch from a web page — no app or account needed.
+  const [inviting, setInviting] = useState(false);
+  const onInvite = async () => {
+    if (inviting) return;
+    H.press();
+    if (!api.isConfigured()) {
+      Alert.alert(
+        'Friend\'s Take',
+        'Connect Veiled to your account to generate a shareable vouch link for family and friends.',
+      );
+      return;
+    }
+    try {
+      setInviting(true);
+      const { token } = await api.createVouchInvite(null);
+      const url = api.vouchUrl(token);
+      await Share.share({
+        message: `I'd love your Friend's Take on my Veiled profile — a short, honest word helps me find the right person, in shaa Allah. ${url}`,
+        url: url || undefined,
+      });
+      setInvited(true);
+      H.success();
+    } catch (e) {
+      Alert.alert('Couldn\'t create link', 'Please try again in a moment.');
+    } finally {
+      setInviting(false);
+    }
   };
 
   // Nikah-readiness: weighted checklist of what makes a marriage-serious
@@ -161,8 +192,8 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.takeInviteTitle}>Friend's Take</Text>
             <Text style={styles.takeInviteSub}>Let family & friends add a note or voice message vouching for you — it shows on your profile.</Text>
           </View>
-          <Pressable onPress={() => { setInvited(true); H.success(); }} style={styles.takeInviteBtn}>
-            <Text style={styles.takeInviteBtnText}>{invited ? 'Link copied ✓' : 'Invite'}</Text>
+          <Pressable onPress={onInvite} disabled={inviting} style={styles.takeInviteBtn}>
+            <Text style={styles.takeInviteBtnText}>{inviting ? '…' : invited ? 'Shared ✓' : 'Invite'}</Text>
           </Pressable>
         </View>
 

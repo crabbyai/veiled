@@ -110,7 +110,12 @@ export const instantChat = (targetId) =>
 export const likesYou = () => request('/dating/likes-you');
 export const matches = () => request('/dating/matches');
 export const butterflyPick = () => request('/dating/butterfly/pick');
-export const getMessages = (matchId) => request(`/dating/matches/${matchId}/messages`);
+export const getMessages = (matchId, { before, limit } = {}) => {
+  const qs = [];
+  if (before) qs.push(`before=${before}`);
+  if (limit) qs.push(`limit=${limit}`);
+  return request(`/dating/matches/${matchId}/messages${qs.length ? `?${qs.join('&')}` : ''}`);
+};
 export const unveil = (matchId) => request(`/dating/matches/${matchId}/unveil`, { method: 'POST' });
 export const sendMessage = (matchId, body) =>
   request(`/dating/matches/${matchId}/messages`, { method: 'POST', body: { body } });
@@ -142,6 +147,8 @@ export const submitVouch = (token, { author, relationship, text, voiceUrl } = {}
   request(`/dating/friend-takes/invite/${token}`, {
     method: 'POST', auth: false, body: { author, relationship, text, voiceUrl },
   });
+// Public web page a friend opens to submit their vouch (served by the API).
+export const vouchUrl = (token) => (BASE ? `${BASE}/vouch/${token}` : '');
 
 // ── Signals ──────────────────────────────────────────────────────────
 export const getSignals = () => request('/dating/signals');
