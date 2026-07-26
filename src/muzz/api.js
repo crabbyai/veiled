@@ -87,8 +87,25 @@ export const hasSession = async () => !!(await loadToken());
 export const getMyProfile = () => request('/dating/profile');
 export const saveProfile = (profile) => request('/dating/profile', { method: 'PUT', body: profile });
 
-export async function discover() {
-  const data = await request('/dating/discover');
+// Build the discover query string from the app's filter object. Passport
+// (filters.passportCity) discovers in any city and relaxes distance.
+function discoverQuery(filters = {}) {
+  const p = [];
+  const add = (k, v) => { if (v !== undefined && v !== null && v !== '' && v !== 'Any') p.push(`${k}=${encodeURIComponent(v)}`); };
+  add('ageMin', filters.ageMin);
+  add('ageMax', filters.ageMax);
+  add('veil', filters.veil);
+  add('sect', filters.sect);
+  add('prayerLevel', filters.prayerLevel);
+  add('ethnicity', filters.ethnicity);
+  if (filters.verifiedOnly) p.push('verifiedOnly=true');
+  if (filters.passportCity) add('city', filters.passportCity);
+  else add('maxDistance', filters.maxDistance);
+  return p.length ? `?${p.join('&')}` : '';
+}
+
+export async function discover(filters) {
+  const data = await request(`/dating/discover${discoverQuery(filters)}`);
   // Rebuild the local↔server id map from candidate names (seed parity).
   const localIds = { Layla: 'p1', Amara: 'p2', Sana: 'p3', Yasmin: 'p4', Noor: 'p5', Hana: 'p6', Mariam: 'p7', Zara: 'p8', Eman: 'p9', Aaliyah: 'p10' };
   for (const c of data.candidates) {
@@ -103,6 +120,9 @@ export const toLocalId = (serverId) => reverseMap[serverId] || serverId;
 
 export const swipe = (targetId, action) =>
   request('/dating/swipe', { method: 'POST', body: { targetId: toServerId(targetId), action } });
+// Rewind: undo the most recent swipe (or a specific person's) on the server.
+export const rewind = (targetId) =>
+  request('/dating/rewind', { method: 'POST', body: targetId ? { targetId: toServerId(targetId) } : {} });
 
 export const instantChat = (targetId) =>
   request('/dating/instant-chat', { method: 'POST', body: { targetId: toServerId(targetId) } });

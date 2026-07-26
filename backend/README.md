@@ -46,10 +46,16 @@ Set `JWT_SECRET` in production. Mount a volume for `DB_PATH` and
 
 - `POST /api/auth/register|login`, `GET /api/auth/me`, `DELETE /api/auth/account`
 - `GET|PUT /api/dating/profile` (women must carry `veil: "Hijab"|"Niqab"`)
-- `GET /api/dating/discover[?veil=Hijab|Niqab]` — butterfly-ranked candidates
+- `GET /api/dating/discover` — butterfly-ranked candidates with
+  server-side Smart Filters (all optional query params):
+  `ageMin, ageMax, maxDistance, veil, sect, prayerLevel, ethnicity,
+  verifiedOnly` plus Passport `city=<name>` (discover in any city;
+  relaxes distance). Echoes `appliedFilters` and `passport`.
 - `GET /api/dating/butterfly/pick`
 - `POST /api/dating/swipe|super-like|instant-chat|boost|block|report`
   (`report` files a moderation report — required for App Store UGC review)
+- `POST /api/dating/rewind` — undo the most recent swipe (or `{ targetId }`);
+  returns the card to the deck, undoes a no-message match, refunds a like
 - `GET /api/dating/likes-you`
 - `GET /api/dating/matches`, `GET|POST /api/dating/matches/:id/messages`
 - `POST /api/dating/matches/:id/unveil` — lift The Veil for one match (emits `unveil` + push)

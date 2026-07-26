@@ -40,6 +40,7 @@ const initialState = {
     prayerLevel: 'Any',
     ethnicity: 'Any',
     verifiedOnly: false,
+    passportCity: null,   // Passport: discover in any city (null = near me)
   },
   // Free-tier limits (mirrors real Muzz: 5 likes / 12h, 1 instant chat / day)
   likeWindowStart: 0,
@@ -183,6 +184,7 @@ export function MuzzProvider({ children }) {
         seen: s.seen.filter((id) => id !== personId),
       };
     });
+    api.mirror(() => api.rewind(personId));
   }, [update]);
 
   const markSeen = useCallback((personId) => {

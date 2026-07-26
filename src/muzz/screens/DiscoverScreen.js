@@ -20,7 +20,9 @@ import * as H from '../haptics';
 
 const matchesFilters = (p, f) => {
   if (!f) return true;
-  if (p.distance > f.maxDistance) return false;
+  // Passport: when a city is chosen, discover there and ignore distance.
+  if (f.passportCity) { if ((p.city || '') !== f.passportCity) return false; }
+  else if (p.distance > f.maxDistance) return false;
   if (p.age < f.ageMin || p.age > f.ageMax) return false;
   if (f.veil && f.veil !== 'Any' && p.veil !== f.veil) return false;
   if (f.sect !== 'Any' && p.sect !== f.sect) return false;

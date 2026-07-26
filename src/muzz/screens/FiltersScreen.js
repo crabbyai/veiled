@@ -4,21 +4,21 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { M, RADIUS, SPACE, TYPE } from '../theme';
 import { useMuzz } from '../store';
-import { VEILS, SECTS, PRAYER_LEVELS, ETHNICITIES } from '../data';
+import { VEILS, SECTS, PRAYER_LEVELS, ETHNICITIES, PASSPORT_CITIES } from '../data';
 import { Chip, GButton } from '../components/ui';
 import * as H from '../haptics';
 
 // Simple slider built from a draggable not needed — use stepper pills.
-function Stepper({ label, value, min, max, step = 1, suffix = '', onChange }) {
+function Stepper({ label, value, min, max, step = 1, suffix = '', onChange, disabled = false }) {
   return (
-    <View style={styles.stepRow}>
+    <View style={[styles.stepRow, disabled && { opacity: 0.4 }]}>
       <Text style={styles.stepLabel}>{label}</Text>
       <View style={styles.stepper}>
-        <Pressable onPress={() => { H.select(); onChange(Math.max(min, value - step)); }} style={styles.stepBtn}>
+        <Pressable disabled={disabled} onPress={() => { H.select(); onChange(Math.max(min, value - step)); }} style={styles.stepBtn}>
           <Ionicons name="remove" size={18} color={M.primary} />
         </Pressable>
         <Text style={styles.stepValue}>{value}{suffix}</Text>
-        <Pressable onPress={() => { H.select(); onChange(Math.min(max, value + step)); }} style={styles.stepBtn}>
+        <Pressable disabled={disabled} onPress={() => { H.select(); onChange(Math.min(max, value + step)); }} style={styles.stepBtn}>
           <Ionicons name="add" size={18} color={M.primary} />
         </Pressable>
       </View>
@@ -33,7 +33,7 @@ export default function FiltersScreen({ navigation }) {
   const gold = me.gold;
 
   const apply = () => { setFilters(f); H.success(); navigation.goBack(); };
-  const reset = () => { setF({ maxDistance: 50, ageMin: 22, ageMax: 35, veil: 'Any', sect: 'Any', prayerLevel: 'Any', ethnicity: 'Any', verifiedOnly: false }); H.tap(); };
+  const reset = () => { setF({ maxDistance: 50, ageMin: 22, ageMax: 35, veil: 'Any', sect: 'Any', prayerLevel: 'Any', ethnicity: 'Any', verifiedOnly: false, passportCity: null }); H.tap(); };
 
   return (
     <View style={styles.container}>
@@ -44,7 +44,28 @@ export default function FiltersScreen({ navigation }) {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: SPACE.xl, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-        <Stepper label="Maximum distance" value={f.maxDistance} min={5} max={100} step={5} suffix=" mi" onChange={(v) => setF({ ...f, maxDistance: v })} />
+        {/* Passport — discover in any city (Tinder charges for this) */}
+        <View style={styles.passRow}>
+          <Ionicons name="airplane" size={18} color={M.primary} />
+          <Text style={styles.passTitle}>Passport</Text>
+          {!!f.passportCity && (
+            <Pressable onPress={() => { H.tap(); setF({ ...f, passportCity: null }); }} style={styles.passClear}>
+              <Text style={styles.passClearText}>Near me ✕</Text>
+            </Pressable>
+          )}
+        </View>
+        <Text style={styles.passSub}>
+          {f.passportCity ? `Discovering in ${f.passportCity}` : 'Open to relocating? Explore practising matches in any city.'}
+        </Text>
+        <View style={styles.wrap}>
+          {PASSPORT_CITIES.map((c) => (
+            <Chip key={c} label={c} icon="location" active={f.passportCity === c} onPress={() => { H.select(); setF({ ...f, passportCity: f.passportCity === c ? null : c }); }} />
+          ))}
+        </View>
+        <View style={styles.divider} />
+
+        <Stepper label="Maximum distance" value={f.maxDistance} min={5} max={100} step={5} suffix=" mi" onChange={(v) => setF({ ...f, maxDistance: v })} disabled={!!f.passportCity} />
+        {!!f.passportCity && <Text style={styles.passHint}>Distance is off while Passport is on.</Text>}
         <View style={styles.divider} />
         <Stepper label="Minimum age" value={f.ageMin} min={18} max={f.ageMax} onChange={(v) => setF({ ...f, ageMin: v })} />
         <Stepper label="Maximum age" value={f.ageMax} min={f.ageMin} max={70} onChange={(v) => setF({ ...f, ageMax: v })} />
@@ -105,6 +126,12 @@ const styles = StyleSheet.create({
   stepValue: { ...TYPE.h3, fontSize: 15, minWidth: 54, textAlign: 'center' },
   divider: { height: 1, backgroundColor: M.border, marginVertical: 14 },
   section: { ...TYPE.caption, color: M.textSoft, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 18, marginBottom: 10 },
+  passRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  passTitle: { ...TYPE.h3, fontSize: 16, flex: 1 },
+  passClear: { backgroundColor: M.bgSoft, borderRadius: RADIUS.pill, paddingHorizontal: 12, paddingVertical: 5 },
+  passClearText: { ...TYPE.caption, color: M.textSoft, fontWeight: '700' },
+  passSub: { ...TYPE.caption, color: M.textMuted, marginTop: 4, marginBottom: 12 },
+  passHint: { ...TYPE.caption, color: M.textMuted, marginTop: 6 },
   locked: { color: M.textMuted },
   goldTag: { color: M.text, fontWeight: '900', fontSize: 10 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap' },

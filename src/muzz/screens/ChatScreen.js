@@ -24,6 +24,12 @@ export default function ChatScreen({ route, navigation }) {
   const { me, chats, sendMessage, update, reactions, reactToMessage, reportPerson, chaperones, setChaperone, isUnveiled, unveilFor } = muzz;
   const person = getPerson(personId);
   const messages = chats[personId] || [];
+  // Read receipts: id of my most recent (non-event) message, so we can
+  // show Delivered / Seen beneath it like Tinder Platinum.
+  let lastMineId = null;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].sender === 'me' && messages[i].text !== 'unveil:done') { lastMineId = messages[i].id; break; }
+  }
   const listRef = useRef(null);
   const [text, setText] = useState('');
   const wali = chaperones[personId];
@@ -105,6 +111,11 @@ export default function ChatScreen({ route, navigation }) {
   const botReply = useCallback(() => {
     if (!person) return;
     setTyping(true);
+    // They're reading & replying — mark my messages Seen (read receipts).
+    update((s) => ({
+      ...s,
+      chats: { ...s.chats, [personId]: (s.chats[personId] || []).map((m) => (m.sender === 'me' ? { ...m, read: true } : m)) },
+    }));
     const pool = [
       `Haha I love that! ${person.interests[0]} is honestly my favourite thing.`,
       `Aw that's so sweet. So what does a perfect weekend look like for you?`,
@@ -230,7 +241,7 @@ export default function ChatScreen({ route, navigation }) {
           renderItem={({ item }) => (
             item.text === 'unveil:done'
               ? <UnveilEvent name={item.sender === 'me' ? 'You' : person.name} />
-              : <Bubble item={item} reaction={reactions[`${personId}:${item.id}`]} onLongPress={() => { H.press(); setReactionFor(item); }} />
+              : <Bubble item={item} reaction={reactions[`${personId}:${item.id}`]} showReceipt={item.id === lastMineId} onLongPress={() => { H.press(); setReactionFor(item); }} />
           )}
           ListFooterComponent={typing ? <TypingBubble /> : <View style={{ height: 4 }} />}
         />
@@ -369,7 +380,7 @@ function VoiceContent({ secs, mine }) {
   );
 }
 
-function Bubble({ item, reaction, onLongPress }) {
+function Bubble({ item, reaction, onLongPress, showReceipt }) {
   const mine = item.sender === 'me';
   const isVoice = typeof item.text === 'string' && item.text.startsWith('voice:');
   const isImage = typeof item.text === 'string' && item.text.startsWith('image:');
@@ -397,6 +408,12 @@ function Bubble({ item, reaction, onLongPress }) {
             <Text style={{ fontSize: 13 }}>{reaction}</Text>
           </View>
         ) : null}
+        {mine && showReceipt && (
+          <View style={styles.receipt}>
+            <Ionicons name={item.read ? 'checkmark-done' : 'checkmark'} size={13} color={item.read ? M.blue : M.textMuted} />
+            <Text style={[styles.receiptText, item.read && { color: M.blue }]}>{item.read ? 'Seen' : 'Delivered'}</Text>
+          </View>
+        )}
       </Pressable>
     </Animated.View>
   );
@@ -414,6 +431,8 @@ function TypingBubble() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: M.bg },
+  receipt: { flexDirection: 'row', alignItems: 'center', gap: 3, alignSelf: 'flex-end', marginTop: 3, marginRight: 4 },
+  receiptText: { ...TYPE.caption, fontSize: 11, color: M.textMuted },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: M.border },
   hBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   hCenter: { flex: 1, flexDirection: 'row', alignItems: 'center' },

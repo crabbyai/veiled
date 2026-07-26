@@ -263,22 +263,61 @@ router.get('/discover', authenticate, (req, res) => {
   try {
     const me = getProfile(req.userId);
     if (!me) return res.status(400).json({ error: 'Create your profile first' });
+
+    // ── Smart Filters (server-authoritative) + Passport ──────────────
+    // Every filter is applied in SQL so the deck is correct even before
+    // the client re-filters. `city` is Passport: discover in any city,
+    // which relaxes the distance filter (you're looking further afield).
+    const q = req.query;
+    const isAny = (v) => !v || v === 'Any';
+    const clauses = [];
+    const params = [req.userId, me.gender, req.userId, req.userId, req.userId];
+
+    const ageMin = toInt(q.ageMin), ageMax = toInt(q.ageMax);
+    if (ageMin) { clauses.push('AND p.age >= ?'); params.push(ageMin); }
+    if (ageMax) { clauses.push('AND p.age <= ?'); params.push(ageMax); }
+    if (!isAny(q.veil)) { clauses.push('AND p.veil = ?'); params.push(q.veil); }
+    if (!isAny(q.sect)) { clauses.push('AND p.sect = ?'); params.push(q.sect); }
+    if (!isAny(q.prayerLevel)) { clauses.push('AND p.prayer_level = ?'); params.push(q.prayerLevel); }
+    if (!isAny(q.ethnicity)) { clauses.push('AND p.ethnicity = ?'); params.push(q.ethnicity); }
+    if (q.verifiedOnly === 'true' || q.verifiedOnly === '1') { clauses.push('AND p.selfie_verified = 1'); }
+
+    const passportCity = (q.city && String(q.city).trim()) || null;
+    if (passportCity) {
+      clauses.push('AND p.city = ? COLLATE NOCASE');
+      params.push(passportCity);
+    } else {
+      const maxDistance = toInt(q.maxDistance);
+      if (maxDistance) { clauses.push('AND p.distance <= ?'); params.push(maxDistance); }
+    }
+
     const rows = db.prepare(`
       SELECT p.* FROM dating_profiles p
       WHERE p.user_id != ?
         AND p.gender != ?
         AND p.user_id NOT IN (SELECT target_id FROM dating_swipes WHERE user_id = ?)
         ${NOT_BLOCKED}
-    `).all(req.userId, me.gender, req.userId, req.userId, req.userId);
-    const veilFilter = req.query.veil;
+        ${clauses.join('\n        ')}
+    `).all(...params);
+
     const ranked = rows
       .map((r) => parseProfile(r, req.userId))
-      .filter((person) => !veilFilter || veilFilter === 'Any' || person.veil === veilFilter)
       .map((person) => ({ person, ...scoreMatch(me, person) }))
       .sort((x, y) => y.score - x.score);
     const lim = getLimits(req.userId);
     res.json({
       candidates: ranked,
+      passport: passportCity,
+      appliedFilters: {
+        ageMin: ageMin || null, ageMax: ageMax || null,
+        maxDistance: passportCity ? null : (toInt(q.maxDistance) || null),
+        veil: isAny(q.veil) ? null : q.veil,
+        sect: isAny(q.sect) ? null : q.sect,
+        prayerLevel: isAny(q.prayerLevel) ? null : q.prayerLevel,
+        ethnicity: isAny(q.ethnicity) ? null : q.ethnicity,
+        verifiedOnly: q.verifiedOnly === 'true' || q.verifiedOnly === '1',
+        city: passportCity,
+      },
       likesRemaining: me.gold ? -1 : likesRemaining(req.userId, false),
       boostActive: lim.boost_until > Date.now(),
       boostUntil: lim.boost_until,
@@ -355,6 +394,43 @@ router.post('/swipe', authenticate, (req, res) => {
     res.json({ match: !!match, matchId: match ? match.id : null });
   } catch (err) {
     console.error('Swipe error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/dating/rewind — undo my most recent swipe (Rewind). The card
+// returns to the deck; a match that formed from it is undone only if no
+// messages were exchanged yet. Optionally pass { targetId } to rewind a
+// specific person instead of the most recent swipe.
+router.post('/rewind', authenticate, (req, res) => {
+  try {
+    const { targetId } = req.body || {};
+    const last = targetId
+      ? db.prepare('SELECT * FROM dating_swipes WHERE user_id = ? AND target_id = ?').get(req.userId, toInt(targetId))
+      : db.prepare('SELECT * FROM dating_swipes WHERE user_id = ? ORDER BY id DESC LIMIT 1').get(req.userId);
+    if (!last) return res.json({ ok: false, error: 'Nothing to rewind' });
+
+    db.prepare('DELETE FROM dating_swipes WHERE id = ?').run(last.id);
+
+    // Undo a freshly-formed match (no conversation started yet).
+    const m = findMatch(req.userId, last.target_id);
+    if (m) {
+      const hasMsg = db.prepare('SELECT 1 FROM dating_messages WHERE match_id = ? LIMIT 1').get(m.id);
+      if (!hasMsg) {
+        db.prepare('DELETE FROM dating_matches WHERE id = ?').run(m.id);
+        emitToUser(last.target_id, 'rewind', { userId: req.userId });
+      }
+    }
+    // Refund one like credit if the rewound swipe was a like this window.
+    if (last.action === 'like') {
+      const lim = getLimits(req.userId);
+      if (Date.now() - lim.like_window_start <= LIKE_WINDOW_MS && lim.likes_in_window > 0) {
+        db.prepare('UPDATE dating_limits SET likes_in_window = likes_in_window - 1 WHERE user_id = ?').run(req.userId);
+      }
+    }
+    res.json({ ok: true, targetId: last.target_id, action: last.action });
+  } catch (err) {
+    console.error('Rewind error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });

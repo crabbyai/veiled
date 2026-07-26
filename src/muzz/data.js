@@ -45,6 +45,14 @@ export const ETHNICITIES = [
   'White / Caucasian', 'Mixed', 'Other',
 ];
 
+// Passport: discover practising sisters/brothers in any of these cities —
+// invaluable when you're open to relocating for the right marriage.
+export const PASSPORT_CITIES = [
+  'London', 'Manchester', 'Birmingham', 'Leeds', 'Bristol',
+  'Dubai', 'Istanbul', 'Cairo', 'Kuala Lumpur',
+  'Toronto', 'New York', 'Sydney',
+];
+
 // ── Discoverable sisters ─────────────────────────────────────────────
 // veil: 'Hijab' | 'Niqab' — every profile has one; it's the point.
 // photoVeiled: photos stay frosted until she unveils for a match.
