@@ -190,9 +190,19 @@ db.exec(`
     UNIQUE(user_id, kind, ref_id)
   );
 
+  -- ── Share my profile ───────────────────────────────────────────────
+  -- A tokenised, read-only link to a member's profile (photos stay
+  -- veiled). Handy for sharing with a wali/guardian for approval.
+  CREATE TABLE IF NOT EXISTS dating_profile_shares (
+    token TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at INTEGER DEFAULT (strftime('%s','now') * 1000)
+  );
+
   CREATE INDEX IF NOT EXISTS idx_dating_reports_target ON dating_reports(target_id, status);
   CREATE INDEX IF NOT EXISTS idx_dating_fti_user ON dating_friend_take_invites(user_id);
   CREATE INDEX IF NOT EXISTS idx_dating_signals_user ON dating_signals(user_id);
+  CREATE INDEX IF NOT EXISTS idx_dating_shares_user ON dating_profile_shares(user_id);
 `);
 
 // ── Lightweight migrations for columns added after initial release ────
@@ -203,6 +213,7 @@ const ensure = (table, col, ddl) => {
 ensure('dating_profiles', 'veil', 'veil TEXT');
 ensure('dating_profiles', 'friend_takes', "friend_takes TEXT DEFAULT '[]'");
 ensure('dating_profiles', 'photo_veiled', 'photo_veiled INTEGER DEFAULT 0');
+ensure('dating_profiles', 'paused', 'paused INTEGER DEFAULT 0');
 ensure('dating_matches', 'unveiled_a', 'unveiled_a INTEGER DEFAULT 0');
 ensure('dating_matches', 'unveiled_b', 'unveiled_b INTEGER DEFAULT 0');
 

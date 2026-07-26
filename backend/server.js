@@ -163,6 +163,56 @@ app.get('/vouch/:token', (req, res) => {
 </body></html>`);
 });
 
+// ── Share my profile: public read-only card ──────────────────────────
+// The page a member shares (e.g. with a wali). Photos are never exposed.
+app.get('/p/:token', (req, res) => {
+  const token = String(req.params.token).replace(/[^a-zA-Z0-9]/g, '');
+  res.type('html').send(`<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A Veiled profile</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background:#0E0E10; color:#F2ECE4; display:flex; min-height:100vh; align-items:center; justify-content:center; padding:24px; }
+  .card { width:100%; max-width:460px; background:#17171A; border:1px solid #2A2A2E; border-radius:24px; padding:28px; }
+  .veil { display:flex; align-items:center; gap:8px; font-size:12px; color:#A6A0A8; margin-bottom:18px; }
+  h1 { font-size:24px; margin:0 0 2px; } .loc { color:#A6A0A8; margin:0 0 18px; font-size:15px; }
+  .badge { display:inline-block; background:#0E0E10; border:1px solid #2A2A2E; border-radius:999px; padding:5px 12px; font-size:13px; margin:0 6px 8px 0; }
+  .verify { color:#7fc6ff; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.6px; color:#A6A0A8; margin:22px 0 10px; }
+  p.bio { line-height:1.5; font-size:15px; margin:0; }
+  .prompt { background:#0E0E10; border:1px solid #2A2A2E; border-radius:14px; padding:14px; margin-bottom:10px; }
+  .prompt .q { font-size:12px; color:#A6A0A8; margin:0 0 4px; } .prompt .a { margin:0; font-size:15px; }
+  .sub { color:#A6A0A8; font-size:14px; }
+</style></head>
+<body><div class="card" id="card"><p class="sub" id="loading">Loading…</p></div>
+<script>
+  var token = ${JSON.stringify(token)};
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  fetch('/api/dating/p/' + token).then(function(r){ return r.json().then(function(d){ return {ok:r.ok, d:d}; }); })
+    .then(function(res){
+      var c = document.getElementById('card');
+      if (!res.ok) { c.innerHTML = '<p class="sub">' + esc(res.d.error || 'This profile link is no longer valid.') + '</p>'; return; }
+      var p = res.d, h = '';
+      h += '<div class="veil">🤍 Shared from Veiled · photos stay private</div>';
+      h += '<h1>' + esc(p.name) + (p.age ? ', ' + esc(p.age) : '') + (p.verified ? ' <span class="verify">✓</span>' : '') + '</h1>';
+      h += '<p class="loc">' + [esc(p.job), esc(p.city)].filter(Boolean).join(' · ') + '</p>';
+      var chips = [];
+      if (p.veil) chips.push(p.veil === 'Niqab' ? 'Niqabi' : 'Hijabi');
+      [p.intention, p.sect, p.prayerLevel, p.ethnicity, p.height].forEach(function(v){ if (v && v !== 'Prefer not to say') chips.push(v); });
+      if (chips.length) h += '<div>' + chips.map(function(x){ return '<span class="badge">' + esc(x) + '</span>'; }).join('') + '</div>';
+      if (p.bio) { h += '<h2>About</h2><p class="bio">' + esc(p.bio) + '</p>'; }
+      if (p.interests && p.interests.length) { h += '<h2>Interests</h2><div>' + p.interests.map(function(x){ return '<span class="badge">' + esc(x) + '</span>'; }).join('') + '</div>'; }
+      if (p.prompts && p.prompts.length) { h += '<h2>In her words</h2>' + p.prompts.map(function(pr){ return '<div class="prompt"><p class="q">' + esc(pr.q) + '</p><p class="a">"' + esc(pr.a) + '"</p></div>'; }).join(''); }
+      c.innerHTML = h;
+    })
+    .catch(function(){ document.getElementById('card').innerHTML = '<p class="sub">Something went wrong loading this profile.</p>'; });
+</script>
+</body></html>`);
+});
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });

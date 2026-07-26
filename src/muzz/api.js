@@ -137,6 +137,7 @@ export const getMessages = (matchId, { before, limit } = {}) => {
   return request(`/dating/matches/${matchId}/messages${qs.length ? `?${qs.join('&')}` : ''}`);
 };
 export const unveil = (matchId) => request(`/dating/matches/${matchId}/unveil`, { method: 'POST' });
+export const unmatch = (matchId) => request(`/dating/matches/${matchId}/unmatch`, { method: 'POST' });
 export const sendMessage = (matchId, body) =>
   request(`/dating/matches/${matchId}/messages`, { method: 'POST', body: { body } });
 
@@ -169,6 +170,12 @@ export const submitVouch = (token, { author, relationship, text, voiceUrl } = {}
   });
 // Public web page a friend opens to submit their vouch (served by the API).
 export const vouchUrl = (token) => (BASE ? `${BASE}/vouch/${token}` : '');
+
+// ── Pause (Snooze) & Share my profile ────────────────────────────────
+export const pauseProfile = (paused) =>
+  request('/dating/profile/pause', { method: 'POST', body: { paused: !!paused } });
+export const shareProfile = () => request('/dating/profile/share', { method: 'POST' });
+export const profileShareUrl = (token) => (BASE ? `${BASE}/p/${token}` : '');
 
 // ── Signals ──────────────────────────────────────────────────────────
 export const getSignals = () => request('/dating/signals');

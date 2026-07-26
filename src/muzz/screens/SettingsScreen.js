@@ -57,7 +57,7 @@ const SECTIONS = [
 
 export default function SettingsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { butterflyAuto, update, me } = useMuzz();
+  const { butterflyAuto, update, me, pauseProfile } = useMuzz();
   const [local, setLocal] = React.useState({});
 
   const getToggle = (row) => {
@@ -113,6 +113,26 @@ export default function SettingsScreen({ navigation }) {
           </View>
         </View>
 
+        {/* Pause — hide me from discovery, keep my matches (Tinder Snooze) */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Discovery status</Text>
+          <View style={styles.card}>
+            <View style={styles.row}>
+              <Ionicons name={me.paused ? 'pause-circle' : 'pause-circle-outline'} size={20} color={me.paused ? M.gold : M.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.rowLabel}>Pause my profile</Text>
+                <Text style={styles.rowSub}>{me.paused ? "You're hidden — no one new can find you. Matches & chats stay." : 'Take a break from being discovered.'}</Text>
+              </View>
+              <Switch
+                value={!!me.paused}
+                onValueChange={(v) => { H.select(); pauseProfile(v); }}
+                trackColor={{ true: M.primary, false: M.border }}
+                thumbColor="#fff"
+              />
+            </View>
+          </View>
+        </View>
+
         {SECTIONS.map((sec) => (
           <View key={sec.title} style={styles.section}>
             <Text style={styles.sectionTitle}>{sec.title}</Text>
@@ -152,6 +172,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, paddingVertical: 14, minHeight: 54 },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: M.border },
   rowLabel: { flex: 1, ...TYPE.body, fontWeight: '600' },
+  rowSub: { ...TYPE.caption, color: M.textMuted, marginTop: 2 },
   rowValue: { ...TYPE.soft, marginRight: 4 },
   goldChip: { backgroundColor: M.bgSoft, borderWidth: 1, borderColor: M.border, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginRight: 8 },
   goldChipText: { color: M.text, fontWeight: '900', fontSize: 10 },

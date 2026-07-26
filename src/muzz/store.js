@@ -296,6 +296,25 @@ export function MuzzProvider({ children }) {
     api.mirror(() => api.block(personId, reason));
   }, [update]);
 
+  // Unmatch: end a match without blocking — remove the match & its chat.
+  const unmatchPerson = useCallback((personId) => {
+    update((s) => {
+      const chats = { ...s.chats }; delete chats[personId];
+      return { ...s, matches: s.matches.filter((id) => id !== personId), chats };
+    });
+    api.mirror(async () => {
+      const { matches: sm } = await api.matches();
+      const m = sm.find((x) => api.toLocalId(x.person.id) === personId);
+      if (m) await api.unmatch(m.matchId);
+    });
+  }, [update]);
+
+  // Pause (Snooze): hide my profile from discovery, keep matches & chats.
+  const pauseProfile = useCallback((paused) => {
+    update((s) => ({ ...s, me: { ...s.me, paused: !!paused } }));
+    api.mirror(() => api.pauseProfile(!!paused));
+  }, [update]);
+
   // Safety: report to moderation. Reporting also removes them from view.
   const reportPerson = useCallback((personId, reason = 'other', detail = null) => {
     update((s) => ({
@@ -327,8 +346,9 @@ export function MuzzProvider({ children }) {
     sendMessage, togglePostLike, addPost, update, resetAll,
     likesRemaining, useInstantChat,
     addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson,
+    unmatchPerson, pauseProfile,
     unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead,
-  }), [state, hydrated, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson, unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead]);
+  }), [state, hydrated, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson, unmatchPerson, pauseProfile, unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead]);
 
   return <MuzzContext.Provider value={value}>{children}</MuzzContext.Provider>;
 }

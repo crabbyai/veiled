@@ -42,6 +42,31 @@ export default function ProfileScreen({ navigation }) {
     if (uri) { addPhoto(uri); H.success(); }
   };
 
+  // Share my profile: a read-only, veil-respecting link (great for a wali).
+  const [sharing, setSharing] = useState(false);
+  const onShareProfile = async () => {
+    if (sharing) return;
+    H.press();
+    if (!api.isConfigured()) {
+      Alert.alert('Share profile', 'Connect Veiled to your account to generate a shareable profile link.');
+      return;
+    }
+    try {
+      setSharing(true);
+      const { token } = await api.shareProfile();
+      const url = api.profileShareUrl(token);
+      await Share.share({
+        message: `Here's my Veiled profile — my photos stay private. ${url}`,
+        url: url || undefined,
+      });
+      H.success();
+    } catch (e) {
+      Alert.alert('Couldn\'t create link', 'Please try again in a moment.');
+    } finally {
+      setSharing(false);
+    }
+  };
+
   // Friend's Take: mint a real invite and open the native share sheet so
   // family/friends can vouch from a web page — no app or account needed.
   const [inviting, setInviting] = useState(false);
@@ -99,7 +124,10 @@ export default function ProfileScreen({ navigation }) {
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
         <View style={[styles.top, { paddingTop: insets.top + 10 }]}>
           <Text style={styles.title}>Profile</Text>
-          <Pressable onPress={() => navigation.navigate('MuzzSettings')} style={styles.gear}><Ionicons name="settings-outline" size={24} color={M.text} /></Pressable>
+          <View style={styles.topActions}>
+            <Pressable onPress={onShareProfile} disabled={sharing} style={styles.gear}><Ionicons name="share-outline" size={23} color={M.text} /></Pressable>
+            <Pressable onPress={() => navigation.navigate('MuzzSettings')} style={styles.gear}><Ionicons name="settings-outline" size={24} color={M.text} /></Pressable>
+          </View>
         </View>
 
         {/* Hero card */}
@@ -285,6 +313,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: M.bg },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACE.xl, paddingBottom: 10 },
   title: { fontSize: 28, fontWeight: '900', color: M.text, letterSpacing: -0.6 },
+  topActions: { flexDirection: 'row', alignItems: 'center' },
   gear: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   heroCard: { marginHorizontal: SPACE.xl },
   heroPhoto: { height: width * 0.78, justifyContent: 'flex-end' },

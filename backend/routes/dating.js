@@ -34,8 +34,10 @@ const toInt = (v) => {
 };
 
 // SQL fragment: candidate `p.user_id` is hidden if a block exists in
-// EITHER direction with the viewer. Append `me, me` to the params.
+// EITHER direction with the viewer, or the candidate has paused their
+// profile (Snooze). Append `me, me` to the params for the block checks.
 const NOT_BLOCKED = `
+  AND COALESCE(p.paused, 0) = 0
   AND p.user_id NOT IN (SELECT blocked_id FROM dating_blocks WHERE user_id = ?)
   AND p.user_id NOT IN (SELECT user_id FROM dating_blocks WHERE blocked_id = ?)`;
 
@@ -77,6 +79,7 @@ const parseProfile = (row, viewerId = null) => {
     veil: row.veil,
     photoVeiled: !!row.photo_veiled,
     unveiledForYou: !!row.photo_veiled && !veiledFromViewer && row.user_id !== viewerId,
+    paused: !!row.paused,
     sect: row.sect,
     prayerLevel: row.prayer_level,
     ethnicity: row.ethnicity,
@@ -251,6 +254,61 @@ router.put('/profile', authenticate, (req, res) => {
     res.json({ profile: getProfile(req.userId) });
   } catch (err) {
     console.error('Profile update error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/dating/profile/pause { paused } — Snooze: hide me from
+// discovery while keeping my matches and chats. Toggles the flag.
+router.post('/profile/pause', authenticate, (req, res) => {
+  try {
+    const paused = req.body && (req.body.paused === true || req.body.paused === 1) ? 1 : 0;
+    const r = db.prepare('UPDATE dating_profiles SET paused = ?, updated_at = ? WHERE user_id = ?')
+      .run(paused, Date.now(), req.userId);
+    if (!r.changes) return res.status(400).json({ error: 'Create your profile first' });
+    res.json({ ok: true, paused: !!paused });
+  } catch (err) {
+    console.error('Pause error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/dating/profile/share — mint (or reuse) a read-only share
+// link to my profile. Photos stay veiled; nice for sharing with a wali.
+router.post('/profile/share', authenticate, (req, res) => {
+  try {
+    const prof = db.prepare('SELECT user_id FROM dating_profiles WHERE user_id = ?').get(req.userId);
+    if (!prof) return res.status(400).json({ error: 'Create your profile first' });
+    let row = db.prepare('SELECT token FROM dating_profile_shares WHERE user_id = ?').get(req.userId);
+    if (!row) {
+      const token = uuidv4().replace(/-/g, '');
+      db.prepare('INSERT INTO dating_profile_shares (token, user_id) VALUES (?, ?)').run(token, req.userId);
+      row = { token };
+    }
+    res.status(201).json({ ok: true, token: row.token, path: `/p/${row.token}` });
+  } catch (err) {
+    console.error('Share error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/dating/p/:token — public read-only profile card (no photos).
+router.get('/p/:token', (req, res) => {
+  try {
+    const share = db.prepare('SELECT user_id FROM dating_profile_shares WHERE token = ?').get(req.params.token);
+    if (!share) return res.status(404).json({ error: 'Profile not found' });
+    const row = db.prepare('SELECT * FROM dating_profiles WHERE user_id = ?').get(share.user_id);
+    if (!row) return res.status(404).json({ error: 'Profile not found' });
+    const p = parseProfile(row, null);
+    // Veil-respecting: never expose photos through a share link.
+    res.json({
+      name: p.name, age: p.age, city: p.city, job: p.job, veil: p.veil,
+      bio: p.bio, intention: p.intention, height: p.height,
+      sect: p.sect, prayerLevel: p.prayerLevel, ethnicity: p.ethnicity,
+      interests: p.interests, values: p.values, languages: p.languages,
+      prompts: p.prompts, verified: p.verified,
+    });
+  } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -543,6 +601,25 @@ router.post('/matches/:id/unveil', authenticate, (req, res) => {
     res.json({ ok: true, unveiled: true });
   } catch (err) {
     console.error('Unveil error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/dating/matches/:id/unmatch — end a match (and delete its
+// messages) without blocking. Both sides simply stop seeing the chat.
+router.post('/matches/:id/unmatch', authenticate, (req, res) => {
+  try {
+    const m = db.prepare('SELECT * FROM dating_matches WHERE id = ?').get(req.params.id);
+    if (!m || (m.user_a !== req.userId && m.user_b !== req.userId)) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+    const otherId = m.user_a === req.userId ? m.user_b : m.user_a;
+    // ON DELETE CASCADE removes the messages with the match.
+    db.prepare('DELETE FROM dating_matches WHERE id = ?').run(m.id);
+    emitToUser(otherId, 'unmatch', { matchId: m.id, by: req.userId });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Unmatch error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });

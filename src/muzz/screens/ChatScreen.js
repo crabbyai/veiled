@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TextInput, Pressable, FlatList,
-  KeyboardAvoidingView, Platform, ScrollView, Modal,
+  KeyboardAvoidingView, Platform, ScrollView, Modal, Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,7 +21,7 @@ export default function ChatScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
   const { personId } = route.params;
   const muzz = useMuzz();
-  const { me, chats, sendMessage, update, reactions, reactToMessage, reportPerson, chaperones, setChaperone, isUnveiled, unveilFor } = muzz;
+  const { me, chats, sendMessage, update, reactions, reactToMessage, reportPerson, unmatchPerson, chaperones, setChaperone, isUnveiled, unveilFor } = muzz;
   const person = getPerson(personId);
   const messages = chats[personId] || [];
   // Read receipts: id of my most recent (non-event) message, so we can
@@ -171,6 +171,18 @@ export default function ChatScreen({ route, navigation }) {
     navigation.goBack();
   };
 
+  const confirmUnmatch = () => {
+    setMenuOpen(false);
+    Alert.alert(
+      `Unmatch ${person.name}?`,
+      'Your conversation will be removed for both of you. This can\'t be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Unmatch', style: 'destructive', onPress: () => { unmatchPerson(personId); H.warn(); navigation.goBack(); } },
+      ],
+    );
+  };
+
   if (!person) return null;
 
   return (
@@ -313,6 +325,7 @@ export default function ChatScreen({ route, navigation }) {
             <MenuRow icon="person-outline" label="View profile" onPress={() => { setMenuOpen(false); navigation.navigate('MuzzProfileDetail', { personId }); }} />
             <MenuRow icon="shield-checkmark-outline" label={wali ? `Remove wali (${wali.name})` : 'Invite a wali'} onPress={() => { setMenuOpen(false); if (wali) setChaperone(personId, null); else setWaliModal(true); }} />
             <MenuRow icon="notifications-off-outline" label="Mute notifications" onPress={() => setMenuOpen(false)} />
+            <MenuRow icon="close-circle-outline" label="Unmatch" onPress={confirmUnmatch} />
             <MenuRow icon="flag-outline" label="Report" danger onPress={blockAndLeave} />
             <MenuRow icon="hand-left-outline" label="Unmatch & block" danger onPress={blockAndLeave} />
           </Animated.View>

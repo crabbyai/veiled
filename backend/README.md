@@ -59,6 +59,9 @@ Set `JWT_SECRET` in production. Mount a volume for `DB_PATH` and
 - `GET /api/dating/likes-you`
 - `GET /api/dating/matches`, `GET|POST /api/dating/matches/:id/messages`
 - `POST /api/dating/matches/:id/unveil` — lift The Veil for one match (emits `unveil` + push)
+- `POST /api/dating/matches/:id/unmatch` — end a match & delete its chat, no block (emits `unmatch`)
+- `POST /api/dating/profile/pause` `{ paused }` — Snooze: hide from discovery, keep matches
+- `POST /api/dating/profile/share` → tokenised read-only profile link; public page at `/p/:token` (photos never exposed)
 - `POST /api/dating/messages/:id/react`
 - `POST|DELETE /api/dating/photos` — veiled photos are only served to
   matches you've unveiled for
@@ -72,8 +75,8 @@ Set `JWT_SECRET` in production. Mount a volume for `DB_PATH` and
   - `POST /api/dating/signals/read` — credit reading a full profile
   - `POST /api/dating/signals/reply` — credit replying in a match
 - `POST /api/dating/push-token`
-- Socket.IO: `message:new`, `match:new`, `unveil`, `typing`, `presence`,
-  `friendtake:new`
+- Socket.IO: `message:new`, `match:new`, `unveil`, `unmatch`, `rewind`,
+  `typing`, `presence`, `friendtake:new`
 
 In production the server refuses to boot on the built-in dev
 `JWT_SECRET`; set a strong secret. `trust proxy` is enabled so rate
