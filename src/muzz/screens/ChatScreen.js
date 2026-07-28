@@ -16,6 +16,8 @@ import * as realtime from '../realtime';
 import * as H from '../haptics';
 
 const REACTIONS = ['❤️', '😂', '😍', '👍', '🔥', '🤲'];
+// Sticker set — sent as big expressive glyphs (offline, no external GIFs).
+const STICKERS = ['🤍', '🌙', '🕌', '💍', '🌹', '🌷', '☕️', '🥰', '😊', '😅', '✨', '🤲', '📿', '👋', '💐', '🫶'];
 
 export default function ChatScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
@@ -40,6 +42,7 @@ export default function ChatScreen({ route, navigation }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [reactionFor, setReactionFor] = useState(null);
   const [recording, setRecording] = useState(false);
+  const [stickerOpen, setStickerOpen] = useState(false);
 
   // The Veil: ask her to unveil (she reveals after a beat), or — if I'm
   // the one wearing the veil — unveil my photos for her.
@@ -147,6 +150,13 @@ export default function ChatScreen({ route, navigation }) {
     const secs = 3 + Math.floor(Math.random() * 12);
     H.press();
     sendMessage(personId, `voice:${secs}`, 'me');
+    botReply();
+  };
+
+  const sendSticker = (glyph) => {
+    H.press();
+    setStickerOpen(false);
+    sendMessage(personId, `sticker:${glyph}`, 'me');
     botReply();
   };
 
@@ -286,12 +296,26 @@ export default function ChatScreen({ route, navigation }) {
             </Pressable>
           </View>
         ) : (
+          <View>
+            {stickerOpen && (
+              <Animated.View entering={FadeIn} style={styles.stickerTray}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, gap: 6, alignItems: 'center' }}>
+                  {STICKERS.map((s) => (
+                    <Pressable key={s} onPress={() => sendSticker(s)} style={styles.stickerItem}>
+                      <Text style={styles.stickerGlyph}>{s}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </Animated.View>
+            )}
           <View style={[styles.composer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
             <Pressable style={styles.plus} onPress={sendImage}><Ionicons name="image-outline" size={23} color={M.primary} /></Pressable>
+            <Pressable style={styles.plus} onPress={() => { H.tap(); setStickerOpen((v) => !v); }}><Ionicons name={stickerOpen ? 'happy' : 'happy-outline'} size={23} color={M.primary} /></Pressable>
             <TextInput
               value={text} onChangeText={onChangeText}
               placeholder="Message…" placeholderTextColor={M.textMuted}
               style={styles.input} multiline
+              onFocus={() => setStickerOpen(false)}
             />
             {text.trim() ? (
               <Pressable onPress={() => send()} style={styles.sendBtn}>
@@ -300,6 +324,7 @@ export default function ChatScreen({ route, navigation }) {
             ) : (
               <Pressable style={styles.plus} onPress={() => { H.press(); setRecording(true); }}><Ionicons name="mic-outline" size={24} color={M.primary} /></Pressable>
             )}
+          </View>
           </View>
         )}
       </KeyboardAvoidingView>
@@ -397,8 +422,26 @@ function Bubble({ item, reaction, onLongPress, showReceipt }) {
   const mine = item.sender === 'me';
   const isVoice = typeof item.text === 'string' && item.text.startsWith('voice:');
   const isImage = typeof item.text === 'string' && item.text.startsWith('image:');
+  const isSticker = typeof item.text === 'string' && item.text.startsWith('sticker:');
   const secs = isVoice ? Number(item.text.split(':')[1]) : 0;
   const imgUri = isImage ? item.text.slice(6) : null;
+
+  // Stickers render as a large bare glyph — no bubble background.
+  if (isSticker) {
+    return (
+      <Animated.View entering={mine ? FadeInUp.duration(180) : FadeInDown.duration(180)} style={[styles.bubbleRow, { justifyContent: mine ? 'flex-end' : 'flex-start' }]}>
+        <Pressable onLongPress={onLongPress} delayLongPress={250}>
+          <Text style={styles.stickerBubble}>{item.text.slice(8)}</Text>
+          {mine && showReceipt && (
+            <View style={styles.receipt}>
+              <Ionicons name={item.read ? 'checkmark-done' : 'checkmark'} size={13} color={item.read ? M.blue : M.textMuted} />
+              <Text style={[styles.receiptText, item.read && { color: M.blue }]}>{item.read ? 'Seen' : 'Delivered'}</Text>
+            </View>
+          )}
+        </Pressable>
+      </Animated.View>
+    );
+  }
 
   return (
     <Animated.View entering={mine ? FadeInUp.duration(180) : FadeInDown.duration(180)} style={[styles.bubbleRow, { justifyContent: mine ? 'flex-end' : 'flex-start' }]}>
@@ -446,6 +489,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: M.bg },
   receipt: { flexDirection: 'row', alignItems: 'center', gap: 3, alignSelf: 'flex-end', marginTop: 3, marginRight: 4 },
   receiptText: { ...TYPE.caption, fontSize: 11, color: M.textMuted },
+  stickerBubble: { fontSize: 56, lineHeight: 66 },
+  stickerTray: { backgroundColor: M.bgSoft, borderTopWidth: 1, borderTopColor: M.border, paddingVertical: 10 },
+  stickerItem: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: M.bg },
+  stickerGlyph: { fontSize: 28 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: M.border },
   hBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   hCenter: { flex: 1, flexDirection: 'row', alignItems: 'center' },

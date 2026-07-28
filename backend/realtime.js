@@ -51,5 +51,6 @@ const emitToUser = (userId, event, payload) => {
 };
 
 const isOnline = (userId) => online.has(userId);
+const onlineCount = () => online.size;
 
-module.exports = { init, emitToUser, isOnline };
+module.exports = { init, emitToUser, isOnline, onlineCount };

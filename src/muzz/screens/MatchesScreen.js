@@ -77,31 +77,64 @@ export default function MatchesScreen({ navigation }) {
         )}
 
         {tab === 'likes' && (
+          likedYouPeople.length === 0 ? (
+            <Empty
+              icon="heart"
+              title="No likes yet"
+              sub="Keep your profile shining — likes will land here as people discover you."
+              cta="Get a Boost" onPress={() => navigation.navigate('MuzzGold')}
+            />
+          ) : (
           <View>
             <View style={styles.likesBanner}>
-              <Ionicons name="lock-closed" size={16} color={M.text} />
+              <Ionicons name={me.gold ? 'flame' : 'lock-closed'} size={16} color={M.text} />
               <Text style={styles.likesBannerText}>
-                {likedYouPeople.length} people like you. Match instantly with Gold.
+                {me.gold
+                  ? `${likedYouPeople.length} people like you — tap to match instantly.`
+                  : `${likedYouPeople.length} people like you. Unlock Gold to see & match instantly.`}
               </Text>
             </View>
+            {!me.gold && (
+              <Pressable onPress={() => { H.tap(); navigation.navigate('MuzzGold'); }} style={styles.seeAllBtn}>
+                <LinearGradient colors={GRAD.gold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.seeAllGrad}>
+                  <Ionicons name="diamond" size={16} color="#fff" />
+                  <Text style={styles.seeAllText}>See who likes you</Text>
+                </LinearGradient>
+              </Pressable>
+            )}
             <View style={styles.grid}>
-              {likedYouPeople.map((p, i) => (
-                <Animated.View key={p.id} entering={FadeInDown.delay(i * 40)}>
-                  <Pressable onPress={() => { H.press(); likePerson(p.id, { mutual: true }); navigation.navigate('MuzzMatchReveal', { personId: p.id, score: scoreMatch(me, p).score }); }}>
-                    <View style={styles.likeTile}>
-                      <PhotoTile seed={p.id} name={p.name} style={StyleSheet.absoluteFill} />
-                      <BlurView intensity={28} tint="light" style={StyleSheet.absoluteFill} />
-                      <LinearGradient colors={['transparent', 'rgba(20,16,26,0.7)']} style={StyleSheet.absoluteFill} />
-                      <View style={styles.likeTileInfo}>
-                        <Text style={styles.likeName}>{p.name}</Text>
-                        <View style={styles.tapToMatch}><Ionicons name="heart" size={11} color="#fff" /><Text style={styles.tapText}>Match</Text></View>
+              {likedYouPeople.map((p, i) => {
+                const locked = !me.gold;
+                return (
+                  <Animated.View key={p.id} entering={FadeInDown.delay(i * 40)}>
+                    <Pressable onPress={() => {
+                      H.press();
+                      if (locked) { navigation.navigate('MuzzGold'); return; }
+                      likePerson(p.id, { mutual: true });
+                      navigation.navigate('MuzzMatchReveal', { personId: p.id, score: scoreMatch(me, p).score });
+                    }}>
+                      <View style={styles.likeTile}>
+                        <PhotoTile seed={p.id} name={p.name} style={StyleSheet.absoluteFill} />
+                        {locked && <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFill} />}
+                        <LinearGradient colors={['transparent', 'rgba(20,16,26,0.7)']} style={StyleSheet.absoluteFill} />
+                        <View style={styles.likeTileInfo}>
+                          {locked ? (
+                            <View style={styles.lockPill}><Ionicons name="lock-closed" size={14} color="#fff" /></View>
+                          ) : (
+                            <>
+                              <Text style={styles.likeName}>{p.name}</Text>
+                              <View style={styles.tapToMatch}><Ionicons name="heart" size={11} color="#fff" /><Text style={styles.tapText}>Match</Text></View>
+                            </>
+                          )}
+                        </View>
                       </View>
-                    </View>
-                  </Pressable>
-                </Animated.View>
-              ))}
+                    </Pressable>
+                  </Animated.View>
+                );
+              })}
             </View>
           </View>
+          )
         )}
       </ScrollView>
     </View>
@@ -145,6 +178,10 @@ const styles = StyleSheet.create({
   newDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: M.primary },
   likesBanner: { flexDirection: 'row', alignItems: 'center', gap: 8, margin: SPACE.xl, marginBottom: 8, backgroundColor: M.bgSoft, borderRadius: RADIUS.md, padding: 14, borderWidth: 1, borderColor: M.border },
   likesBannerText: { flex: 1, fontWeight: '700', color: M.text, fontSize: 13 },
+  seeAllBtn: { marginHorizontal: SPACE.xl, marginBottom: 8 },
+  seeAllGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: RADIUS.pill },
+  seeAllText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  lockPill: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.22)' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: SPACE.xl, gap: 12 },
   likeTile: { width: COL_W, height: COL_W * 1.35, borderRadius: RADIUS.md, overflow: 'hidden', justifyContent: 'flex-end', backgroundColor: M.bgSoft },
   likeTileInfo: { padding: 8, alignItems: 'center' },

@@ -128,6 +128,8 @@ export const instantChat = (targetId) =>
   request('/dating/instant-chat', { method: 'POST', body: { targetId: toServerId(targetId) } });
 
 export const likesYou = () => request('/dating/likes-you');
+export const topPicks = () => request('/dating/top-picks');
+export const surge = () => request('/dating/surge');
 export const matches = () => request('/dating/matches');
 export const butterflyPick = () => request('/dating/butterfly/pick');
 export const getMessages = (matchId, { before, limit } = {}) => {

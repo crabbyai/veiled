@@ -52,6 +52,8 @@ Set `JWT_SECRET` in production. Mount a volume for `DB_PATH` and
   verifiedOnly` plus Passport `city=<name>` (discover in any city;
   relaxes distance). Echoes `appliedFilters` and `passport`.
 - `GET /api/dating/butterfly/pick`
+- `GET /api/dating/top-picks` — curated daily high-compatibility set (Gold sees all; free sees a few + `lockedCount`)
+- `GET /api/dating/surge` — live activity (`online`, `activeNow`, `surging`) for the Swipe Surge banner
 - `POST /api/dating/swipe|super-like|instant-chat|boost|block|report`
   (`report` files a moderation report — required for App Store UGC review)
 - `POST /api/dating/rewind` — undo the most recent swipe (or `{ targetId }`);

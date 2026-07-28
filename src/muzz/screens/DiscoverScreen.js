@@ -1,9 +1,10 @@
 import React, { useMemo, useCallback, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, Dimensions, Platform, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Dimensions, Platform, Modal, TextInput, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { BlurView } from 'expo-blur';
 import Animated, {
   FadeIn, FadeInUp, useSharedValue, useAnimatedStyle, withTiming, withSpring,
   interpolate, runOnJS, Easing,
@@ -73,6 +74,18 @@ export default function DiscoverScreen({ navigation }) {
     () => PEOPLE.filter((p) => p.online && !matches.includes(p.id)).slice(0, 8),
     [matches]
   );
+
+  // Top Picks: your highest-compatibility candidates, highlighted. Gold
+  // sees them all; free members see a couple and a locked count.
+  const topPicks = useMemo(
+    () => stack.slice(0, 8).map((m) => m.person),
+    [stack]
+  );
+  const freePicks = 2;
+
+  // Swipe Surge: a live spike in activity — nudges you to swipe now.
+  const activeNow = useMemo(() => PEOPLE.filter((p) => p.online).length, []);
+  const surging = activeNow >= 4;
 
   const sendSuperLike = () => {
     if (!superTarget) return;
@@ -228,6 +241,46 @@ export default function DiscoverScreen({ navigation }) {
 
       {/* Stories / moments rail */}
       <Stories people={onlinePeople} me={me} />
+
+      {/* Swipe Surge — live activity spike */}
+      {surging && (
+        <Animated.View entering={FadeInUp} style={styles.surge}>
+          <View style={styles.surgeDot} />
+          <Text style={styles.surgeText}>Swipe Surge · {activeNow} sisters active now — great time to swipe</Text>
+        </Animated.View>
+      )}
+
+      {/* Top Picks rail */}
+      {topPicks.length > 0 && (
+        <View style={styles.picksWrap}>
+          <View style={styles.picksHead}>
+            <Ionicons name="star" size={14} color={M.gold} />
+            <Text style={styles.picksTitle}>Top Picks for you</Text>
+            {!me.gold && <Text style={styles.picksGold}>GOLD</Text>}
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: SPACE.lg, gap: 10 }}>
+            {topPicks.map((p, i) => {
+              const locked = !me.gold && i >= freePicks;
+              return (
+                <Pressable
+                  key={p.id}
+                  onPress={() => { H.tap(); locked ? navigation.navigate('MuzzGold') : navigation.navigate('MuzzProfileDetail', { personId: p.id }); }}
+                  style={styles.pick}
+                >
+                  <PhotoTile seed={p.id} name={p.name} style={StyleSheet.absoluteFill} />
+                  {locked && <BlurView intensity={38} tint="dark" style={StyleSheet.absoluteFill} />}
+                  <LinearGradient colors={['transparent', 'rgba(15,15,16,0.82)']} style={StyleSheet.absoluteFill} />
+                  {locked ? (
+                    <View style={styles.pickLock}><Ionicons name="lock-closed" size={16} color="#fff" /></View>
+                  ) : (
+                    <Text style={styles.pickName} numberOfLines={1}>{p.name}</Text>
+                  )}
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Next salah + countdown */}
       <PrayerBar />
@@ -443,6 +496,19 @@ const styles = StyleSheet.create({
   },
   onlineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: M.online },
   onlineText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  surge: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: SPACE.lg, marginTop: 6,
+    backgroundColor: M.primarySoft, borderRadius: RADIUS.pill, paddingHorizontal: 14, paddingVertical: 8,
+  },
+  surgeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: M.online },
+  surgeText: { flex: 1, color: M.text, fontWeight: '700', fontSize: 12.5 },
+  picksWrap: { marginTop: 10 },
+  picksHead: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: SPACE.lg, marginBottom: 8 },
+  picksTitle: { ...TYPE.h3, fontSize: 15, flex: 0 },
+  picksGold: { color: M.gold, fontWeight: '900', fontSize: 10, marginLeft: 4 },
+  pick: { width: 76, height: 100, borderRadius: 14, overflow: 'hidden', justifyContent: 'flex-end', backgroundColor: M.bgSoft },
+  pickLock: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  pickName: { color: '#fff', fontWeight: '800', fontSize: 12, padding: 6 },
   aiBadge: {
     position: 'absolute', top: 20, right: 14, flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: 'rgba(17,17,17,0.92)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: RADIUS.pill,

@@ -4,7 +4,7 @@ const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../db');
 const { authenticate } = require('../middleware/auth');
-const { emitToUser, isOnline } = require('../realtime');
+const { emitToUser, isOnline, onlineCount } = require('../realtime');
 const { saveToken, sendPush } = require('../push');
 
 const router = express.Router();
@@ -383,6 +383,65 @@ router.get('/discover', authenticate, (req, res) => {
     });
   } catch (err) {
     console.error('Discover error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/dating/top-picks — a curated set of your highest-compatibility
+// candidates, refreshed daily. Gold sees the full set unblurred; free
+// members see a couple and a locked count (the Gold teaser).
+router.get('/top-picks', authenticate, (req, res) => {
+  try {
+    const me = getProfile(req.userId);
+    if (!me) return res.status(400).json({ error: 'Create your profile first' });
+    const rows = db.prepare(`
+      SELECT p.* FROM dating_profiles p
+      WHERE p.user_id != ? AND p.gender != ?
+        AND p.user_id NOT IN (SELECT target_id FROM dating_swipes WHERE user_id = ?)
+        ${NOT_BLOCKED}
+    `).all(req.userId, me.gender, req.userId, req.userId, req.userId);
+
+    // Deterministic "daily" shuffle so the set is stable within a day but
+    // rotates day to day, then take the strongest compatibility scores.
+    const day = Math.floor(Date.now() / 86400000);
+    const ranked = rows
+      .map((r) => parseProfile(r, req.userId))
+      .map((person) => {
+        const s = scoreMatch(me, person);
+        let seed = day + person.id;
+        seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+        return { person, ...s, _r: s.score * 100 + (seed % 100) };
+      })
+      .sort((x, y) => y._r - x._r)
+      .slice(0, 10)
+      .map(({ _r, ...rest }) => rest);
+
+    const freeVisible = 2;
+    res.json({
+      picks: me.gold ? ranked : ranked.slice(0, freeVisible),
+      lockedCount: me.gold ? 0 : Math.max(0, ranked.length - freeVisible),
+      total: ranked.length,
+      gold: !!me.gold,
+      refreshesInMs: 86400000 - (Date.now() % 86400000),
+    });
+  } catch (err) {
+    console.error('Top picks error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/dating/surge — live activity signal (Swipe Surge). Reports how
+// many members are online now so the client can show a surge banner.
+router.get('/surge', authenticate, (req, res) => {
+  try {
+    const online = onlineCount();
+    // "Active now" also counts profiles seen in the last 15 minutes.
+    const recent = db.prepare(
+      'SELECT COUNT(*) AS n FROM dating_profiles WHERE updated_at > ? AND user_id != ?'
+    ).get(Date.now() - 15 * 60000, req.userId).n;
+    const activeNow = Math.max(online, recent);
+    res.json({ online, activeNow, surging: activeNow >= 5 });
+  } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
 });
