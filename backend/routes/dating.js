@@ -177,11 +177,25 @@ function findMatch(a, b) {
   ).get(a, b, b, a);
 }
 
-const createMatch = (a, b, source = 'like') => {
+// `opener` (Hinge-style): { fromUserId, text } — a comment left when
+// liking. On match it's posted as the first message so the reply lands
+// in context, exactly like Hinge surfaces the like's comment.
+const createMatch = (a, b, source = 'like', opener = null) => {
   const existing = findMatch(a, b);
   if (existing) return existing;
   const r = db.prepare('INSERT INTO dating_matches (user_a, user_b, source) VALUES (?, ?, ?)').run(a, b, source);
   const match = db.prepare('SELECT * FROM dating_matches WHERE id = ?').get(r.lastInsertRowid);
+
+  if (opener && opener.text && (opener.fromUserId === a || opener.fromUserId === b)) {
+    const msg = db.prepare('INSERT INTO dating_messages (match_id, sender_id, body) VALUES (?, ?, ?)')
+      .run(match.id, opener.fromUserId, String(opener.text).slice(0, 500));
+    const otherId = opener.fromUserId === a ? b : a;
+    emitToUser(otherId, 'message:new', {
+      matchId: match.id,
+      message: { id: msg.lastInsertRowid, senderId: opener.fromUserId, body: String(opener.text).slice(0, 500), ts: Date.now() },
+    });
+  }
+
   // Live + push notify both parties
   const pa = getProfile(a, b), pb = getProfile(b, a);
   emitToUser(a, 'match:new', { matchId: match.id, person: pb });
@@ -380,6 +394,7 @@ router.get('/discover', authenticate, (req, res) => {
       boostActive: lim.boost_until > Date.now(),
       boostUntil: lim.boost_until,
       superLikes: me.gold ? -1 : lim.super_likes,
+      roses: me.gold ? -1 : lim.roses,
     });
   } catch (err) {
     console.error('Discover error:', err);
@@ -467,10 +482,14 @@ router.get('/butterfly/pick', authenticate, (req, res) => {
   }
 });
 
-// POST /api/dating/swipe { targetId, action } → { match, matchId? }
+// A like can carry a Hinge-style comment on a specific photo/prompt.
+const cleanComment = (v) => (v == null ? null : String(v).trim().slice(0, 500) || null);
+const cleanContentType = (v) => (['photo', 'prompt', 'profile'].includes(v) ? v : null);
+
+// POST /api/dating/swipe { targetId, action, comment?, contentType?, contentRef? }
 router.post('/swipe', authenticate, (req, res) => {
   try {
-    const { targetId, action } = req.body || {};
+    const { targetId, action, comment, contentType, contentRef } = req.body || {};
     if (!targetId || !['like', 'pass'].includes(action)) {
       return res.status(400).json({ error: 'targetId and action (like|pass) required' });
     }
@@ -492,10 +511,14 @@ router.post('/swipe', authenticate, (req, res) => {
       }
     }
 
+    const note = cleanComment(comment);
+    const ct = cleanContentType(contentType);
+    const cref = contentRef != null ? String(contentRef).slice(0, 200) : null;
     db.prepare(`
-      INSERT INTO dating_swipes (user_id, target_id, action) VALUES (?, ?, ?)
-      ON CONFLICT(user_id, target_id) DO UPDATE SET action = excluded.action, created_at = excluded.created_at
-    `).run(req.userId, targetId, action);
+      INSERT INTO dating_swipes (user_id, target_id, action, note, content_type, content_ref) VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(user_id, target_id) DO UPDATE SET action = excluded.action, created_at = excluded.created_at,
+        note = excluded.note, content_type = excluded.content_type, content_ref = excluded.content_ref
+    `).run(req.userId, targetId, action, note, ct, cref);
 
     let match = null;
     if (action === 'like') {
@@ -505,7 +528,7 @@ router.post('/swipe', authenticate, (req, res) => {
       const targetIsBot = db.prepare('SELECT is_bot FROM dating_profiles WHERE user_id = ?').get(targetId);
       // Bots always like back so the demo flow works end-to-end
       if (theirLike || (targetIsBot && targetIsBot.is_bot)) {
-        match = createMatch(req.userId, targetId, 'like');
+        match = createMatch(req.userId, targetId, 'like', note ? { fromUserId: req.userId, text: note } : null);
       }
     }
     res.json({ match: !!match, matchId: match ? match.id : null });
@@ -584,8 +607,11 @@ router.post('/instant-chat', authenticate, (req, res) => {
 router.get('/likes-you', authenticate, (req, res) => {
   try {
     const me = getProfile(req.userId);
+    // Include the Hinge like context: what they liked and their comment.
     const rows = db.prepare(`
-      SELECT p.* FROM dating_swipes s
+      SELECT p.*, s.note AS like_note, s.content_type AS like_ct, s.content_ref AS like_ref,
+             s.is_rose AS like_rose, s.is_super AS like_super
+      FROM dating_swipes s
       JOIN dating_profiles p ON p.user_id = s.user_id
       WHERE s.target_id = ? AND s.action = 'like'
         AND s.user_id NOT IN (
@@ -593,11 +619,16 @@ router.get('/likes-you', authenticate, (req, res) => {
           FROM dating_matches WHERE user_a = ? OR user_b = ?
         )
         ${NOT_BLOCKED}
+      ORDER BY s.is_rose DESC, s.is_super DESC, s.created_at DESC
     `).all(req.userId, req.userId, req.userId, req.userId, req.userId, req.userId);
-    const people = rows.map((r) => parseProfile(r, req.userId));
+    const withLike = (r) => ({
+      ...parseProfile(r, req.userId),
+      like: { comment: r.like_note || null, contentType: r.like_ct || null, contentRef: r.like_ref || null, rose: !!r.like_rose, superLike: !!r.like_super },
+    });
+    const people = rows.map(withLike);
     res.json({
       count: people.length,
-      people: me && me.gold ? people : people.map((p) => ({ id: p.id, name: p.name, veil: p.veil, verified: p.verified })),
+      people: me && me.gold ? people : people.map((p) => ({ id: p.id, name: p.name, veil: p.veil, verified: p.verified, like: { rose: p.like.rose, superLike: p.like.superLike, hasComment: !!p.like.comment } })),
     });
   } catch (err) {
     console.error('Likes-you error:', err);
@@ -679,6 +710,28 @@ router.post('/matches/:id/unmatch', authenticate, (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('Unmatch error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/dating/matches/:id/we-met { met, wentWell } — post-date
+// feedback (Hinge "We Met"). Private; helps improve future matching.
+router.post('/matches/:id/we-met', authenticate, (req, res) => {
+  try {
+    const m = db.prepare('SELECT * FROM dating_matches WHERE id = ?').get(req.params.id);
+    if (!m || (m.user_a !== req.userId && m.user_b !== req.userId)) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+    const met = req.body && (req.body.met === true || req.body.met === 1) ? 1 : 0;
+    const wentWell = met && req.body && (req.body.wentWell === true || req.body.wentWell === 1) ? 1
+      : met && req.body && (req.body.wentWell === false || req.body.wentWell === 0) ? 0 : null;
+    db.prepare(`
+      INSERT INTO dating_we_met (match_id, user_id, met, went_well) VALUES (?, ?, ?, ?)
+      ON CONFLICT(match_id, user_id) DO UPDATE SET met = excluded.met, went_well = excluded.went_well, created_at = ${Date.now()}
+    `).run(m.id, req.userId, met, wentWell);
+    res.json({ ok: true, met: !!met, wentWell });
+  } catch (err) {
+    console.error('We-met error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -905,10 +958,10 @@ router.post('/boost', authenticate, (req, res) => {
   }
 });
 
-// POST /api/dating/super-like { targetId, note }
+// POST /api/dating/super-like { targetId, note, contentType?, contentRef? }
 router.post('/super-like', authenticate, (req, res) => {
   try {
-    const { targetId, note } = req.body || {};
+    const { targetId, note, contentType, contentRef } = req.body || {};
     if (!targetId) return res.status(400).json({ error: 'targetId required' });
     const me = getProfile(req.userId);
     const lim = getLimits(req.userId);
@@ -918,18 +971,107 @@ router.post('/super-like', authenticate, (req, res) => {
     if (!me.gold) {
       db.prepare('UPDATE dating_limits SET super_likes = super_likes - 1 WHERE user_id = ?').run(req.userId);
     }
+    const comment = cleanComment(note);
+    const ct = cleanContentType(contentType);
+    const cref = contentRef != null ? String(contentRef).slice(0, 200) : null;
     db.prepare(`
-      INSERT INTO dating_swipes (user_id, target_id, action, is_super, note) VALUES (?, ?, 'like', 1, ?)
-      ON CONFLICT(user_id, target_id) DO UPDATE SET action = 'like', is_super = 1, note = excluded.note
-    `).run(req.userId, targetId, note || null);
+      INSERT INTO dating_swipes (user_id, target_id, action, is_super, note, content_type, content_ref) VALUES (?, ?, 'like', 1, ?, ?, ?)
+      ON CONFLICT(user_id, target_id) DO UPDATE SET action = 'like', is_super = 1, note = excluded.note,
+        content_type = excluded.content_type, content_ref = excluded.content_ref
+    `).run(req.userId, targetId, comment, ct, cref);
     // Super likes are very likely to match in the demo (bots always match)
     const targetIsBot = db.prepare('SELECT is_bot FROM dating_profiles WHERE user_id = ?').get(targetId);
     const theirLike = db.prepare("SELECT 1 FROM dating_swipes WHERE user_id = ? AND target_id = ? AND action = 'like'").get(targetId, req.userId);
     let match = null;
-    if (theirLike || (targetIsBot && targetIsBot.is_bot)) match = createMatch(req.userId, targetId, 'super');
+    if (theirLike || (targetIsBot && targetIsBot.is_bot)) match = createMatch(req.userId, targetId, 'super', comment ? { fromUserId: req.userId, text: comment } : null);
     res.json({ match: !!match, matchId: match ? match.id : null, superLikesLeft: me.gold ? -1 : Math.max(0, lim.super_likes - 1) });
   } catch (err) {
     console.error('Super like error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/dating/rose { targetId, comment?, contentType?, contentRef? }
+// A Rose (Hinge) — your standout like. Uses a Rose credit; more likely to
+// be seen and to match. Comment posts as the opener on match.
+router.post('/rose', authenticate, (req, res) => {
+  try {
+    const { targetId, comment, contentType, contentRef } = req.body || {};
+    if (!targetId) return res.status(400).json({ error: 'targetId required' });
+    const me = getProfile(req.userId);
+    if (!me) return res.status(400).json({ error: 'Create your profile first' });
+    if (isBlockedPair(req.userId, toInt(targetId))) return res.status(403).json({ error: 'Unavailable' });
+    const lim = getLimits(req.userId);
+    if (!me.gold && lim.roses <= 0) {
+      return res.status(429).json({ error: 'Out of Roses', upgradeRequired: true });
+    }
+    if (!me.gold) db.prepare('UPDATE dating_limits SET roses = roses - 1 WHERE user_id = ?').run(req.userId);
+
+    const note = cleanComment(comment);
+    const ct = cleanContentType(contentType);
+    const cref = contentRef != null ? String(contentRef).slice(0, 200) : null;
+    db.prepare(`
+      INSERT INTO dating_swipes (user_id, target_id, action, is_super, is_rose, note, content_type, content_ref)
+      VALUES (?, ?, 'like', 1, 1, ?, ?, ?)
+      ON CONFLICT(user_id, target_id) DO UPDATE SET action = 'like', is_super = 1, is_rose = 1,
+        note = excluded.note, content_type = excluded.content_type, content_ref = excluded.content_ref
+    `).run(req.userId, targetId, note, ct, cref);
+
+    const targetIsBot = db.prepare('SELECT is_bot FROM dating_profiles WHERE user_id = ?').get(targetId);
+    const theirLike = db.prepare("SELECT 1 FROM dating_swipes WHERE user_id = ? AND target_id = ? AND action = 'like'").get(targetId, req.userId);
+    let match = null;
+    if (theirLike || (targetIsBot && targetIsBot.is_bot)) match = createMatch(req.userId, targetId, 'rose', note ? { fromUserId: req.userId, text: note } : null);
+    else {
+      // Notify the recipient a Rose is waiting (it's a standout signal).
+      const meProfile = getProfile(req.userId, toInt(targetId));
+      emitToUser(toInt(targetId), 'rose', { from: req.userId });
+      sendPush(toInt(targetId), 'You received a Rose 🌹', `${meProfile ? meProfile.name : 'Someone'} sent you a Rose on Veiled`, {});
+    }
+    res.json({ match: !!match, matchId: match ? match.id : null, rosesLeft: me.gold ? -1 : Math.max(0, lim.roses - 1) });
+  } catch (err) {
+    console.error('Rose error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/dating/standouts — a weekly-refreshed, prompt-forward set of
+// standout profiles (Hinge). Send a Rose to reach them. Stable within an
+// ISO week, rotating each week.
+router.get('/standouts', authenticate, (req, res) => {
+  try {
+    const me = getProfile(req.userId);
+    if (!me) return res.status(400).json({ error: 'Create your profile first' });
+    const rows = db.prepare(`
+      SELECT p.* FROM dating_profiles p
+      WHERE p.user_id != ? AND p.gender != ?
+        AND p.user_id NOT IN (SELECT target_id FROM dating_swipes WHERE user_id = ?)
+        ${NOT_BLOCKED}
+    `).all(req.userId, me.gender, req.userId, req.userId, req.userId);
+
+    const week = Math.floor(Date.now() / (7 * 86400000));
+    const standouts = rows
+      .map((r) => parseProfile(r, req.userId))
+      .map((person) => {
+        const s = scoreMatch(me, person);
+        let seed = week * 131 + person.id;
+        seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+        // Highlight one prompt (their most telling answer) like Hinge does.
+        const prompts = person.prompts || [];
+        const highlight = prompts.length ? prompts[seed % prompts.length] : null;
+        return { person, score: s.score, reasons: s.reasons, highlight, _r: s.score * 100 + (seed % 100) };
+      })
+      .sort((x, y) => y._r - x._r)
+      .slice(0, 8)
+      .map(({ _r, ...rest }) => rest);
+
+    const lim = getLimits(req.userId);
+    res.json({
+      standouts,
+      roses: me.gold ? -1 : lim.roses,
+      refreshesInMs: 7 * 86400000 - (Date.now() % (7 * 86400000)),
+    });
+  } catch (err) {
+    console.error('Standouts error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });

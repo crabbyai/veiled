@@ -55,7 +55,13 @@ Set `JWT_SECRET` in production. Mount a volume for `DB_PATH` and
 - `GET /api/dating/top-picks` — curated daily high-compatibility set (Gold sees all; free sees a few + `lockedCount`)
 - `GET /api/dating/surge` — live activity (`online`, `activeNow`, `surging`) for the Swipe Surge banner
 - `POST /api/dating/swipe|super-like|instant-chat|boost|block|report`
-  (`report` files a moderation report — required for App Store UGC review)
+  (`report` files a moderation report — required for App Store UGC review).
+  `swipe`/`super-like` accept a Hinge-style `comment` + `contentType`
+  (`photo|prompt|profile`) + `contentRef`; on match the comment posts as
+  the opener. `likes-you` returns each like's comment/rose/super context.
+- `POST /api/dating/rose` `{ targetId, comment?, contentType?, contentRef? }` — a Rose (Hinge standout like), uses a Rose credit
+- `GET /api/dating/standouts` — weekly-refreshed, prompt-forward set to send Roses to
+- `POST /api/dating/matches/:id/we-met` `{ met, wentWell }` — private post-date feedback (Hinge We Met)
 - `POST /api/dating/rewind` — undo the most recent swipe (or `{ targetId }`);
   returns the card to the deck, undoes a no-message match, refunds a like
 - `GET /api/dating/likes-you`

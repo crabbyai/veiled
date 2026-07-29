@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions, Alert, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,7 +15,9 @@ const { width } = Dimensions.get('window');
 export default function ProfileDetailScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
   const { personId } = route.params;
-  const { me, matches, feedback, likePerson, passPerson, likesRemaining, isUnveiled, markProfileRead, reportPerson, blockPerson } = useMuzz();
+  const { me, matches, feedback, likePerson, passPerson, likesRemaining, isUnveiled, markProfileRead, reportPerson, blockPerson, sendRose, roses } = useMuzz();
+  const [commentFor, setCommentFor] = React.useState(null); // { type, ref, label }
+  const [commentText, setCommentText] = React.useState('');
   const [photoIdx, setPhotoIdx] = React.useState(0);
   const person = getPerson(personId);
   // Signals: opening a full profile counts as a genuine read.
@@ -37,6 +39,27 @@ export default function ProfileDetailScreen({ route, navigation }) {
     navigation.replace('MuzzMatchReveal', { personId, score: compat.score });
   };
   const onPass = () => { passPerson(personId); H.tap(); navigation.goBack(); };
+
+  // Hinge: like a specific prompt/photo, optionally with a comment.
+  const openComment = (type, ref, label) => { H.tap(); setCommentText(''); setCommentFor({ type, ref, label }); };
+  const sendComment = () => {
+    if (!commentFor) return;
+    if (likesRemaining() <= 0) { setCommentFor(null); navigation.navigate('MuzzGold'); return; }
+    const comment = commentText.trim() || null;
+    const { type, ref } = commentFor;
+    setCommentFor(null);
+    likePerson(personId, { mutual: true, comment, contentType: type, contentRef: String(ref) });
+    H.success();
+    navigation.replace('MuzzMatchReveal', { personId, score: compat.score });
+  };
+
+  // Rose (Hinge): a standout like. Out of Roses → Gold.
+  const onRose = () => {
+    H.press();
+    if (!me.gold && (roses || 0) <= 0) { navigation.navigate('MuzzGold'); return; }
+    const ok = sendRose(personId, {});
+    if (ok) navigation.replace('MuzzMatchReveal', { personId, score: compat.score, rose: true });
+  };
 
   // Report or block — files a moderation report and removes the profile.
   const onReport = () => {
@@ -206,10 +229,17 @@ export default function ProfileDetailScreen({ route, navigation }) {
           </Section>
         )}
 
-        {/* Prompts */}
+        {/* Prompts — tap the heart to like this answer with a comment */}
         {(person.prompts || []).map((p, i) => (
           <Section key={i} title={p.q}>
-            <Text style={styles.promptA}>"{p.a}"</Text>
+            <View style={styles.promptRow}>
+              <Text style={[styles.promptA, { flex: 1 }]}>"{p.a}"</Text>
+              {!isMatch && (
+                <Pressable onPress={() => openComment('prompt', i, `on "${p.q}"`)} style={styles.promptLike}>
+                  <Ionicons name="heart-outline" size={20} color={M.primary} />
+                </Pressable>
+              )}
+            </View>
           </Section>
         ))}
 
@@ -224,7 +254,11 @@ export default function ProfileDetailScreen({ route, navigation }) {
       {!isMatch ? (
         <View style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <Pressable onPress={onPass} style={[styles.actBtn, styles.passBtn]}><Ionicons name="close" size={28} color={M.textSoft} /></Pressable>
-          <Pressable onPress={() => { H.press(); onLike(); }} style={[styles.actBtn, styles.superBtn]}><Ionicons name="star" size={22} color={M.textOnPrimary} /></Pressable>
+          <Pressable onPress={onRose} style={[styles.actBtn, styles.roseBtn]}>
+            <Ionicons name="rose" size={22} color="#fff" />
+            {!me.gold && <View style={styles.roseCount}><Text style={styles.roseCountText}>{roses || 0}</Text></View>}
+          </Pressable>
+          <Pressable onPress={() => openComment('profile', 'profile', '')} style={[styles.actBtn, styles.superBtn]}><Ionicons name="chatbubble-ellipses" size={20} color={M.textOnPrimary} /></Pressable>
           <Pressable onPress={() => { H.press(); onLike(); }} style={[styles.actBtn, styles.likeBtn]}><Ionicons name="heart" size={28} color={M.textOnPrimary} /></Pressable>
         </View>
       ) : (
@@ -237,6 +271,35 @@ export default function ProfileDetailScreen({ route, navigation }) {
           </Pressable>
         </View>
       )}
+
+      {/* Hinge comment sheet — like with a message on a prompt/photo */}
+      <Modal visible={!!commentFor} transparent animationType="slide" onRequestClose={() => setCommentFor(null)}>
+        <Pressable style={styles.sheetBg} onPress={() => setCommentFor(null)}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <Pressable style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]} onPress={(e) => e.stopPropagation?.()}>
+              <View style={styles.sheetHandle} />
+              <Text style={styles.sheetTitle}>Send a like to {person.name}</Text>
+              {!!(commentFor && commentFor.label) && <Text style={styles.sheetSub}>Liking {commentFor.label}</Text>}
+              <TextInput
+                value={commentText}
+                onChangeText={setCommentText}
+                placeholder="Add a comment (optional) — say salaam, ask about her answer…"
+                placeholderTextColor={M.textMuted}
+                style={styles.sheetInput}
+                multiline
+                maxLength={500}
+                autoFocus
+              />
+              <Pressable onPress={sendComment} style={styles.sheetSend}>
+                <LinearGradient colors={GRAD.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.sheetSendGrad}>
+                  <Ionicons name="heart" size={18} color={M.textOnPrimary} />
+                  <Text style={styles.sheetSendText}>{commentText.trim() ? 'Send Like with comment' : 'Send Like'}</Text>
+                </LinearGradient>
+              </Pressable>
+            </Pressable>
+          </KeyboardAvoidingView>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -299,6 +362,8 @@ const styles = StyleSheet.create({
   factValue: { ...TYPE.h3, fontSize: 15, marginTop: 2 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap' },
   promptA: { ...TYPE.h2, fontSize: 19, fontWeight: '700', lineHeight: 27, color: M.text },
+  promptRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  promptLike: { width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: M.border, alignItems: 'center', justifyContent: 'center', backgroundColor: M.bg },
   takeCard: { backgroundColor: M.bgSoft, borderRadius: RADIUS.md, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: M.border },
   takeText: { ...TYPE.body, fontSize: 15, lineHeight: 22, fontStyle: 'italic' },
   takeVoice: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -314,7 +379,19 @@ const styles = StyleSheet.create({
   actBtn: { alignItems: 'center', justifyContent: 'center', ...SHADOW.soft },
   passBtn: { width: 58, height: 58, borderRadius: 29, backgroundColor: M.bgElevated, borderWidth: 1.5, borderColor: M.border },
   superBtn: { width: 50, height: 50, borderRadius: 25, backgroundColor: M.blue },
+  roseBtn: { width: 54, height: 54, borderRadius: 27, backgroundColor: '#C2447A' },
+  roseCount: { position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: M.bg, borderWidth: 1, borderColor: '#C2447A', alignItems: 'center', justifyContent: 'center' },
+  roseCountText: { fontSize: 10, fontWeight: '900', color: '#C2447A' },
   likeBtn: { width: 66, height: 66, borderRadius: 33, backgroundColor: M.primary, ...SHADOW.primary },
+  sheetBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: M.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: SPACE.xl },
+  sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: M.border, marginBottom: 16 },
+  sheetTitle: { ...TYPE.h2, fontSize: 20 },
+  sheetSub: { ...TYPE.soft, color: M.textSoft, marginTop: 4 },
+  sheetInput: { ...TYPE.body, minHeight: 90, maxHeight: 160, backgroundColor: M.bgSoft, borderRadius: RADIUS.md, borderWidth: 1, borderColor: M.border, padding: 14, marginTop: 16, textAlignVertical: 'top' },
+  sheetSend: { marginTop: 16 },
+  sheetSendGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 15, borderRadius: RADIUS.pill },
+  sheetSendText: { color: M.textOnPrimary, fontWeight: '800', fontSize: 16 },
   msgBtn: { flex: 1 },
   msgGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderRadius: RADIUS.pill },
   msgText: { color: M.textOnPrimary, fontWeight: '800', fontSize: 16 },

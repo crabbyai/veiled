@@ -15,6 +15,7 @@ import * as H from './haptics';
 import OnboardingScreen from './screens/OnboardingScreen';
 import DiscoverScreen from './screens/DiscoverScreen';
 import ButterflyScreen from './screens/ButterflyScreen';
+import StandoutsScreen from './screens/StandoutsScreen';
 import ExploreScreen from './screens/ExploreScreen';
 import MatchesScreen from './screens/MatchesScreen';
 import SocialScreen from './screens/SocialScreen';
@@ -111,6 +112,7 @@ function Root() {
           <>
             <Stack.Screen name="MuzzTabs" component={MuzzTabs} />
             <Stack.Screen name="MuzzButterflyPicks" component={ButterflyScreen} />
+            <Stack.Screen name="MuzzStandouts" component={StandoutsScreen} />
             <Stack.Screen name="MuzzExplore" component={ExploreScreen} />
             <Stack.Screen name="MuzzFilters" component={FiltersScreen} options={{ animation: 'slide_from_bottom' }} />
             <Stack.Screen name="MuzzChat" component={ChatScreen} />

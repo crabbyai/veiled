@@ -279,6 +279,11 @@ export default function DiscoverScreen({ navigation }) {
               );
             })}
           </ScrollView>
+          <Pressable onPress={() => { H.tap(); navigation.navigate('MuzzStandouts'); }} style={styles.standoutsBtn}>
+            <Ionicons name="rose" size={15} color="#C2447A" />
+            <Text style={styles.standoutsText}>Standouts — send a Rose to this week's most compatible</Text>
+            <Ionicons name="chevron-forward" size={16} color={M.textMuted} />
+          </Pressable>
         </View>
       )}
 
@@ -509,6 +514,8 @@ const styles = StyleSheet.create({
   pick: { width: 76, height: 100, borderRadius: 14, overflow: 'hidden', justifyContent: 'flex-end', backgroundColor: M.bgSoft },
   pickLock: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
   pickName: { color: '#fff', fontWeight: '800', fontSize: 12, padding: 6 },
+  standoutsBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: SPACE.lg, marginTop: 10, backgroundColor: M.bgSoft, borderRadius: RADIUS.md, borderWidth: 1, borderColor: M.border, paddingHorizontal: 14, paddingVertical: 10 },
+  standoutsText: { flex: 1, color: M.text, fontWeight: '700', fontSize: 12.5 },
   aiBadge: {
     position: 'absolute', top: 20, right: 14, flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: 'rgba(17,17,17,0.92)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: RADIUS.pill,

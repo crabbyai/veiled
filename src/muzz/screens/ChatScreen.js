@@ -23,7 +23,7 @@ export default function ChatScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
   const { personId } = route.params;
   const muzz = useMuzz();
-  const { me, chats, sendMessage, update, reactions, reactToMessage, reportPerson, unmatchPerson, chaperones, setChaperone, isUnveiled, unveilFor } = muzz;
+  const { me, chats, sendMessage, update, reactions, reactToMessage, reportPerson, unmatchPerson, chaperones, setChaperone, isUnveiled, unveilFor, weMet, recordWeMet } = muzz;
   const person = getPerson(personId);
   const messages = chats[personId] || [];
   // Read receipts: id of my most recent (non-event) message, so we can
@@ -282,6 +282,30 @@ export default function ChatScreen({ route, navigation }) {
           </View>
         )}
 
+        {/* We Met — post-date feedback (Hinge), once you've been talking */}
+        {messages.length >= 4 && !(weMet && weMet[personId]) && (
+          <View style={styles.weMet}>
+            <Text style={styles.weMetText}>Have you met {person.name} in person?</Text>
+            <View style={styles.weMetBtns}>
+              <Pressable onPress={() => { H.tap(); recordWeMet(personId, false); }} style={styles.weMetBtn}>
+                <Text style={styles.weMetBtnText}>Not yet</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  H.tap();
+                  Alert.alert('You met 🤍', 'How did it go?', [
+                    { text: 'It went well', onPress: () => recordWeMet(personId, true, true) },
+                    { text: 'Not for me', onPress: () => recordWeMet(personId, true, false) },
+                  ]);
+                }}
+                style={[styles.weMetBtn, styles.weMetYes]}
+              >
+                <Text style={[styles.weMetBtnText, { color: '#fff' }]}>Yes, we met</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+
         {/* Composer */}
         {recording ? (
           <View style={[styles.composer, styles.recording, { paddingBottom: Math.max(insets.bottom, 10) }]}>
@@ -493,6 +517,12 @@ const styles = StyleSheet.create({
   stickerTray: { backgroundColor: M.bgSoft, borderTopWidth: 1, borderTopColor: M.border, paddingVertical: 10 },
   stickerItem: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: M.bg },
   stickerGlyph: { fontSize: 28 },
+  weMet: { marginHorizontal: SPACE.lg, marginBottom: 8, backgroundColor: M.bgSoft, borderRadius: RADIUS.md, borderWidth: 1, borderColor: M.border, padding: 12 },
+  weMetText: { ...TYPE.body, fontWeight: '700', marginBottom: 10 },
+  weMetBtns: { flexDirection: 'row', gap: 10 },
+  weMetBtn: { flex: 1, alignItems: 'center', paddingVertical: 9, borderRadius: RADIUS.pill, backgroundColor: M.bg, borderWidth: 1, borderColor: M.border },
+  weMetYes: { backgroundColor: M.primary, borderColor: M.primary },
+  weMetBtnText: { fontWeight: '800', fontSize: 13, color: M.text },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: M.border },
   hBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   hCenter: { flex: 1, flexDirection: 'row', alignItems: 'center' },

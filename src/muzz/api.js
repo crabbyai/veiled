@@ -143,8 +143,17 @@ export const unmatch = (matchId) => request(`/dating/matches/${matchId}/unmatch`
 export const sendMessage = (matchId, body) =>
   request(`/dating/matches/${matchId}/messages`, { method: 'POST', body: { body } });
 
-export const superLike = (targetId, note) =>
-  request('/dating/super-like', { method: 'POST', body: { targetId: toServerId(targetId), note } });
+export const superLike = (targetId, note, content) =>
+  request('/dating/super-like', { method: 'POST', body: { targetId: toServerId(targetId), note, ...(content || {}) } });
+// Hinge: like with a comment on a specific photo/prompt.
+export const likeWithComment = (targetId, { comment, contentType, contentRef } = {}) =>
+  request('/dating/swipe', { method: 'POST', body: { targetId: toServerId(targetId), action: 'like', comment, contentType, contentRef } });
+// Hinge: Roses (standout like) + Standouts set + We Met feedback.
+export const rose = (targetId, { comment, contentType, contentRef } = {}) =>
+  request('/dating/rose', { method: 'POST', body: { targetId: toServerId(targetId), comment, contentType, contentRef } });
+export const standouts = () => request('/dating/standouts');
+export const weMet = (matchId, met, wentWell) =>
+  request(`/dating/matches/${matchId}/we-met`, { method: 'POST', body: { met, wentWell } });
 export const boost = () => request('/dating/boost', { method: 'POST' });
 export const reactToMessage = (messageId, emoji) =>
   request(`/dating/messages/${messageId}/react`, { method: 'POST', body: { emoji } });

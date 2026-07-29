@@ -190,6 +190,16 @@ db.exec(`
     UNIQUE(user_id, kind, ref_id)
   );
 
+  -- ── We Met: post-date feedback (Hinge) ─────────────────────────────
+  CREATE TABLE IF NOT EXISTS dating_we_met (
+    match_id INTEGER NOT NULL REFERENCES dating_matches(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    met INTEGER,                             -- 1 yes, 0 no
+    went_well INTEGER,                       -- 1 yes, 0 no (only if met)
+    created_at INTEGER DEFAULT (strftime('%s','now') * 1000),
+    PRIMARY KEY (match_id, user_id)
+  );
+
   -- ── Share my profile ───────────────────────────────────────────────
   -- A tokenised, read-only link to a member's profile (photos stay
   -- veiled). Handy for sharing with a wali/guardian for approval.
@@ -214,6 +224,10 @@ ensure('dating_profiles', 'veil', 'veil TEXT');
 ensure('dating_profiles', 'friend_takes', "friend_takes TEXT DEFAULT '[]'");
 ensure('dating_profiles', 'photo_veiled', 'photo_veiled INTEGER DEFAULT 0');
 ensure('dating_profiles', 'paused', 'paused INTEGER DEFAULT 0');
+// Hinge-style like context: comment on a specific photo/prompt + Roses.
+ensure('dating_swipes', 'content_type', 'content_type TEXT');
+ensure('dating_swipes', 'content_ref', 'content_ref TEXT');
+ensure('dating_swipes', 'is_rose', 'is_rose INTEGER DEFAULT 0');
 ensure('dating_matches', 'unveiled_a', 'unveiled_a INTEGER DEFAULT 0');
 ensure('dating_matches', 'unveiled_b', 'unveiled_b INTEGER DEFAULT 0');
 

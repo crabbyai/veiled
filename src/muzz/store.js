@@ -21,6 +21,7 @@ const initialState = {
   chaperones: {},      // { personId: { name } } — wali observing this chat
   rsvps: {},           // { eventId: true } — community events I'm attending
   signalsReads: [],    // personIds whose full profile I've read (Signals)
+  weMet: {},           // { personId: { met, wentWell, ts } } — Hinge We Met
   chats: {},           // { personId: [{id, text, sender, ts, read}] }
   posts: SOCIAL_SEED,
   postLikes: {},       // local like toggles for social posts
@@ -117,13 +118,16 @@ export function MuzzProvider({ children }) {
     api.mirror(() => api.saveProfile({ ...DEFAULT_ME, ...mePatch }));
   }, [update]);
 
-  const likePerson = useCallback((personId, { mutual = true } = {}) => {
+  // `comment` (Hinge): when you like a specific photo/prompt with a note,
+  // it seeds the conversation as your opening message on match.
+  const likePerson = useCallback((personId, { mutual = true, comment = null, contentType = null, contentRef = null } = {}) => {
     update((s) => {
       const feedback = { ...s.feedback, [personId]: 'liked' };
       const becameMatch = mutual && !s.matches.includes(personId);
       const matches = becameMatch ? [...s.matches, personId] : s.matches;
+      const opener = comment ? [{ id: `op${Date.now()}`, text: comment, sender: 'me', ts: Date.now(), read: false }] : [];
       const chats = becameMatch && !s.chats[personId]
-        ? { ...s.chats, [personId]: [] }
+        ? { ...s.chats, [personId]: opener }
         : s.chats;
       const seen = s.seen.includes(personId) ? s.seen : [...s.seen, personId];
       // Track the rolling 12h like window (free tier)
@@ -133,7 +137,38 @@ export function MuzzProvider({ children }) {
       const likesInWindow = windowExpired ? 1 : s.likesInWindow + 1;
       return { ...s, feedback, matches, chats, seen, likeWindowStart, likesInWindow };
     });
-    api.mirror(() => api.swipe(personId, 'like'));
+    api.mirror(() => (comment
+      ? api.likeWithComment(personId, { comment, contentType, contentRef })
+      : api.swipe(personId, 'like')));
+  }, [update]);
+
+  // Rose (Hinge): a standout like. Consumes a Rose; behaves like a like
+  // with an optional comment, but flagged special.
+  const sendRose = useCallback((personId, { comment = null, contentType = null, contentRef = null } = {}) => {
+    let ok = false;
+    update((s) => {
+      if (!s.me.gold && (s.roses || 0) <= 0) return s;
+      ok = true;
+      const feedback = { ...s.feedback, [personId]: 'liked' };
+      const becameMatch = !s.matches.includes(personId);
+      const matches = becameMatch ? [...s.matches, personId] : s.matches;
+      const opener = comment ? [{ id: `op${Date.now()}`, text: comment, sender: 'me', ts: Date.now(), read: false }] : [];
+      const chats = becameMatch && !s.chats[personId] ? { ...s.chats, [personId]: opener } : s.chats;
+      const seen = s.seen.includes(personId) ? s.seen : [...s.seen, personId];
+      return { ...s, feedback, matches, chats, seen, roses: s.me.gold ? s.roses : Math.max(0, (s.roses || 0) - 1) };
+    });
+    if (ok) api.mirror(() => api.rose(personId, { comment, contentType, contentRef }));
+    return ok;
+  }, [update]);
+
+  // We Met (Hinge): private post-date feedback, stored per person.
+  const recordWeMet = useCallback((personId, met, wentWell = null) => {
+    update((s) => ({ ...s, weMet: { ...(s.weMet || {}), [personId]: { met, wentWell, ts: Date.now() } } }));
+    api.mirror(async () => {
+      const { matches: sm } = await api.matches();
+      const m = sm.find((x) => api.toLocalId(x.person.id) === personId);
+      if (m) await api.weMet(m.matchId, met, wentWell);
+    });
   }, [update]);
 
   // Likes remaining in the current 12h window (Infinity on Gold)
@@ -346,9 +381,9 @@ export function MuzzProvider({ children }) {
     sendMessage, togglePostLike, addPost, update, resetAll,
     likesRemaining, useInstantChat,
     addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson,
-    unmatchPerson, pauseProfile,
+    unmatchPerson, pauseProfile, sendRose, recordWeMet,
     unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead,
-  }), [state, hydrated, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson, unmatchPerson, pauseProfile, unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead]);
+  }), [state, hydrated, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson, unmatchPerson, pauseProfile, sendRose, recordWeMet, unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead]);
 
   return <MuzzContext.Provider value={value}>{children}</MuzzContext.Provider>;
 }
