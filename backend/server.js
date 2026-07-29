@@ -30,7 +30,9 @@ app.set('trust proxy', 1);
 // ---- Middleware ----
 
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+// Capture the raw body so webhook signature checks (Persona, RevenueCat)
+// can verify the exact bytes that were signed.
+app.use(express.json({ limit: '10mb', verify: (req, _res, buf) => { req.rawBody = buf; } }));
 app.use(express.urlencoded({ extended: true }));
 
 // Rate limiting
@@ -59,12 +61,17 @@ app.use('/uploads', express.static(uploadsDir));
 
 const authRoutes = require('./routes/auth');
 const datingRoutes = require('./routes/dating');
+const billingRoutes = require('./routes/billing');
+const verificationRoutes = require('./routes/verification');
 const { seedDating } = require('./seed-dating');
+const { status: integrationStatus } = require('./services/config');
 
 seedDating();
 
 app.use('/api/auth', authRoutes);
 app.use('/api/dating', datingRoutes);
+app.use('/api/billing', billingRoutes);
+app.use('/api/verification', verificationRoutes);
 
 // Health check — also probes the database so load balancers can tell a
 // live-but-broken instance from a healthy one.
@@ -74,6 +81,7 @@ app.get('/api/health', (req, res) => {
   try { dbOk = db.prepare('SELECT 1 AS ok').get().ok === 1; } catch { dbOk = false; }
   res.status(dbOk ? 200 : 503).json({
     status: dbOk ? 'ok' : 'degraded', app: 'veiled', db: dbOk,
+    integrations: integrationStatus(),
     timestamp: Date.now(), version: '1.0.0',
   });
 });

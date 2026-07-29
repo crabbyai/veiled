@@ -280,7 +280,7 @@ export default function DiscoverScreen({ navigation }) {
             })}
           </ScrollView>
           <Pressable onPress={() => { H.tap(); navigation.navigate('MuzzStandouts'); }} style={styles.standoutsBtn}>
-            <Ionicons name="rose" size={15} color="#C2447A" />
+            <Ionicons name="rose" size={15} color={M.rose} />
             <Text style={styles.standoutsText}>Standouts — send a Rose to this week's most compatible</Text>
             <Ionicons name="chevron-forward" size={16} color={M.textMuted} />
           </Pressable>

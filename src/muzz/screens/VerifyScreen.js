@@ -8,6 +8,7 @@ import Animated, {
 import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE } from '../theme';
 import { useMuzz } from '../store';
 import { GButton } from '../components/ui';
+import { startVerification } from '../integrations/verify';
 import * as H from '../haptics';
 
 const { width } = Dimensions.get('window');
@@ -24,8 +25,17 @@ const POSES = [
 export default function VerifyScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { me, setMe } = useMuzz();
-  const [phase, setPhase] = useState(me.selfieVerified ? 'done' : 'intro'); // intro | scanning | done
+  const [phase, setPhase] = useState(me.selfieVerified ? 'done' : 'intro'); // intro | scanning | pending | done
   const [pose, setPose] = useState(0);
+
+  // Try the real liveness provider first; fall back to the guided demo
+  // scan when no provider is configured (offline / launch mode).
+  const onStart = async () => {
+    H.press();
+    const r = await startVerification();
+    if (r.started) { setPhase('pending'); return; }
+    setPhase('scanning');
+  };
 
   const scan = useSharedValue(0);
   useEffect(() => {
@@ -98,6 +108,15 @@ export default function VerifyScreen({ navigation }) {
           </Animated.View>
         )}
 
+        {phase === 'pending' && (
+          <Animated.View entering={FadeIn} style={styles.copy}>
+            <Text style={styles.h}>Finish in the verification window</Text>
+            <Text style={styles.p}>
+              Complete the steps with our verification partner. Once they confirm, your verified tick appears automatically — you can close this screen.
+            </Text>
+          </Animated.View>
+        )}
+
         {phase === 'done' && (
           <Animated.View entering={FadeInDown} style={styles.copy}>
             <Text style={styles.h}>You're verified</Text>
@@ -109,7 +128,8 @@ export default function VerifyScreen({ navigation }) {
       </View>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
-        {phase === 'intro' && <GButton label="Start verification" icon="camera" onPress={() => { H.press(); setPhase('scanning'); }} />}
+        {phase === 'intro' && <GButton label="Start verification" icon="camera" onPress={onStart} />}
+        {phase === 'pending' && <GButton label="I've finished — done" icon="checkmark" onPress={() => navigation.goBack()} />}
         {phase === 'scanning' && <Text style={styles.scanning}>Verifying…</Text>}
         {phase === 'done' && <GButton label="Done" icon="checkmark" onPress={() => navigation.goBack()} />}
       </View>

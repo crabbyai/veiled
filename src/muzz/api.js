@@ -182,6 +182,13 @@ export const submitVouch = (token, { author, relationship, text, voiceUrl } = {}
 // Public web page a friend opens to submit their vouch (served by the API).
 export const vouchUrl = (token) => (BASE ? `${BASE}/vouch/${token}` : '');
 
+// ── Billing (IAP) & identity verification ────────────────────────────
+export const billingProducts = () => request('/billing/products', { auth: false });
+export const billingVerify = (payload) => request('/billing/verify', { method: 'POST', body: payload });
+export const verificationStart = () => request('/verification/start', { method: 'POST' });
+export const phoneStart = (phone) => request('/auth/phone/start', { method: 'POST', auth: false, body: { phone } });
+export const phoneVerify = (phone, code) => request('/auth/phone/verify', { method: 'POST', body: { phone, code } });
+
 // ── Pause (Snooze) & Share my profile ────────────────────────────────
 export const pauseProfile = (paused) =>
   request('/dating/profile/pause', { method: 'POST', body: { paused: !!paused } });

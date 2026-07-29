@@ -36,6 +36,7 @@ const LIGHT = {
   butterfly: '#2A2A2E', butterflyLight: '#9A9AA0', butterflySoft: '#F0F0F1',
   butterflyGlow: 'rgba(0,0,0,0.24)',
   mint: '#3A3A3C', gold: '#6E6E72', blue: '#1C1C1E',
+  rose: '#8E1B2C', roseDeep: '#6E1120',   // Rose (Hinge) — dark red
   bg: '#FFFFFF', bgSoft: '#F5F5F6', bgCard: '#FFFFFF', bgElevated: '#FFFFFF',
   bgInput: '#F0F0F1', bgDark: '#0E0E10',
   text: '#111111', textSoft: '#6B6B6F', textMuted: '#A2A2A7', textOnPrimary: '#FFFFFF',
@@ -51,6 +52,7 @@ const DARK = {
   butterfly: '#E6E6E8', butterflyLight: '#6B6B6F', butterflySoft: '#1C1C1E',
   butterflyGlow: 'rgba(255,255,255,0.18)',
   mint: '#C8C8CC', gold: '#C9C9CE', blue: '#E6E6E8',
+  rose: '#C21F3A', roseDeep: '#8E1B2C',   // Rose (Hinge) — dark red (brighter on dark bg)
   bg: '#0E0E10', bgSoft: '#161618', bgCard: '#161618', bgElevated: '#1E1E20',
   bgInput: '#1E1E20', bgDark: '#000000',
   text: '#F5F5F6', textSoft: '#A2A2A7', textMuted: '#6B6B6F', textOnPrimary: '#0E0E10',

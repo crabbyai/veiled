@@ -44,7 +44,7 @@ export default function StandoutsScreen({ navigation }) {
         <Pressable onPress={() => navigation.goBack()} style={styles.hBtn}><Ionicons name="chevron-back" size={28} color={M.text} /></Pressable>
         <Text style={styles.title}>Standouts</Text>
         <View style={styles.roseChip}>
-          <Ionicons name="rose" size={14} color="#C2447A" />
+          <Ionicons name="rose" size={14} color={M.rose} />
           <Text style={styles.roseChipText}>{me.gold ? '∞' : (roses || 0)}</Text>
         </View>
       </View>
@@ -86,7 +86,7 @@ export default function StandoutsScreen({ navigation }) {
               )}
 
               <Pressable onPress={() => onRose(p.id)} style={styles.roseBtn}>
-                <LinearGradient colors={['#E06A98', '#B03A6C']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.roseGrad}>
+                <LinearGradient colors={[M.rose, M.roseDeep]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.roseGrad}>
                   <Ionicons name="rose" size={18} color="#fff" />
                   <Text style={styles.roseText}>Send a Rose</Text>
                 </LinearGradient>
@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
   hBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   title: { ...TYPE.h2 },
   roseChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: M.bgSoft, borderRadius: RADIUS.pill, paddingHorizontal: 12, paddingVertical: 6, marginRight: 6 },
-  roseChipText: { fontWeight: '900', color: '#C2447A', fontSize: 13 },
+  roseChipText: { fontWeight: '900', color: M.rose, fontSize: 13 },
   intro: { ...TYPE.soft, color: M.textSoft, lineHeight: 20, marginBottom: 18 },
   empty: { alignItems: 'center', gap: 12, paddingTop: 60 },
   emptyText: { ...TYPE.soft, color: M.textMuted, textAlign: 'center', paddingHorizontal: 30 },

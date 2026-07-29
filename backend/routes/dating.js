@@ -6,6 +6,8 @@ const db = require('../db');
 const { authenticate } = require('../middleware/auth');
 const { emitToUser, isOnline, onlineCount } = require('../realtime');
 const { saveToken, sendPush } = require('../push');
+const photoStorage = require('../services/storage');
+const moderation = require('../services/moderation');
 
 const router = express.Router();
 
@@ -773,6 +775,9 @@ router.post('/matches/:id/messages', authenticate, (req, res) => {
     const { body } = req.body || {};
     if (!body || !body.trim()) return res.status(400).json({ error: 'Message body required' });
     const text = body.trim().slice(0, 2000);
+    // Text safety net (extendable via TEXT_BLOCKLIST / provider).
+    const tmod = moderation.checkText(text);
+    if (!tmod.ok) return res.status(422).json({ error: 'Message blocked by our safety filter' });
     const m = db.prepare('SELECT * FROM dating_matches WHERE id = ?').get(req.params.id);
     if (!m || (m.user_a !== req.userId && m.user_b !== req.userId)) {
       return res.status(404).json({ error: 'Match not found' });
@@ -894,10 +899,18 @@ router.post('/social/posts/:id/comments', authenticate, (req, res) => {
 // ── Photos ───────────────────────────────────────────────────────────
 
 // POST /api/dating/photos — multipart "image" → adds a profile photo
-router.post('/photos', authenticate, upload.single('image'), (req, res) => {
+router.post('/photos', authenticate, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Image file required' });
-    const url = `/uploads/${req.file.filename}`;
+    // Moderate before we keep it. NSFW/violent images are rejected.
+    const mod = await moderation.checkImage(req.file.path);
+    if (!mod.ok) {
+      require('fs').unlink(req.file.path, () => {});
+      return res.status(422).json({ error: 'This photo doesn’t meet our guidelines', labels: mod.labels });
+    }
+    // Persist to durable storage (S3 in prod, local in dev).
+    const key = `photos/${req.userId}/${req.file.filename}`;
+    const url = await photoStorage.put(req.file.path, key, req.file.mimetype || 'image/jpeg');
     const pos = db.prepare('SELECT COALESCE(MAX(position), -1) + 1 AS p FROM dating_photos WHERE user_id = ?').get(req.userId).p;
     const r = db.prepare('INSERT INTO dating_photos (user_id, url, position) VALUES (?, ?, ?)').run(req.userId, url, pos);
     res.status(201).json({ id: r.lastInsertRowid, url, photos: photosFor(req.userId) });

@@ -4,6 +4,9 @@ import { DEFAULT_ME, SOCIAL_SEED, PEOPLE } from './data';
 import * as api from './api';
 import * as realtime from './realtime';
 import { registerForPush, localNotify } from './notifications';
+import * as purchases from './integrations/purchases';
+import * as analytics from './integrations/analytics';
+import * as errors from './integrations/errors';
 
 const KEY = '@veiled_state_v1';
 
@@ -95,6 +98,11 @@ export function MuzzProvider({ children }) {
       },
     });
     registerForPush();
+    // Attach analytics + purchases identity, and tag crash reports.
+    const uid = state.me?.id || 'me';
+    analytics.identify(uid, { veil: state.me?.veil || null });
+    errors.setUser(uid);
+    purchases.init(uid).catch(() => {});
     return () => realtime.disconnect();
   }, [hydrated, state.onboarded]);
 

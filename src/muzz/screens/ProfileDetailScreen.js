@@ -16,7 +16,8 @@ import * as H from '../haptics';
 const { width } = Dimensions.get('window');
 // Hinge leans on an editorial serif for prompt answers.
 const SERIF = Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' });
-const ROSE = '#8A3FA0';
+const ROSE = M.rose;
+const ROSE_DEEP = M.roseDeep;
 
 // Small round "like this" heart, bottom-right of each card (Hinge).
 function LikeHeart({ onPress }) {

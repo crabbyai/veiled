@@ -2,8 +2,39 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const db = require('../db');
 const { generateToken, authenticate } = require('../middleware/auth');
+const sms = require('../services/sms');
 
 const router = express.Router();
+
+// ── Phone verification (OTP) ─────────────────────────────────────────
+// POST /api/auth/phone/start { phone } — send a one-time code.
+router.post('/phone/start', async (req, res) => {
+  try {
+    const { phone } = req.body || {};
+    if (!phone) return res.status(400).json({ error: 'phone required' });
+    const out = await sms.sendCode(phone);
+    res.json({ ok: !!out.ok, dev: !!out.dev });
+  } catch (err) {
+    console.error('OTP start error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/auth/phone/verify { phone, code } — check code; marks the
+// signed-in user's profile phone_verified when valid.
+router.post('/phone/verify', authenticate, async (req, res) => {
+  try {
+    const { phone, code } = req.body || {};
+    if (!phone || !code) return res.status(400).json({ error: 'phone and code required' });
+    const out = await sms.checkCode(phone, code);
+    if (!out.ok) return res.status(401).json({ error: 'Invalid code' });
+    db.prepare('UPDATE dating_profiles SET phone_verified = 1 WHERE user_id = ?').run(req.userId);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('OTP verify error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {

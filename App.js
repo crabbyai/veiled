@@ -1,6 +1,10 @@
 import React from 'react';
 import { StatusBar } from 'react-native';
 import MuzzNavigator from './src/muzz/MuzzNavigator';
+import * as errors from './src/muzz/integrations/errors';
+
+// Initialise crash reporting as early as possible (no-op without a DSN).
+errors.init();
 
 // Veiled — the marriage app for hijabis & niqabis. Built to out-Muzz
 // Muzz: an AI Butterfly auto-matches you with compatible people (no

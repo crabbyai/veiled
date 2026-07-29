@@ -224,6 +224,8 @@ ensure('dating_profiles', 'veil', 'veil TEXT');
 ensure('dating_profiles', 'friend_takes', "friend_takes TEXT DEFAULT '[]'");
 ensure('dating_profiles', 'photo_veiled', 'photo_veiled INTEGER DEFAULT 0');
 ensure('dating_profiles', 'paused', 'paused INTEGER DEFAULT 0');
+ensure('dating_profiles', 'gold_until', 'gold_until INTEGER DEFAULT 0');   // subscription expiry (ms)
+ensure('dating_profiles', 'phone_verified', 'phone_verified INTEGER DEFAULT 0');
 // Hinge-style like context: comment on a specific photo/prompt + Roses.
 ensure('dating_swipes', 'content_type', 'content_type TEXT');
 ensure('dating_swipes', 'content_ref', 'content_ref TEXT');
