@@ -1,73 +1,98 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Switch, Linking, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { M, RADIUS, SPACE, TYPE, isDark, setThemeMode } from '../theme';
 import { useMuzz } from '../store';
 import * as H from '../haptics';
 
-const SECTIONS = [
-  {
-    title: 'Discovery',
-    rows: [
-      { icon: 'infinite', label: 'Auto-matching', toggleKey: 'butterflyAuto' },
-      { icon: 'location-outline', label: 'Maximum distance', value: '25 mi' },
-      { icon: 'people-outline', label: 'Show me', value: 'Women' },
-      { icon: 'calendar-outline', label: 'Age range', value: '23 – 32' },
-    ],
-  },
-  {
-    title: 'Religious filters',
-    rows: [
-      { icon: 'moon-outline', label: 'Sect', value: 'Any' },
-      { icon: 'time-outline', label: 'Prayer level', value: 'Any' },
-      { icon: 'earth-outline', label: 'Ethnicity', value: 'Any' },
-      { icon: 'restaurant-outline', label: 'Halal diet', value: 'Any' },
-      { icon: 'school-outline', label: 'Education & career', gold: true },
-    ],
-  },
-  {
-    title: 'Privacy & Safety',
-    rows: [
-      { icon: 'shield-checkmark-outline', label: 'Wali / chaperone by default', plain: true },
-      { icon: 'image-outline', label: 'Blur my photos until we match', plain: true },
-      { icon: 'camera-outline', label: 'Block screenshots', plain: true, def: true },
-      { icon: 'eye-off-outline', label: 'Invisible mode', gold: true },
-      { icon: 'hand-left-outline', label: 'Blocked members', value: '0' },
-    ],
-  },
-  {
-    title: 'Notifications',
-    rows: [
-      { icon: 'sparkles-outline', label: 'New matchmaker picks', plain: true, def: true },
-      { icon: 'heart-outline', label: 'New matches', plain: true, def: true },
-      { icon: 'chatbubble-outline', label: 'Messages', plain: true, def: true },
-    ],
-  },
-  {
-    title: 'Account',
-    rows: [
-      { icon: 'card-outline', label: 'Manage subscription' },
-      { icon: 'help-circle-outline', label: 'Help & support' },
-      { icon: 'document-text-outline', label: 'Privacy policy' },
-      { icon: 'log-out-outline', label: 'Log out', danger: true },
-    ],
-  },
-];
+const PRIVACY_URL = 'https://adeelahmedrahman.github.io/veiled-privacy/';
+const SUPPORT_EMAIL = 'support@veiledapp.com';
 
 export default function SettingsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { butterflyAuto, update, me, pauseProfile } = useMuzz();
+  const { butterflyAuto, update, me, setMe, filters, resetAll, pauseProfile } = useMuzz();
   const [local, setLocal] = React.useState({});
 
+  const goFilters = () => { H.tap(); navigation.navigate('MuzzFilters'); };
+
+  // Sections are built from live state so every value is real.
+  const SECTIONS = [
+    {
+      title: 'Discovery',
+      rows: [
+        { icon: 'infinite', label: 'Auto-matching', toggleKey: 'butterflyAuto' },
+        { icon: 'location-outline', label: 'Maximum distance', value: filters.passportCity ? filters.passportCity : `${filters.maxDistance} mi`, act: goFilters },
+        { icon: 'people-outline', label: 'Show me', value: me.gender === 'Woman' ? 'Men' : 'Women', act: goFilters },
+        { icon: 'calendar-outline', label: 'Age range', value: `${filters.ageMin} – ${filters.ageMax}`, act: goFilters },
+      ],
+    },
+    {
+      title: 'Religious filters',
+      rows: [
+        { icon: 'moon-outline', label: 'Sect', value: filters.sect || 'Any', act: goFilters },
+        { icon: 'time-outline', label: 'Prayer level', value: filters.prayerLevel || 'Any', act: goFilters },
+        { icon: 'earth-outline', label: 'Ethnicity', value: filters.ethnicity || 'Any', act: goFilters },
+        { icon: 'sparkles-outline', label: 'Veil style', value: filters.veil || 'Any', act: goFilters },
+      ],
+    },
+    {
+      title: 'Privacy & Safety',
+      rows: [
+        { icon: 'shield-checkmark-outline', label: 'Wali / chaperone by default', toggleKey: 'waliDefault' },
+        { icon: 'image-outline', label: 'Keep my photos veiled until we match', toggleKey: 'blurPhotos' },
+        { icon: 'pause-circle-outline', label: 'Pause my profile', toggleKey: 'paused' },
+        { icon: 'shield-outline', label: 'Verified profiles only', toggleKey: 'verifiedOnly' },
+      ],
+    },
+    {
+      title: 'Notifications',
+      rows: [
+        { icon: 'sparkles-outline', label: 'New matchmaker picks', plain: true, def: true },
+        { icon: 'heart-outline', label: 'New matches', plain: true, def: true },
+        { icon: 'chatbubble-outline', label: 'Messages', plain: true, def: true },
+        { icon: 'rose-outline', label: 'Roses received', plain: true, def: true },
+      ],
+    },
+    {
+      title: 'Account',
+      rows: [
+        { icon: 'diamond-outline', label: 'Veiled Gold', value: me.gold ? 'Active' : 'Upgrade', act: () => { H.tap(); navigation.navigate('MuzzGold'); } },
+        { icon: 'help-circle-outline', label: 'Help & support', act: () => { H.tap(); Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=Veiled%20Support`).catch(() => {}); } },
+        { icon: 'document-text-outline', label: 'Privacy policy', act: () => { H.tap(); Linking.openURL(PRIVACY_URL).catch(() => {}); } },
+        { icon: 'log-out-outline', label: 'Log out', danger: true, act: onLogout },
+      ],
+    },
+  ];
+
+  function onLogout() {
+    H.tap();
+    Alert.alert('Log out?', 'This clears your session on this device.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Log out', style: 'destructive', onPress: () => { resetAll(); } },
+    ]);
+  }
+
   const getToggle = (row) => {
-    if (row.toggleKey === 'butterflyAuto') return butterflyAuto;
-    return local[row.label] ?? row.def ?? false;
+    switch (row.toggleKey) {
+      case 'butterflyAuto': return butterflyAuto;
+      case 'waliDefault': return !!me.waliEnabled;
+      case 'blurPhotos': return !!me.photoVeiled;
+      case 'paused': return !!me.paused;
+      case 'verifiedOnly': return !!filters.verifiedOnly;
+      default: return local[row.label] ?? row.def ?? false;
+    }
   };
   const setToggle = (row, v) => {
     H.select();
-    if (row.toggleKey === 'butterflyAuto') update((s) => ({ ...s, butterflyAuto: v }));
-    else setLocal((l) => ({ ...l, [row.label]: v }));
+    switch (row.toggleKey) {
+      case 'butterflyAuto': update((s) => ({ ...s, butterflyAuto: v })); break;
+      case 'waliDefault': setMe({ waliEnabled: v }); break;
+      case 'blurPhotos': setMe({ photoVeiled: v }); break;
+      case 'paused': pauseProfile(v); break;
+      case 'verifiedOnly': update((s) => ({ ...s, filters: { ...s.filters, verifiedOnly: v } })); break;
+      default: setLocal((l) => ({ ...l, [row.label]: v }));
+    }
   };
 
   return (
@@ -78,7 +103,6 @@ export default function SettingsScreen({ navigation }) {
         <View style={{ width: 40 }} />
       </View>
       <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
-        {/* Verification + appearance (custom-behaviour rows) */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Verification</Text>
           <View style={styles.card}>
@@ -103,32 +127,7 @@ export default function SettingsScreen({ navigation }) {
             <View style={styles.row}>
               <Ionicons name={isDark ? 'moon' : 'moon-outline'} size={20} color={M.primary} />
               <Text style={styles.rowLabel}>Dark mode</Text>
-              <Switch
-                value={isDark}
-                onValueChange={(v) => { H.select(); setThemeMode(v ? 'dark' : 'light'); }}
-                trackColor={{ true: M.primary, false: M.border }}
-                thumbColor={M.bg}
-              />
-            </View>
-          </View>
-        </View>
-
-        {/* Pause — hide me from discovery, keep my matches (Tinder Snooze) */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Discovery status</Text>
-          <View style={styles.card}>
-            <View style={styles.row}>
-              <Ionicons name={me.paused ? 'pause-circle' : 'pause-circle-outline'} size={20} color={me.paused ? M.gold : M.primary} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.rowLabel}>Pause my profile</Text>
-                <Text style={styles.rowSub}>{me.paused ? "You're hidden — no one new can find you. Matches & chats stay." : 'Take a break from being discovered.'}</Text>
-              </View>
-              <Switch
-                value={!!me.paused}
-                onValueChange={(v) => { H.select(); pauseProfile(v); }}
-                trackColor={{ true: M.primary, false: M.border }}
-                thumbColor="#fff"
-              />
+              <Switch value={isDark} onValueChange={(v) => { H.select(); setThemeMode(v ? 'dark' : 'light'); }} trackColor={{ true: M.primary, false: M.border }} thumbColor={M.bg} />
             </View>
           </View>
         </View>
@@ -138,15 +137,14 @@ export default function SettingsScreen({ navigation }) {
             <Text style={styles.sectionTitle}>{sec.title}</Text>
             <View style={styles.card}>
               {sec.rows.map((row, i) => (
-                <Pressable key={row.label} onPress={() => { if (!row.toggleKey && !row.plain) H.tap(); }} style={[styles.row, i < sec.rows.length - 1 && styles.rowBorder]}>
+                <Pressable key={row.label} onPress={() => { if (row.act) row.act(); }} style={[styles.row, i < sec.rows.length - 1 && styles.rowBorder]}>
                   <Ionicons name={row.icon} size={20} color={row.danger ? M.danger : M.primary} />
                   <Text style={[styles.rowLabel, row.danger && { color: M.danger }]}>{row.label}</Text>
-                  {row.gold && <View style={styles.goldChip}><Text style={styles.goldChipText}>GOLD</Text></View>}
                   {(row.toggleKey || row.plain) ? (
                     <Switch value={getToggle(row)} onValueChange={(v) => setToggle(row, v)} trackColor={{ true: M.primary, false: M.border }} thumbColor="#fff" />
                   ) : (
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      {row.value && <Text style={styles.rowValue}>{row.value}</Text>}
+                      {row.value ? <Text style={styles.rowValue}>{row.value}</Text> : null}
                       {!row.danger && <Ionicons name="chevron-forward" size={18} color={M.textMuted} />}
                     </View>
                   )}
@@ -172,10 +170,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingHorizontal: 16, paddingVertical: 14, minHeight: 54 },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: M.border },
   rowLabel: { flex: 1, ...TYPE.body, fontWeight: '600' },
-  rowSub: { ...TYPE.caption, color: M.textMuted, marginTop: 2 },
   rowValue: { ...TYPE.soft, marginRight: 4 },
-  goldChip: { backgroundColor: M.bgSoft, borderWidth: 1, borderColor: M.border, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, marginRight: 8 },
-  goldChipText: { color: M.text, fontWeight: '900', fontSize: 10 },
   verifiedChip: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   verifiedChipText: { color: M.success, fontWeight: '800', fontSize: 12 },
   version: { ...TYPE.caption, color: M.textMuted, textAlign: 'center', marginTop: 30 },

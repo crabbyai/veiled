@@ -22,6 +22,7 @@ const initialState = {
   rsvps: {},           // { eventId: true } — community events I'm attending
   signalsReads: [],    // personIds whose full profile I've read (Signals)
   weMet: {},           // { personId: { met, wentWell, ts } } — Hinge We Met
+  muted: {},           // { personId: true } — muted conversations
   chats: {},           // { personId: [{id, text, sender, ts, read}] }
   posts: SOCIAL_SEED,
   postLikes: {},       // local like toggles for social posts
@@ -159,6 +160,15 @@ export function MuzzProvider({ children }) {
     });
     if (ok) api.mirror(() => api.rose(personId, { comment, contentType, contentRef }));
     return ok;
+  }, [update]);
+
+  // Mute a conversation (no notifications from this person).
+  const toggleMute = useCallback((personId) => {
+    update((s) => {
+      const muted = { ...(s.muted || {}) };
+      if (muted[personId]) delete muted[personId]; else muted[personId] = true;
+      return { ...s, muted };
+    });
   }, [update]);
 
   // We Met (Hinge): private post-date feedback, stored per person.
@@ -381,9 +391,9 @@ export function MuzzProvider({ children }) {
     sendMessage, togglePostLike, addPost, update, resetAll,
     likesRemaining, useInstantChat,
     addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson,
-    unmatchPerson, pauseProfile, sendRose, recordWeMet,
+    unmatchPerson, pauseProfile, sendRose, recordWeMet, toggleMute,
     unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead,
-  }), [state, hydrated, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson, unmatchPerson, pauseProfile, sendRose, recordWeMet, unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead]);
+  }), [state, hydrated, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson, unmatchPerson, pauseProfile, sendRose, recordWeMet, toggleMute, unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead]);
 
   return <MuzzContext.Provider value={value}>{children}</MuzzContext.Provider>;
 }

@@ -1,5 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions, Alert, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  View, Text, StyleSheet, ScrollView, Pressable, Dimensions, Alert,
+  Modal, TextInput, KeyboardAvoidingView, Platform,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,259 +14,244 @@ import { PhotoTile, Verified, Chip, VeilBadge } from '../components/ui';
 import * as H from '../haptics';
 
 const { width } = Dimensions.get('window');
+// Hinge leans on an editorial serif for prompt answers.
+const SERIF = Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' });
+const ROSE = '#8A3FA0';
+
+// Small round "like this" heart, bottom-right of each card (Hinge).
+function LikeHeart({ onPress }) {
+  return (
+    <Pressable onPress={onPress} style={styles.heart} hitSlop={8}>
+      <Ionicons name="heart-outline" size={22} color="#fff" />
+    </Pressable>
+  );
+}
 
 export default function ProfileDetailScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
   const { personId } = route.params;
-  const { me, matches, feedback, likePerson, passPerson, likesRemaining, isUnveiled, markProfileRead, reportPerson, blockPerson, sendRose, roses } = useMuzz();
-  const [commentFor, setCommentFor] = React.useState(null); // { type, ref, label }
-  const [commentText, setCommentText] = React.useState('');
-  const [photoIdx, setPhotoIdx] = React.useState(0);
+  const {
+    me, matches, feedback, likePerson, passPerson, likesRemaining,
+    isUnveiled, markProfileRead, reportPerson, blockPerson, sendRose, roses,
+  } = useMuzz();
   const person = getPerson(personId);
   // Signals: opening a full profile counts as a genuine read.
   React.useEffect(() => { if (person) markProfileRead(personId); }, [personId]);
+
+  const [like, setLike] = React.useState(null); // { type, ref, label }
+  const [comment, setComment] = React.useState('');
+
   if (!person) return null;
-  const photoCount = Math.max(1, Math.min(5, person.photos?.length || 3));
+  const photos = person.photos || [];
+  const photoCount = Math.max(1, Math.min(6, photos.length || 3));
   const isMatch = matches.includes(personId);
   const unveiled = isUnveiled(personId);
   const veiled = !!person.photoVeiled && !unveiled;
   const compat = scoreMatch(me, person, feedback);
+  const prompts = person.prompts || [];
 
-  const onLike = () => {
-    if (likesRemaining() <= 0) {
-      H.tap();
-      navigation.navigate('MuzzGold');
-      return;
-    }
-    likePerson(personId, { mutual: true });
-    navigation.replace('MuzzMatchReveal', { personId, score: compat.score });
-  };
-  const onPass = () => { passPerson(personId); H.tap(); navigation.goBack(); };
+  const openLike = (type, ref, label) => { H.tap(); setComment(''); setLike({ type, ref, label }); };
+  const closeLike = () => setLike(null);
 
-  // Hinge: like a specific prompt/photo, optionally with a comment.
-  const openComment = (type, ref, label) => { H.tap(); setCommentText(''); setCommentFor({ type, ref, label }); };
-  const sendComment = () => {
-    if (!commentFor) return;
-    if (likesRemaining() <= 0) { setCommentFor(null); navigation.navigate('MuzzGold'); return; }
-    const comment = commentText.trim() || null;
-    const { type, ref } = commentFor;
-    setCommentFor(null);
-    likePerson(personId, { mutual: true, comment, contentType: type, contentRef: String(ref) });
+  const doLike = () => {
+    if (likesRemaining() <= 0) { setLike(null); navigation.navigate('MuzzGold'); return; }
+    const c = comment.trim() || null;
+    const info = like || { type: 'profile', ref: 'profile' };
+    setLike(null);
+    likePerson(personId, { mutual: true, comment: c, contentType: info.type, contentRef: String(info.ref) });
     H.success();
     navigation.replace('MuzzMatchReveal', { personId, score: compat.score });
   };
 
-  // Rose (Hinge): a standout like. Out of Roses → Gold.
-  const onRose = () => {
-    H.press();
-    if (!me.gold && (roses || 0) <= 0) { navigation.navigate('MuzzGold'); return; }
-    const ok = sendRose(personId, {});
-    if (ok) navigation.replace('MuzzMatchReveal', { personId, score: compat.score, rose: true });
+  const doRose = () => {
+    if (!me.gold && (roses || 0) <= 0) { setLike(null); navigation.navigate('MuzzGold'); return; }
+    const c = comment.trim() || null;
+    const info = like || { type: 'profile', ref: 'profile' };
+    setLike(null);
+    const ok = sendRose(personId, { comment: c, contentType: info.type, contentRef: String(info.ref) });
+    if (ok) { H.success(); navigation.replace('MuzzMatchReveal', { personId, score: compat.score, rose: true }); }
   };
 
-  // Report or block — files a moderation report and removes the profile.
-  const onReport = () => {
+  const onPass = () => { passPerson(personId); H.tap(); navigation.goBack(); };
+
+  const onMenu = () => {
     H.tap();
     const done = (msg) => { navigation.goBack(); setTimeout(() => Alert.alert('Thank you', msg), 250); };
-    Alert.alert(
-      `Report or block ${person.name}?`,
-      'This sends a report to our moderation team. You can also block so you never see each other again.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Report', onPress: () => { reportPerson(personId, 'inappropriate'); done('Your report has been sent to our team.'); } },
-        { text: 'Block', style: 'destructive', onPress: () => { blockPerson(personId, 'Blocked from profile'); done(`You won't see ${person.name} again.`); } },
-      ],
+    Alert.alert(person.name, undefined, [
+      { text: 'Report', onPress: () => { reportPerson(personId, 'inappropriate'); done('Your report has been sent to our team.'); } },
+      { text: 'Block', style: 'destructive', onPress: () => { blockPerson(personId, 'Blocked from profile'); done(`You won't see ${person.name} again.`); } },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  // Vitals list (Hinge-style): only rows we actually have.
+  const vitals = [
+    ['book-outline', person.sect],
+    ['home-outline', person.city],
+    ['moon-outline', person.prayerLevel],
+    ['globe-outline', person.ethnicity],
+    ['search-outline', person.intention],
+    ['restaurant-outline', person.halalDiet],
+    ['chatbubbles-outline', (person.languages || []).join(', ')],
+  ].filter(([, v]) => v && v !== 'Prefer not to say' && v !== 'Other');
+
+  // A photo card with its own like heart.
+  const PhotoCard = ({ idx }) => (
+    <View style={styles.card}>
+      <PhotoTile
+        seed={person.id} name={person.name} rounded={RADIUS.lg} figure={veiled ? null : person.veil}
+        uri={photos[idx]} gradient={gradVariantFor(person.id, idx)} pattern veiled={veiled}
+        veilLabel={isMatch ? `${person.name} keeps her photos veiled` : `Veiled until you match`}
+        style={styles.photo}
+      />
+      {!isMatch && <LikeHeart onPress={() => openLike('photo', idx, 'this photo')} />}
+    </View>
+  );
+
+  // A prompt card (editorial serif answer) with its own like heart.
+  const PromptCard = ({ idx }) => {
+    const p = prompts[idx];
+    if (!p) return null;
+    return (
+      <View style={[styles.card, styles.promptCard]}>
+        <Text style={styles.promptQ}>{p.q}</Text>
+        <Text style={styles.promptA}>{p.a}</Text>
+        {!isMatch && <LikeHeart onPress={() => openLike('prompt', idx, `“${p.q}”`)} />}
+      </View>
     );
   };
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
-        {/* Hero photo gallery: tap left/right halves to flick through */}
-        <PhotoTile
-          seed={person.id} name={person.name} rounded={0} figure={veiled ? null : person.veil}
-          uri={person.photos?.[photoIdx]} gradient={gradVariantFor(person.id, photoIdx)}
-          style={{ height: width * 1.15 }}
-          pattern
-          veiled={veiled}
-          veilLabel={isMatch ? `${person.name} keeps her photos veiled\nAsk her to unveil in chat` : `${person.name}'s photos are veiled\nShe can unveil them once you match`}
-        >
-          <View style={styles.heroTapRow}>
-            <Pressable style={{ flex: 1 }} onPress={() => setPhotoIdx((i) => Math.max(0, i - 1))} />
-            <Pressable style={{ flex: 1 }} onPress={() => setPhotoIdx((i) => Math.min(photoCount - 1, i + 1))} />
-          </View>
-          <View style={[styles.heroPager, { top: insets.top + 2 }]}>
-            {[...Array(photoCount)].map((_, i) => (
-              <View key={i} style={[styles.heroPagerSeg, i === photoIdx && styles.heroPagerSegOn]} />
-            ))}
-          </View>
-          <LinearGradient colors={['rgba(0,0,0,0.25)', 'transparent', 'transparent', 'rgba(20,16,26,0.85)']} style={StyleSheet.absoluteFill} />
-          <Pressable onPress={() => navigation.goBack()} style={[styles.back, { top: insets.top + 8 }]}>
-            <Ionicons name="chevron-back" size={26} color="#fff" />
-          </Pressable>
-          <View style={[styles.matchPill, { top: insets.top + 10 }]}>
-            <Ionicons name="sparkles" size={13} color="#fff" />
-            <Text style={styles.matchPillText}>{compat.score}% · {compatLabel(compat.score)}</Text>
-          </View>
-          <View style={styles.heroInfo}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={styles.heroName}>{person.name}, {person.age}</Text>
-              {person.verified && <View style={{ marginLeft: 8 }}><Verified size={20} /></View>}
-              {person.online && <View style={styles.onlineTag}><View style={styles.onlineDot} /><Text style={styles.onlineText}>Online</Text></View>}
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
-              <VeilBadge veil={person.veil} />
-              {person.photoVeiled && unveiled && (
-                <View style={styles.unveiledTag}>
-                  <Ionicons name="eye" size={12} color="#fff" />
-                  <Text style={styles.unveiledText}>Unveiled for you</Text>
-                </View>
-              )}
-            </View>
-            <View style={styles.heroMeta}>
-              <Ionicons name="briefcase" size={14} color="#fff" />
-              <Text style={styles.heroMetaText}>{person.job}</Text>
-              <Ionicons name="location" size={14} color="#fff" style={{ marginLeft: 12 }} />
-              <Text style={styles.heroMetaText}>{person.distance} mi away</Text>
-            </View>
-          </View>
-        </PhotoTile>
+      {/* Top bar */}
+      <View style={[styles.topBar, { paddingTop: insets.top + 4 }]}>
+        <Pressable onPress={() => navigation.goBack()} style={styles.iconBtn}><Ionicons name="chevron-back" size={28} color={M.text} /></Pressable>
+        <Text style={styles.topName} numberOfLines={1}>{person.name}</Text>
+        <Pressable onPress={onMenu} style={styles.iconBtn}><Ionicons name="ellipsis-horizontal" size={22} color={M.text} /></Pressable>
+      </View>
 
-        {/* Rounded content sheet overlapping the hero */}
-        <View style={styles.sheet}>
-        {/* Photo gallery thumbnails — frosted until unveiled */}
-        <View style={styles.thumbs}>
-          {[...Array(photoCount)].map((_, i) => (
-            <Pressable key={i} onPress={() => { H.select(); setPhotoIdx(i); }}>
-              <PhotoTile
-                seed={person.id} name={person.name} rounded={RADIUS.md}
-                gradient={gradVariantFor(person.id, i)} veiled={veiled}
-                silhouette={veiled ? 0 : 26}
-                style={[styles.thumb, i === photoIdx && styles.thumbOn]}
-              />
-            </Pressable>
-          ))}
-        </View>
-        {/* Butterfly insight */}
-        <Animated.View entering={FadeInDown} style={styles.insight}>
-          <View style={styles.insightHead}>
-            <View style={styles.bfBadge}><Ionicons name="sparkles" size={14} color="#fff" /></View>
-            <Text style={styles.insightTitle}>Matchmaker's take</Text>
+      <ScrollView contentContainerStyle={{ padding: SPACE.lg, paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
+        {/* Identity header */}
+        <View style={styles.idHead}>
+          <Text style={styles.bigName}>{person.name}</Text>
+          <View style={styles.idMeta}>
+            <VeilBadge veil={person.veil} size="sm" />
+            {person.verified && (
+              <View style={styles.verifiedRow}>
+                <Verified size={14} />
+                <Text style={styles.verifiedText}>Verified</Text>
+              </View>
+            )}
+            {person.online && <View style={styles.onlineRow}><View style={styles.onlineDot} /><Text style={styles.onlineText}>Online</Text></View>}
           </View>
-          {compat.reasons.slice(0, 3).map((r, i) => (
-            <View key={i} style={styles.reasonRow}>
-              <Ionicons name="checkmark-circle" size={16} color={M.success} />
-              <Text style={styles.reasonText}>{r}</Text>
-            </View>
-          ))}
+        </View>
+
+        {/* Compatibility ribbon */}
+        <Animated.View entering={FadeInDown} style={styles.compat}>
+          <Ionicons name="sparkles" size={15} color={M.butterfly} />
+          <Text style={styles.compatText}>{compat.score}% · {compatLabel(compat.score)}</Text>
+          {compat.reasons[0] ? <Text style={styles.compatReason} numberOfLines={1}>· {compat.reasons[0]}</Text> : null}
         </Animated.View>
+
+        {/* Card 1: first photo */}
+        <PhotoCard idx={0} />
 
         {/* About */}
         {person.bio ? (
-          <Section title="About">
-            <Text style={styles.bio}>{person.bio}</Text>
-          </Section>
+          <View style={[styles.card, styles.aboutCard]}>
+            <Text style={styles.aboutText}>{person.bio}</Text>
+          </View>
         ) : null}
 
-        {/* Quick facts */}
-        <Section title="Details">
-          <View style={styles.facts}>
-            <Fact icon="resize" label="Height" value={person.height} />
-            <Fact icon="heart-circle" label="Intent" value={person.intention} />
-            <Fact icon="language" label="Speaks" value={person.languages.join(', ')} />
-            <Fact icon="business" label="City" value={person.city} />
-          </View>
-        </Section>
+        {/* Card: first prompt */}
+        <PromptCard idx={0} />
 
-        {/* Deen — core to Veiled */}
-        <Section title="Deen & Modesty">
-          <View style={styles.facts}>
-            <Fact icon="flower" label="Veil" value={person.veil === 'Niqab' ? 'Niqabi' : 'Hijabi'} />
-            <Fact icon="moon" label="Sect" value={person.sect} />
-            <Fact icon="time" label="Prayer" value={person.prayerLevel} />
-            <Fact icon="restaurant" label="Halal diet" value={person.halalDiet} />
-            <Fact icon="earth" label="Ethnicity" value={person.ethnicity} />
-          </View>
-        </Section>
+        {/* Second photo */}
+        {photoCount > 1 && <PhotoCard idx={1} />}
 
-        {/* Interests */}
-        <Section title="Interests">
-          <View style={styles.wrap}>
-            {person.interests.map((i) => (
-              <Chip key={i} label={i} active={(me.interests || []).includes(i)} />
-            ))}
+        {/* Vitals card (Hinge) */}
+        <View style={[styles.card, styles.vitals]}>
+          <View style={styles.vitalsTop}>
+            <View style={styles.vCell}><Ionicons name="ellipse-outline" size={18} color={M.text} /><Text style={styles.vCellText}>{person.age}</Text></View>
+            <View style={[styles.vCell, styles.vCellMid]}><Ionicons name="person-outline" size={18} color={M.text} /><Text style={styles.vCellText}>Woman</Text></View>
+            <View style={styles.vCell}><Ionicons name="resize-outline" size={18} color={M.text} /><Text style={styles.vCellText}>{person.height || '—'}</Text></View>
           </View>
-        </Section>
+          {vitals.map(([icon, val], i) => (
+            <View key={i} style={[styles.vRow, i < vitals.length - 1 && styles.vRowBorder]}>
+              <Ionicons name={icon} size={20} color={M.text} />
+              <Text style={styles.vRowText}>{val}</Text>
+            </View>
+          ))}
+        </View>
 
-        {/* Values */}
-        <Section title="Values">
-          <View style={styles.wrap}>
-            {person.values.map((v) => <Chip key={v} label={v} color={M.butterfly} active={(me.values || []).includes(v)} />)}
+        {/* Card: second prompt */}
+        <PromptCard idx={1} />
+
+        {/* Third photo */}
+        {photoCount > 2 && <PhotoCard idx={2} />}
+
+        {/* Interests + values */}
+        {(person.interests || []).length > 0 && (
+          <View style={[styles.card, styles.aboutCard]}>
+            <Text style={styles.cardLabel}>Interests</Text>
+            <View style={styles.wrap}>
+              {person.interests.map((i) => <Chip key={i} label={i} active={(me.interests || []).includes(i)} />)}
+            </View>
+            {(person.values || []).length > 0 && (
+              <>
+                <Text style={[styles.cardLabel, { marginTop: 14 }]}>Values</Text>
+                <View style={styles.wrap}>
+                  {person.values.map((v) => <Chip key={v} label={v} color={M.butterfly} active={(me.values || []).includes(v)} />)}
+                </View>
+              </>
+            )}
           </View>
-        </Section>
+        )}
 
-        {/* Friend's Take — family & friends vouch for her */}
+        {/* Remaining prompts */}
+        {prompts.slice(2).map((_, i) => <PromptCard key={i} idx={i + 2} />)}
+
+        {/* Remaining photos */}
+        {[...Array(Math.max(0, photoCount - 3))].map((_, i) => <PhotoCard key={i} idx={i + 3} />)}
+
+        {/* Friend's Take */}
         {(person.friendTakes || []).length > 0 && (
-          <Section title="Friend's Take">
-            {(person.friendTakes || []).map((t, i) => (
+          <View style={[styles.card, styles.aboutCard]}>
+            <Text style={styles.cardLabel}>Friend's Take</Text>
+            {person.friendTakes.map((t, i) => (
               <View key={i} style={styles.takeCard}>
                 {t.kind === 'voice' ? (
                   <View style={styles.takeVoice}>
-                    <View style={styles.takePlay}><Ionicons name="play" size={15} color={M.textOnPrimary} /></View>
-                    <View style={styles.takeWave}>
-                      {[...Array(16)].map((_, j) => (
-                        <View key={j} style={[styles.takeBar, { height: 4 + ((j * 5) % 14) }]} />
-                      ))}
-                    </View>
+                    <View style={styles.takePlay}><Ionicons name="play" size={14} color={M.textOnPrimary} /></View>
+                    <View style={styles.takeWave}>{[...Array(16)].map((_, j) => <View key={j} style={[styles.takeBar, { height: 4 + ((j * 5) % 14) }]} />)}</View>
                     <Text style={styles.takeSecs}>0:{String(t.secs).padStart(2, '0')}</Text>
                   </View>
                 ) : (
                   <Text style={styles.takeText}>“{t.text}”</Text>
                 )}
-                <View style={styles.takeBy}>
-                  <Ionicons name="people" size={13} color={M.textSoft} />
-                  <Text style={styles.takeByText}>{t.by} · {t.rel}</Text>
-                </View>
+                <View style={styles.takeBy}><Ionicons name="people" size={13} color={M.textSoft} /><Text style={styles.takeByText}>{t.by || t.author} · {t.rel || t.relationship}</Text></View>
               </View>
             ))}
-          </Section>
+          </View>
         )}
 
-        {/* Prompts — tap the heart to like this answer with a comment */}
-        {(person.prompts || []).map((p, i) => (
-          <Section key={i} title={p.q}>
-            <View style={styles.promptRow}>
-              <Text style={[styles.promptA, { flex: 1 }]}>"{p.a}"</Text>
-              {!isMatch && (
-                <Pressable onPress={() => openComment('prompt', i, `on "${p.q}"`)} style={styles.promptLike}>
-                  <Ionicons name="heart-outline" size={20} color={M.primary} />
-                </Pressable>
-              )}
-            </View>
-          </Section>
-        ))}
-
-        <Pressable onPress={onReport} style={styles.report}>
+        <Pressable onPress={onMenu} style={styles.report}>
           <Ionicons name="flag-outline" size={16} color={M.textMuted} />
-          <Text style={styles.reportText}>Report or block</Text>
+          <Text style={styles.reportText}>Report or block {person.name}</Text>
         </Pressable>
-        </View>
       </ScrollView>
 
-      {/* Action bar */}
-      {!isMatch ? (
-        <View style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-          <Pressable onPress={onPass} style={[styles.actBtn, styles.passBtn]}><Ionicons name="close" size={28} color={M.textSoft} /></Pressable>
-          <Pressable onPress={onRose} style={[styles.actBtn, styles.roseBtn]}>
-            <Ionicons name="rose" size={22} color="#fff" />
-            {!me.gold && <View style={styles.roseCount}><Text style={styles.roseCountText}>{roses || 0}</Text></View>}
-          </Pressable>
-          <Pressable onPress={() => openComment('profile', 'profile', '')} style={[styles.actBtn, styles.superBtn]}><Ionicons name="chatbubble-ellipses" size={20} color={M.textOnPrimary} /></Pressable>
-          <Pressable onPress={() => { H.press(); onLike(); }} style={[styles.actBtn, styles.likeBtn]}><Ionicons name="heart" size={28} color={M.textOnPrimary} /></Pressable>
-        </View>
-      ) : (
-        <View style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-          <Pressable onPress={() => navigation.navigate('MuzzChat', { personId })} style={styles.msgBtn}>
+      {/* Floating pass (X) — Hinge places it bottom-left */}
+      {!isMatch && (
+        <Pressable onPress={onPass} style={[styles.passFab, { bottom: insets.bottom + 20 }]}>
+          <Ionicons name="close" size={30} color={M.text} />
+        </Pressable>
+      )}
+
+      {/* Matched: message bar */}
+      {isMatch && (
+        <View style={[styles.msgBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+          <Pressable onPress={() => navigation.navigate('MuzzChat', { personId })} style={{ flex: 1 }}>
             <LinearGradient colors={GRAD.primary} style={styles.msgGrad}>
               <Ionicons name="chatbubble" size={18} color={M.textOnPrimary} />
               <Text style={styles.msgText}>Message {person.name}</Text>
@@ -272,29 +260,37 @@ export default function ProfileDetailScreen({ route, navigation }) {
         </View>
       )}
 
-      {/* Hinge comment sheet — like with a message on a prompt/photo */}
-      <Modal visible={!!commentFor} transparent animationType="slide" onRequestClose={() => setCommentFor(null)}>
-        <Pressable style={styles.sheetBg} onPress={() => setCommentFor(null)}>
+      {/* Like sheet — comment + "Send a Rose instead?" (Hinge) */}
+      <Modal visible={!!like} transparent animationType="slide" onRequestClose={closeLike}>
+        <Pressable style={styles.sheetBg} onPress={closeLike}>
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-            <Pressable style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]} onPress={(e) => e.stopPropagation?.()}>
+            <Pressable style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 18) }]} onPress={() => {}}>
               <View style={styles.sheetHandle} />
-              <Text style={styles.sheetTitle}>Send a like to {person.name}</Text>
-              {!!(commentFor && commentFor.label) && <Text style={styles.sheetSub}>Liking {commentFor.label}</Text>}
+              {!!(like && like.label) && (
+                <View style={styles.likingRow}>
+                  <Ionicons name="heart" size={14} color={ROSE} />
+                  <Text style={styles.likingText} numberOfLines={1}>Liking {like.label}</Text>
+                </View>
+              )}
               <TextInput
-                value={commentText}
-                onChangeText={setCommentText}
-                placeholder="Add a comment (optional) — say salaam, ask about her answer…"
+                value={comment}
+                onChangeText={setComment}
+                placeholder="Add a comment"
                 placeholderTextColor={M.textMuted}
                 style={styles.sheetInput}
                 multiline
                 maxLength={500}
-                autoFocus
               />
-              <Pressable onPress={sendComment} style={styles.sheetSend}>
-                <LinearGradient colors={GRAD.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.sheetSendGrad}>
-                  <Ionicons name="heart" size={18} color={M.textOnPrimary} />
-                  <Text style={styles.sheetSendText}>{commentText.trim() ? 'Send Like with comment' : 'Send Like'}</Text>
-                </LinearGradient>
+
+              <View style={styles.roseCircle}><Ionicons name="rose" size={26} color="#fff" /></View>
+              <Text style={styles.roseTitle}>Send a Rose instead?</Text>
+              <Text style={styles.roseSub}>Upgrade your Like to a Rose to be seen first and increase your chance of a match.</Text>
+
+              <Pressable onPress={doRose} style={styles.roseBtn}>
+                <Text style={styles.roseBtnText}>Send a Rose{!me.gold ? `  ·  ${roses || 0}` : ''}</Text>
+              </Pressable>
+              <Pressable onPress={doLike} style={styles.likeAnyway}>
+                <Text style={styles.likeAnywayText}>{comment.trim() ? 'Send Like with comment' : 'Send Like anyway'}</Text>
               </Pressable>
             </Pressable>
           </KeyboardAvoidingView>
@@ -304,95 +300,77 @@ export default function ProfileDetailScreen({ route, navigation }) {
   );
 }
 
-function Section({ title, children }) {
-  return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {children}
-    </View>
-  );
-}
-function Fact({ icon, label, value }) {
-  return (
-    <View style={styles.fact}>
-      <Ionicons name={icon} size={18} color={M.primary} />
-      <Text style={styles.factLabel}>{label}</Text>
-      <Text style={styles.factValue} numberOfLines={1}>{value}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: M.bg },
-  heroTapRow: { ...StyleSheet.absoluteFillObject, flexDirection: 'row' },
-  heroPager: { position: 'absolute', top: 8, left: 14, right: 14, flexDirection: 'row', gap: 5 },
-  heroPagerSeg: { flex: 1, height: 3.5, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.35)' },
-  heroPagerSegOn: { backgroundColor: '#fff' },
-  back: { position: 'absolute', left: 14, width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' },
-  matchPill: { position: 'absolute', right: 14, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(17,17,17,0.92)', paddingHorizontal: 12, paddingVertical: 7, borderRadius: RADIUS.pill },
-  matchPillText: { color: '#fff', fontWeight: '800', fontSize: 12 },
-  unveiledTag: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(17,17,17,0.92)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: RADIUS.pill },
-  unveiledText: { color: '#fff', fontWeight: '800', fontSize: 11.5 },
-  heroInfo: { position: 'absolute', left: SPACE.xl, right: SPACE.xl, bottom: 20 },
-  heroName: { color: '#fff', fontSize: 30, fontWeight: '900', letterSpacing: -0.5 },
-  onlineTag: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(0,0,0,0.4)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, marginLeft: 10 },
-  onlineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: M.online },
-  onlineText: { color: '#fff', fontWeight: '700', fontSize: 11 },
-  heroMeta: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
-  heroMetaText: { color: '#fff', fontWeight: '600', fontSize: 14, marginLeft: 5 },
-  sheet: {
-    marginTop: -26, borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    backgroundColor: M.bg, paddingTop: 8,
-  },
-  thumbs: { flexDirection: 'row', gap: 8, paddingHorizontal: SPACE.xl, paddingTop: 16 },
-  thumb: { flex: 1, aspectRatio: 0.82, opacity: 0.7 },
-  thumbOn: { opacity: 1, borderWidth: 2, borderColor: M.primary },
-  insight: { margin: SPACE.xl, marginBottom: 4, backgroundColor: M.butterflySoft, borderRadius: RADIUS.lg, padding: 18 },
-  insightHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  bfBadge: { width: 26, height: 26, borderRadius: 13, backgroundColor: M.butterfly, alignItems: 'center', justifyContent: 'center' },
-  insightTitle: { ...TYPE.h3, color: M.butterfly },
-  reasonRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 9 },
-  reasonText: { ...TYPE.body, flex: 1, fontWeight: '600' },
-  section: { paddingHorizontal: SPACE.xl, paddingTop: 22 },
-  sectionTitle: { ...TYPE.caption, color: M.textSoft, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10 },
-  bio: { ...TYPE.body, fontSize: 16, lineHeight: 24 },
-  facts: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  fact: { width: (width - SPACE.xl * 2 - 10) / 2, backgroundColor: M.bgSoft, borderRadius: RADIUS.md, padding: 14 },
-  factLabel: { ...TYPE.caption, marginTop: 8 },
-  factValue: { ...TYPE.h3, fontSize: 15, marginTop: 2 },
+  container: { flex: 1, backgroundColor: M.bgSoft },
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 6, paddingBottom: 8, backgroundColor: M.bg, borderBottomWidth: 1, borderBottomColor: M.border },
+  iconBtn: { width: 44, height: 40, alignItems: 'center', justifyContent: 'center' },
+  topName: { ...TYPE.h3, fontSize: 18, flex: 1, textAlign: 'center' },
+
+  idHead: { marginBottom: 12, marginTop: 4 },
+  bigName: { fontSize: 34, fontWeight: '900', color: M.text, letterSpacing: -0.8 },
+  idMeta: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 },
+  verifiedRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  verifiedText: { color: M.butterfly, fontWeight: '800', fontSize: 13 },
+  onlineRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  onlineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: M.online },
+  onlineText: { ...TYPE.caption, color: M.online, fontWeight: '700' },
+
+  compat: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14 },
+  compatText: { ...TYPE.body, fontWeight: '800', color: M.text },
+  compatReason: { ...TYPE.soft, color: M.textSoft, flex: 1 },
+
+  card: { backgroundColor: M.bg, borderRadius: RADIUS.lg, marginBottom: 16, overflow: 'hidden', borderWidth: 1, borderColor: M.border, ...SHADOW.card },
+  photo: { width: '100%', height: width * 1.1 },
+  heart: { position: 'absolute', right: 12, bottom: 12, width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(26,22,30,0.82)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
+
+  promptCard: { padding: 22, paddingBottom: 30, minHeight: 150, justifyContent: 'center' },
+  promptQ: { ...TYPE.soft, color: M.textSoft, fontSize: 15, marginBottom: 10 },
+  promptA: { fontFamily: SERIF, fontSize: 28, lineHeight: 36, color: M.text },
+
+  aboutCard: { padding: 18 },
+  aboutText: { ...TYPE.body, fontSize: 16, lineHeight: 24, color: M.text },
+  cardLabel: { ...TYPE.caption, color: M.textSoft, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 10, fontWeight: '800' },
   wrap: { flexDirection: 'row', flexWrap: 'wrap' },
-  promptA: { ...TYPE.h2, fontSize: 19, fontWeight: '700', lineHeight: 27, color: M.text },
-  promptRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  promptLike: { width: 38, height: 38, borderRadius: 19, borderWidth: 1.5, borderColor: M.border, alignItems: 'center', justifyContent: 'center', backgroundColor: M.bg },
-  takeCard: { backgroundColor: M.bgSoft, borderRadius: RADIUS.md, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: M.border },
+
+  vitals: { padding: 0 },
+  vitalsTop: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: M.border },
+  vCell: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 18 },
+  vCellMid: { borderLeftWidth: 1, borderRightWidth: 1, borderColor: M.border },
+  vCellText: { ...TYPE.h3, fontSize: 16 },
+  vRow: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: 18, paddingVertical: 16 },
+  vRowBorder: { borderBottomWidth: 1, borderBottomColor: M.border },
+  vRowText: { ...TYPE.h3, fontSize: 17, fontWeight: '600' },
+
+  takeCard: { backgroundColor: M.bgSoft, borderRadius: RADIUS.md, padding: 14, marginTop: 10, borderWidth: 1, borderColor: M.border },
   takeText: { ...TYPE.body, fontSize: 15, lineHeight: 22, fontStyle: 'italic' },
   takeVoice: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  takePlay: { width: 32, height: 32, borderRadius: 16, backgroundColor: M.primary, alignItems: 'center', justifyContent: 'center' },
+  takePlay: { width: 30, height: 30, borderRadius: 15, backgroundColor: M.primary, alignItems: 'center', justifyContent: 'center' },
   takeWave: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 2.5 },
   takeBar: { width: 2.5, borderRadius: 2, backgroundColor: M.primaryLight },
   takeSecs: { ...TYPE.caption, fontWeight: '800' },
   takeBy: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10 },
   takeByText: { ...TYPE.caption, fontWeight: '700', color: M.textSoft },
-  report: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 30 },
+
+  report: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 14, marginBottom: 6 },
   reportText: { ...TYPE.soft, color: M.textMuted, fontWeight: '600' },
-  actionBar: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 18, paddingTop: 12, backgroundColor: M.bg, borderTopWidth: 1, borderTopColor: M.border },
-  actBtn: { alignItems: 'center', justifyContent: 'center', ...SHADOW.soft },
-  passBtn: { width: 58, height: 58, borderRadius: 29, backgroundColor: M.bgElevated, borderWidth: 1.5, borderColor: M.border },
-  superBtn: { width: 50, height: 50, borderRadius: 25, backgroundColor: M.blue },
-  roseBtn: { width: 54, height: 54, borderRadius: 27, backgroundColor: '#C2447A' },
-  roseCount: { position: 'absolute', top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: 4, backgroundColor: M.bg, borderWidth: 1, borderColor: '#C2447A', alignItems: 'center', justifyContent: 'center' },
-  roseCountText: { fontSize: 10, fontWeight: '900', color: '#C2447A' },
-  likeBtn: { width: 66, height: 66, borderRadius: 33, backgroundColor: M.primary, ...SHADOW.primary },
-  sheetBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: M.bg, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: SPACE.xl },
-  sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: M.border, marginBottom: 16 },
-  sheetTitle: { ...TYPE.h2, fontSize: 20 },
-  sheetSub: { ...TYPE.soft, color: M.textSoft, marginTop: 4 },
-  sheetInput: { ...TYPE.body, minHeight: 90, maxHeight: 160, backgroundColor: M.bgSoft, borderRadius: RADIUS.md, borderWidth: 1, borderColor: M.border, padding: 14, marginTop: 16, textAlignVertical: 'top' },
-  sheetSend: { marginTop: 16 },
-  sheetSendGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 15, borderRadius: RADIUS.pill },
-  sheetSendText: { color: M.textOnPrimary, fontWeight: '800', fontSize: 16 },
-  msgBtn: { flex: 1 },
+
+  passFab: { position: 'absolute', left: 20, width: 62, height: 62, borderRadius: 31, backgroundColor: M.bg, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: M.border, ...SHADOW.card },
+
+  msgBar: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: SPACE.xl, paddingTop: 12, backgroundColor: M.bg, borderTopWidth: 1, borderTopColor: M.border },
   msgGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderRadius: RADIUS.pill },
   msgText: { color: M.textOnPrimary, fontWeight: '800', fontSize: 16 },
+
+  sheetBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: M.bg, borderTopLeftRadius: 26, borderTopRightRadius: 26, padding: SPACE.xl, alignItems: 'center' },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: M.border, marginBottom: 16 },
+  likingRow: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginBottom: 8 },
+  likingText: { ...TYPE.soft, color: M.textSoft, fontWeight: '700', flexShrink: 1 },
+  sheetInput: { ...TYPE.body, alignSelf: 'stretch', minHeight: 60, maxHeight: 140, backgroundColor: M.bgSoft, borderRadius: RADIUS.md, borderWidth: 1, borderColor: M.border, padding: 14, textAlignVertical: 'top', marginBottom: 22 },
+  roseCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: ROSE, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  roseTitle: { fontFamily: SERIF, fontSize: 30, color: M.text, textAlign: 'center', marginBottom: 10 },
+  roseSub: { ...TYPE.body, color: M.textSoft, textAlign: 'center', lineHeight: 22, marginBottom: 22, paddingHorizontal: 8 },
+  roseBtn: { alignSelf: 'stretch', backgroundColor: ROSE, borderRadius: RADIUS.pill, paddingVertical: 16, alignItems: 'center' },
+  roseBtnText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  likeAnyway: { paddingVertical: 16 },
+  likeAnywayText: { color: ROSE, fontWeight: '800', fontSize: 15 },
 });

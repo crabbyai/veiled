@@ -23,7 +23,8 @@ export default function ChatScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
   const { personId } = route.params;
   const muzz = useMuzz();
-  const { me, chats, sendMessage, update, reactions, reactToMessage, reportPerson, unmatchPerson, chaperones, setChaperone, isUnveiled, unveilFor, weMet, recordWeMet } = muzz;
+  const { me, chats, sendMessage, update, reactions, reactToMessage, reportPerson, unmatchPerson, chaperones, setChaperone, isUnveiled, unveilFor, weMet, recordWeMet, muted, toggleMute } = muzz;
+  const isMuted = !!(muted && muted[personId]);
   const person = getPerson(personId);
   const messages = chats[personId] || [];
   // Read receipts: id of my most recent (non-event) message, so we can
@@ -373,7 +374,7 @@ export default function ChatScreen({ route, navigation }) {
             <View style={styles.menuHandle} />
             <MenuRow icon="person-outline" label="View profile" onPress={() => { setMenuOpen(false); navigation.navigate('MuzzProfileDetail', { personId }); }} />
             <MenuRow icon="shield-checkmark-outline" label={wali ? `Remove wali (${wali.name})` : 'Invite a wali'} onPress={() => { setMenuOpen(false); if (wali) setChaperone(personId, null); else setWaliModal(true); }} />
-            <MenuRow icon="notifications-off-outline" label="Mute notifications" onPress={() => setMenuOpen(false)} />
+            <MenuRow icon={isMuted ? 'notifications-outline' : 'notifications-off-outline'} label={isMuted ? 'Unmute notifications' : 'Mute notifications'} onPress={() => { setMenuOpen(false); toggleMute(personId); H.tap(); }} />
             <MenuRow icon="close-circle-outline" label="Unmatch" onPress={confirmUnmatch} />
             <MenuRow icon="flag-outline" label="Report" danger onPress={blockAndLeave} />
             <MenuRow icon="hand-left-outline" label="Unmatch & block" danger onPress={blockAndLeave} />

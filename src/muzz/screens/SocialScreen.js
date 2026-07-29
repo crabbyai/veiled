@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Pressable, Dimensions, TextInput, Modal,
+  View, Text, StyleSheet, ScrollView, Pressable, Dimensions, TextInput, Modal, Share,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -138,7 +138,7 @@ function PostCard({ p, index, liked, onLike, onOpen, onAuthor }) {
           <Ionicons name="chatbubble-outline" size={20} color={M.textSoft} />
           <Text style={styles.actionText}>{p.comments}</Text>
         </Pressable>
-        <Pressable onPress={H.tap} style={styles.action}>
+        <Pressable onPress={() => { H.tap(); Share.share({ message: `${p.author || 'Someone'} on Veiled: “${p.text}”` }).catch(() => {}); }} style={styles.action}>
           <Ionicons name="paper-plane-outline" size={20} color={M.textSoft} />
         </Pressable>
       </View>
