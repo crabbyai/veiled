@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,7 +9,12 @@ import { useMuzz } from '../store';
 import { GButton } from '../components/ui';
 import Butterfly from '../components/Butterfly';
 import { IslamicPattern } from '../components/Pattern';
+import * as purchases from '../integrations/purchases';
 import * as H from '../haptics';
+
+// Map a RevenueCat packageType to a friendly plan label.
+const PKG_LABEL = { MONTHLY: '1 month', THREE_MONTH: '3 months', SIX_MONTH: '6 months', ANNUAL: '12 months' };
+const PKG_PER = { MONTHLY: '/mo', THREE_MONTH: '/3mo', SIX_MONTH: '/6mo', ANNUAL: '/yr' };
 
 const { width } = Dimensions.get('window');
 
@@ -26,25 +31,47 @@ const PERKS = [
   ['eye-off', 'Invisible mode', 'Browse privately — only people you like can see you'],
 ];
 
-const PLANS = [
-  { id: '1m', label: '1 month', price: '£29.99', per: '/mo', save: null },
-  { id: '3m', label: '3 months', price: '£16.66', per: '/mo', save: 'Save 44%', best: true },
-  { id: '12m', label: '12 months', price: '£9.99', per: '/mo', save: 'Save 67%' },
-];
-
-// App Store safety: keep this false until real auto-renewable
-// subscriptions are configured in App Store Connect and wired through
-// react-native-iap. While false, no prices are shown and Gold is granted
-// as a free launch perk — showing prices without a real purchase flow is
-// a guideline 3.1.1 rejection.
-const IAP_ENABLED = false;
-
 export default function GoldScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { setMe } = useMuzz();
-  const [plan, setPlan] = useState('6m');
+  const [packages, setPackages] = useState([]);
+  const [plan, setPlan] = useState(null);
+  const [busy, setBusy] = useState(false);
 
-  const subscribe = () => { H.success(); setMe({ gold: true }); navigation.goBack(); };
+  // Real store prices only render when a live IAP flow is wired (App Store
+  // guideline 3.1.1). Without RevenueCat configured we show the launch
+  // perk instead of prices we can't actually charge.
+  const iapEnabled = packages.length > 0;
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!purchases.isAvailable()) return;
+      const pkgs = await purchases.getOfferings();
+      if (!alive) return;
+      setPackages(pkgs);
+      if (pkgs.length) setPlan(pkgs.find((p) => p.packageType === 'ANNUAL')?.identifier || pkgs[0].identifier);
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  const subscribe = async () => {
+    // Launch mode (no live IAP): grant Gold as the free launch perk.
+    if (!iapEnabled) { H.success(); setMe({ gold: true }); navigation.goBack(); return; }
+    const pkg = packages.find((p) => p.identifier === plan) || packages[0];
+    if (!pkg || busy) return;
+    setBusy(true);
+    const res = await purchases.purchase(pkg);
+    setBusy(false);
+    if (res.ok) { H.success(); setMe({ gold: true }); navigation.goBack(); }
+    else if (!res.cancelled) Alert.alert('Purchase failed', res.error || 'Please try again.');
+  };
+
+  const restore = async () => {
+    const res = await purchases.restore();
+    if (res.ok) { setMe({ gold: true }); H.success(); navigation.goBack(); }
+    else Alert.alert('Nothing to restore', 'No previous Gold purchase was found.');
+  };
 
   return (
     <View style={styles.container}>
@@ -80,28 +107,35 @@ export default function GoldScreen({ navigation }) {
         </View>
 
         <View style={styles.plans}>
-          {IAP_ENABLED && PLANS.map((p) => (
-            <Pressable key={p.id} onPress={() => { setPlan(p.id); H.select(); }} style={[styles.plan, plan === p.id && styles.planActive]}>
-              {p.best && <View style={styles.bestTag}><Text style={styles.bestText}>BEST VALUE</Text></View>}
-              <View style={{ flex: 1 }}>
-                <Text style={styles.planLabel}>{p.label}</Text>
-                {p.save && <Text style={styles.planSave}>{p.save}</Text>}
-              </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.planPrice}>{p.price}<Text style={styles.planPer}>{p.per}</Text></Text>
-              </View>
-              <View style={[styles.radio, plan === p.id && styles.radioOn]}>{plan === p.id && <Ionicons name="checkmark" size={14} color="#16121C" />}</View>
-            </Pressable>
-          ))}
+          {iapEnabled && packages.map((pkg) => {
+            const best = pkg.packageType === 'ANNUAL';
+            return (
+              <Pressable key={pkg.identifier} onPress={() => { setPlan(pkg.identifier); H.select(); }} style={[styles.plan, plan === pkg.identifier && styles.planActive]}>
+                {best && <View style={styles.bestTag}><Text style={styles.bestText}>BEST VALUE</Text></View>}
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.planLabel}>{PKG_LABEL[pkg.packageType] || pkg.product?.title || 'Gold'}</Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={styles.planPrice}>{pkg.product?.priceString}<Text style={styles.planPer}>{PKG_PER[pkg.packageType] || ''}</Text></Text>
+                </View>
+                <View style={[styles.radio, plan === pkg.identifier && styles.radioOn]}>{plan === pkg.identifier && <Ionicons name="checkmark" size={14} color="#16121C" />}</View>
+              </Pressable>
+            );
+          })}
         </View>
 
         <View style={{ paddingHorizontal: SPACE.xl, marginTop: 20 }}>
           <GButton
-            label={IAP_ENABLED ? 'Continue' : 'Join Gold — free during launch'}
-            gradient={GRAD.gold} onPress={subscribe} textStyle={{ color: '#16121C' }}
+            label={busy ? 'Processing…' : iapEnabled ? 'Continue' : 'Join Gold — free during launch'}
+            gradient={GRAD.gold} onPress={subscribe} textStyle={{ color: '#16121C' }} disabled={busy}
           />
+          {iapEnabled && (
+            <Pressable onPress={restore} style={{ paddingVertical: 12 }}>
+              <Text style={styles.restore}>Restore purchases</Text>
+            </Pressable>
+          )}
           <Text style={styles.terms}>
-            {IAP_ENABLED ? 'Recurring billing · Cancel anytime · Terms apply' : 'Gold is free while Veiled launches — paid plans coming later'}
+            {iapEnabled ? 'Recurring billing · Cancel anytime · Terms apply' : 'Gold is free while Veiled launches — paid plans coming later'}
           </Text>
         </View>
       </ScrollView>
@@ -134,4 +168,5 @@ const styles = StyleSheet.create({
   radio: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center', marginLeft: 14 },
   radioOn: { backgroundColor: M.gold, borderColor: M.gold },
   terms: { color: 'rgba(255,255,255,0.4)', fontSize: 11, textAlign: 'center', marginTop: 14 },
+  restore: { color: 'rgba(255,255,255,0.75)', fontSize: 13, fontWeight: '700', textAlign: 'center' },
 });
