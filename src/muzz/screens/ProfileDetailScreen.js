@@ -20,9 +20,9 @@ const ROSE = M.rose;
 const ROSE_DEEP = M.roseDeep;
 
 // Small round "like this" heart, bottom-right of each card (Hinge).
-function LikeHeart({ onPress }) {
+function LikeHeart({ onPress, label }) {
   return (
-    <Pressable onPress={onPress} style={styles.heart} hitSlop={8}>
+    <Pressable accessibilityRole="button" accessibilityLabel={label || "Like this"} onPress={onPress} style={styles.heart} hitSlop={8}>
       <Ionicons name="heart-outline" size={22} color="#fff" />
     </Pressable>
   );
@@ -105,7 +105,7 @@ export default function ProfileDetailScreen({ route, navigation }) {
         veilLabel={isMatch ? `${person.name} keeps her photos veiled` : `Veiled until you match`}
         style={styles.photo}
       />
-      {!isMatch && <LikeHeart onPress={() => openLike('photo', idx, 'this photo')} />}
+      {!isMatch && <LikeHeart label="Like this photo" onPress={() => openLike('photo', idx, 'this photo')} />}
     </View>
   );
 
@@ -117,7 +117,7 @@ export default function ProfileDetailScreen({ route, navigation }) {
       <View style={[styles.card, styles.promptCard]}>
         <Text style={styles.promptQ}>{p.q}</Text>
         <Text style={styles.promptA}>{p.a}</Text>
-        {!isMatch && <LikeHeart onPress={() => openLike('prompt', idx, `“${p.q}”`)} />}
+        {!isMatch && <LikeHeart label={`Like the answer to ${p.q}`} onPress={() => openLike('prompt', idx, `“${p.q}”`)} />}
       </View>
     );
   };
@@ -126,9 +126,9 @@ export default function ProfileDetailScreen({ route, navigation }) {
     <View style={styles.container}>
       {/* Top bar */}
       <View style={[styles.topBar, { paddingTop: insets.top + 4 }]}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.iconBtn}><Ionicons name="chevron-back" size={28} color={M.text} /></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => navigation.goBack()} style={styles.iconBtn}><Ionicons name="chevron-back" size={28} color={M.text} /></Pressable>
         <Text style={styles.topName} numberOfLines={1}>{person.name}</Text>
-        <Pressable onPress={onMenu} style={styles.iconBtn}><Ionicons name="ellipsis-horizontal" size={22} color={M.text} /></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="More options" onPress={onMenu} style={styles.iconBtn}><Ionicons name="ellipsis-horizontal" size={22} color={M.text} /></Pressable>
       </View>
 
       <ScrollView contentContainerStyle={{ padding: SPACE.lg, paddingBottom: 140 }} showsVerticalScrollIndicator={false}>
@@ -244,7 +244,7 @@ export default function ProfileDetailScreen({ route, navigation }) {
 
       {/* Floating pass (X) — Hinge places it bottom-left */}
       {!isMatch && (
-        <Pressable onPress={onPass} style={[styles.passFab, { bottom: insets.bottom + 20 }]}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Pass on this profile" onPress={onPass} style={[styles.passFab, { bottom: insets.bottom + 20 }]}>
           <Ionicons name="close" size={30} color={M.text} />
         </Pressable>
       )}

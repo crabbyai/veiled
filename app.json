@@ -28,7 +28,10 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Veiled uses the camera for selfie verification and adding profile photos.",
         "NSPhotoLibraryUsageDescription": "Veiled accesses your photo library so you can add profile photos.",
+        "NSPhotoLibraryAddUsageDescription": "Veiled saves photos to your library only when you choose to.",
+        "NSMicrophoneUsageDescription": "Veiled uses the microphone so you can record voice notes in chat and talk to your voice matchmaker.",
         "NSFaceIDUsageDescription": "Veiled uses Face ID to secure access to the app and protect your privacy.",
+        "NSLocationWhenInUseUsageDescription": "Veiled uses your location to show how far away matches are. You can turn this off at any time.",
         "ITSAppUsesNonExemptEncryption": false,
         "LSApplicationQueriesSchemes": [
           "itms-apps"

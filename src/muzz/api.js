@@ -182,6 +182,13 @@ export const submitVouch = (token, { author, relationship, text, voiceUrl } = {}
 // Public web page a friend opens to submit their vouch (served by the API).
 export const vouchUrl = (token) => (BASE ? `${BASE}/vouch/${token}` : '');
 
+// ── Account deletion (App Store 5.1.1(v) requires this in-app) ───────
+export async function deleteAccount() {
+  const out = await request('/auth/account', { method: 'DELETE' });
+  await setToken(null);
+  return out;
+}
+
 // ── Billing (IAP) & identity verification ────────────────────────────
 export const billingProducts = () => request('/billing/products', { auth: false });
 export const billingVerify = (payload) => request('/billing/verify', { method: 'POST', body: payload });

@@ -249,6 +249,27 @@ router.put('/profile', authenticate, (req, res) => {
     if (!p.name || !p.age || !p.gender) {
       return res.status(400).json({ error: 'name, age and gender are required' });
     }
+    // Never trust the client for age: Veiled is 18+ only, and a minor
+    // slipping through would be both a safety and an App Store failure.
+    const age = toInt(p.age);
+    if (age < 18) return res.status(422).json({ error: 'You must be 18 or over to use Veiled' });
+    if (age > 99) return res.status(422).json({ error: 'Please enter a valid age' });
+    p.age = age;
+    if (!['Man', 'Woman'].includes(p.gender)) return res.status(422).json({ error: 'Invalid gender' });
+    // Only reject empty/oversized names — short given names are real in
+    // plenty of cultures, so don't lock anyone out over a length rule.
+    const name = String(p.name).trim();
+    if (!name || name.length > 40) return res.status(422).json({ error: 'Please enter a name (up to 40 characters)' });
+    p.name = name;
+    if (p.bio != null) p.bio = String(p.bio).slice(0, 1000);
+    if (p.job != null) p.job = String(p.job).slice(0, 80);
+    if (p.veil != null && !['Hijab', 'Niqab'].includes(p.veil)) p.veil = null;
+    // Gold is granted by verified purchases only. In production keep the
+    // server's current value so a client can neither grant nor clear it.
+    if (process.env.NODE_ENV === 'production') {
+      const cur = db.prepare('SELECT is_gold FROM dating_profiles WHERE user_id = ?').get(req.userId);
+      p.gold = cur ? !!cur.is_gold : false;
+    }
     // Veiled is a community of hijabi & niqabi sisters: a woman's profile
     // must carry a veil style.
     if (p.gender === 'Woman' && !['Hijab', 'Niqab'].includes(p.veil)) {

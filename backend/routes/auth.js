@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const db = require('../db');
 const { generateToken, authenticate } = require('../middleware/auth');
 const sms = require('../services/sms');
+const photoStorage = require('../services/storage');
 
 const router = express.Router();
 
@@ -125,10 +126,29 @@ router.get('/me', authenticate, (req, res) => {
   });
 });
 
-// DELETE /api/auth/account
-router.delete('/account', authenticate, (req, res) => {
-  db.prepare('DELETE FROM users WHERE id = ?').run(req.userId);
-  res.json({ success: true });
+// DELETE /api/auth/account — App Store 5.1.1(v): deleting the account
+// must actually erase the user's data, not just deactivate. Every dating_*
+// table cascades from users(id), but stored photo objects live outside the
+// database, so remove those explicitly first.
+router.delete('/account', authenticate, async (req, res) => {
+  try {
+    const photos = db.prepare('SELECT url FROM dating_photos WHERE user_id = ?').all(req.userId);
+    for (const p of photos) {
+      const key = p.url.startsWith('/uploads/') ? p.url.replace('/uploads/', '') : p.url;
+      try { await photoStorage.remove(key); } catch {}
+    }
+    // Rows that reference the user without a FK cascade.
+    db.prepare('DELETE FROM dating_blocks WHERE user_id = ? OR blocked_id = ?').run(req.userId, req.userId);
+    db.prepare('DELETE FROM dating_reports WHERE reporter_id = ? OR target_id = ?').run(req.userId, req.userId);
+    db.prepare('DELETE FROM push_tokens WHERE user_id = ?').run(req.userId);
+    // ON DELETE CASCADE clears profile, photos, swipes, matches, messages,
+    // limits, signals, vouch invites, shares and we-met rows.
+    db.prepare('DELETE FROM users WHERE id = ?').run(req.userId);
+    res.json({ success: true, deleted: true });
+  } catch (err) {
+    console.error('Account delete error:', err);
+    res.status(500).json({ error: 'Could not delete account' });
+  }
 });
 
 module.exports = router;

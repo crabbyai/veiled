@@ -236,10 +236,10 @@ export default function DiscoverScreen({ navigation }) {
             <Ionicons name="sparkles" size={15} color={M.butterfly} />
             <Text style={styles.aiBtnText}>AI picks</Text>
           </Pressable>
-          <Pressable onPress={() => { H.tap(); setShowBoost(true); }} style={styles.iconBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Boost my profile" onPress={() => { H.tap(); setShowBoost(true); }} style={styles.iconBtn}>
             <Ionicons name={boostActive ? 'flash' : 'flash-outline'} size={23} color={boostActive ? M.primary : M.text} />
           </Pressable>
-          <Pressable onPress={() => { H.tap(); navigation.navigate('MuzzFilters'); }} style={styles.iconBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Filters" onPress={() => { H.tap(); navigation.navigate('MuzzFilters'); }} style={styles.iconBtn}>
             <Ionicons name="options-outline" size={24} color={M.text} />
           </Pressable>
         </View>
@@ -350,19 +350,19 @@ export default function DiscoverScreen({ navigation }) {
       {/* Muzz-style circular action buttons: rewind · pass · super · instant · like */}
       {top && (
         <View style={styles.actions}>
-          <Pressable onPress={rewind} style={({ pressed }) => [styles.actBtn, styles.rewindBtn, !lastSwiped && { opacity: 0.4 }, pressed && styles.pressed]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Rewind last swipe" onPress={rewind} style={({ pressed }) => [styles.actBtn, styles.rewindBtn, !lastSwiped && { opacity: 0.4 }, pressed && styles.pressed]}>
             <Ionicons name="arrow-undo" size={20} color={M.gold} />
           </Pressable>
-          <Pressable onPress={() => swipe(-1)} style={({ pressed }) => [styles.actBtn, styles.passBtn, pressed && styles.pressed]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Pass" onPress={() => swipe(-1)} style={({ pressed }) => [styles.actBtn, styles.passBtn, pressed && styles.pressed]}>
             <Ionicons name="close" size={30} color="#B9B6C3" />
           </Pressable>
-          <Pressable onPress={() => { H.press(); setSuperTarget(top.person); }} style={({ pressed }) => [styles.actBtn, styles.superBtn, pressed && styles.pressed]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Super like" onPress={() => { H.press(); setSuperTarget(top.person); }} style={({ pressed }) => [styles.actBtn, styles.superBtn, pressed && styles.pressed]}>
             <Ionicons name="star" size={22} color={M.textOnPrimary} />
           </Pressable>
-          <Pressable onPress={instant} style={({ pressed }) => [styles.actBtn, styles.instantBtn, pressed && styles.pressed]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Instant chat" onPress={instant} style={({ pressed }) => [styles.actBtn, styles.instantBtn, pressed && styles.pressed]}>
             <Ionicons name="flash" size={22} color={M.textOnPrimary} />
           </Pressable>
-          <Pressable onPress={() => swipe(1)} style={({ pressed }) => [styles.actBtn, styles.likeBtn, pressed && styles.pressed]}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Like" onPress={() => swipe(1)} style={({ pressed }) => [styles.actBtn, styles.likeBtn, pressed && styles.pressed]}>
             <Ionicons name="heart" size={30} color={M.textOnPrimary} />
           </Pressable>
         </View>

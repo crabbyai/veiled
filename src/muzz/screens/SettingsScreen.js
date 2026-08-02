@@ -7,12 +7,16 @@ import { useMuzz } from '../store';
 import * as H from '../haptics';
 
 const PRIVACY_URL = 'https://adeelahmedrahman.github.io/veiled-privacy/';
+// Apple requires a Terms of Use (EULA) link in-app for auto-renewable
+// subscriptions. Apple's standard EULA is acceptable if you don't host one.
+const TERMS_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
 const SUPPORT_EMAIL = 'support@veiledapp.com';
 
 export default function SettingsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { butterflyAuto, update, me, setMe, filters, resetAll, pauseProfile } = useMuzz();
+  const { butterflyAuto, update, me, setMe, filters, resetAll, pauseProfile, deleteAccount } = useMuzz();
   const [local, setLocal] = React.useState({});
+  const [deleting, setDeleting] = React.useState(false);
 
   const goFilters = () => { H.tap(); navigation.navigate('MuzzFilters'); };
 
@@ -60,10 +64,53 @@ export default function SettingsScreen({ navigation }) {
         { icon: 'diamond-outline', label: 'Veiled Gold', value: me.gold ? 'Active' : 'Upgrade', act: () => { H.tap(); navigation.navigate('MuzzGold'); } },
         { icon: 'help-circle-outline', label: 'Help & support', act: () => { H.tap(); Linking.openURL(`mailto:${SUPPORT_EMAIL}?subject=Veiled%20Support`).catch(() => {}); } },
         { icon: 'document-text-outline', label: 'Privacy policy', act: () => { H.tap(); Linking.openURL(PRIVACY_URL).catch(() => {}); } },
+        { icon: 'reader-outline', label: 'Terms of Use', act: () => { H.tap(); Linking.openURL(TERMS_URL).catch(() => {}); } },
         { icon: 'log-out-outline', label: 'Log out', danger: true, act: onLogout },
+        { icon: 'trash-outline', label: deleting ? 'Deleting…' : 'Delete my account', danger: true, act: onDeleteAccount },
       ],
     },
   ];
+
+  // App Store 5.1.1(v): account deletion must be initiable in-app, and
+  // must actually delete — not just sign out. Two-step confirm because
+  // it's irreversible.
+  function onDeleteAccount() {
+    if (deleting) return;
+    H.tap();
+    Alert.alert(
+      'Delete your account?',
+      'This permanently deletes your profile, photos, matches and messages. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => Alert.alert(
+            'This is permanent',
+            'Are you absolutely sure? Everything will be erased.',
+            [
+              { text: 'Keep my account', style: 'cancel' },
+              {
+                text: 'Delete forever',
+                style: 'destructive',
+                onPress: async () => {
+                  setDeleting(true);
+                  const res = await deleteAccount();
+                  setDeleting(false);
+                  if (!res.ok) {
+                    Alert.alert(
+                      'Removed from this device',
+                      'We couldn\'t reach the server, so your account may still exist. Please reconnect and try again, or email ' + SUPPORT_EMAIL + '.',
+                    );
+                  }
+                },
+              },
+            ],
+          ),
+        },
+      ],
+    );
+  }
 
   function onLogout() {
     H.tap();
@@ -98,7 +145,7 @@ export default function SettingsScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.hBtn}><Ionicons name="chevron-back" size={28} color={M.text} /></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => navigation.goBack()} style={styles.hBtn}><Ionicons name="chevron-back" size={28} color={M.text} /></Pressable>
         <Text style={styles.title}>Settings</Text>
         <View style={{ width: 40 }} />
       </View>

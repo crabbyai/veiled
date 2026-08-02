@@ -18,7 +18,11 @@ const initialState = {
   onboarded: false,
   feedback: {},        // { personId: 'liked' | 'passed' }
   matches: [],         // personIds that became matches
-  likedYou: ['p2', 'p6', 'p9'], // people who liked you (for Likes tab)
+  // People who liked you. Deliberately empty: this list sits behind the
+  // Gold paywall, so seeding it with fabricated likes would be inventing
+  // social proof to drive a purchase. Real likes arrive from the server
+  // (and locally when someone you liked likes you back).
+  likedYou: [],
   seen: [],            // butterfly-presented ids
   unveiled: {},        // { personId: true } — photos unveiled between us
   chaperones: {},      // { personId: { name } } — wali observing this chat
@@ -424,15 +428,32 @@ export function MuzzProvider({ children }) {
 
   const resetAll = useCallback(() => persist(initialState), [persist]);
 
+  // Permanently delete the account (App Store 5.1.1(v) requires this to be
+  // doable in-app). Deletes server-side first, then wipes everything
+  // stored on the device. Resolves { ok } so the UI can report failure
+  // instead of pretending the data is gone.
+  const deleteAccount = useCallback(async () => {
+    let serverOk = true;
+    if (api.isConfigured()) {
+      try {
+        if (await api.isAvailable()) await api.deleteAccount();
+        else serverOk = false;
+      } catch { serverOk = false; }
+    }
+    try { realtime.disconnect(); } catch {}
+    await persist(initialState);
+    return { ok: serverOk };
+  }, [persist]);
+
   const value = useMemo(() => ({
     ...state, hydrated,
     setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen,
-    sendMessage, togglePostLike, addPost, update, resetAll,
+    sendMessage, togglePostLike, addPost, update, resetAll, deleteAccount,
     likesRemaining, useInstantChat,
     addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson,
     unmatchPerson, pauseProfile, sendRose, recordWeMet, toggleMute,
     unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead,
-  }), [state, hydrated, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson, unmatchPerson, pauseProfile, sendRose, recordWeMet, toggleMute, unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead]);
+  }), [state, hydrated, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, deleteAccount, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson, unmatchPerson, pauseProfile, sendRose, recordWeMet, toggleMute, unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead]);
 
   return <MuzzContext.Provider value={value}>{children}</MuzzContext.Provider>;
 }

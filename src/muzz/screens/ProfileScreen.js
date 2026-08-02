@@ -125,8 +125,8 @@ export default function ProfileScreen({ navigation }) {
         <View style={[styles.top, { paddingTop: insets.top + 10 }]}>
           <Text style={styles.title}>Profile</Text>
           <View style={styles.topActions}>
-            <Pressable onPress={onShareProfile} disabled={sharing} style={styles.gear}><Ionicons name="share-outline" size={23} color={M.text} /></Pressable>
-            <Pressable onPress={() => navigation.navigate('MuzzSettings')} style={styles.gear}><Ionicons name="settings-outline" size={24} color={M.text} /></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Share my profile" onPress={onShareProfile} disabled={sharing} style={styles.gear}><Ionicons name="share-outline" size={23} color={M.text} /></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Settings" onPress={() => navigation.navigate('MuzzSettings')} style={styles.gear}><Ionicons name="settings-outline" size={24} color={M.text} /></Pressable>
           </View>
         </View>
 
@@ -227,7 +227,13 @@ export default function ProfileScreen({ navigation }) {
 
         {/* Stats */}
         <View style={styles.stats}>
-          {[['heart', matches.length, 'Matches'], ['eye', (me.interests?.length || 0) * 7 + 12, 'Profile views'], ['star', muzz.superLikes, 'Super likes']].map(([ic, v, l]) => (
+          {/* Only real counts here — no invented "profile views" style
+              metrics, especially not beside a Gold upsell. */}
+          {[
+            ['heart', matches.length, 'Matches'],
+            ['rose', me.gold ? '∞' : (muzz.roses || 0), 'Roses'],
+            ['star', me.gold ? '∞' : muzz.superLikes, 'Super likes'],
+          ].map(([ic, v, l]) => (
             <View key={l} style={styles.stat}>
               <Ionicons name={ic} size={18} color={M.primary} />
               <Text style={styles.statVal}>{v}</Text>

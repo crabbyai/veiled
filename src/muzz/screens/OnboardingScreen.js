@@ -50,8 +50,14 @@ export default function OnboardingScreen() {
     H.select();
   };
 
+  // Veiled is for adults seeking marriage: 18+ only. Enforced here and
+  // again server-side, and matches the app's 17+ App Store age rating.
+  const MIN_AGE = 18;
+  const ageNum = Number(age) || 0;
+  const ageOk = ageNum >= MIN_AGE && ageNum <= 99;
+
   const canNext = () => {
-    if (step === STEP.you) return name.trim().length > 1 && (gender !== 'Woman' || !!veil);
+    if (step === STEP.you) return name.trim().length > 1 && ageOk && (gender !== 'Woman' || !!veil);
     if (step === STEP.interests) return interests.length >= 3;
     if (step === STEP.values) return values.length >= 2;
     if (step === STEP.verify) return verified;
@@ -119,6 +125,13 @@ export default function OnboardingScreen() {
             <TextInput value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={M.textMuted} style={styles.input} />
             <Text style={styles.label}>Age</Text>
             <TextInput value={age} onChangeText={(t) => setAge(t.replace(/[^0-9]/g, '').slice(0, 2))} keyboardType="number-pad" style={styles.input} />
+            {age.length > 0 && !ageOk && (
+              <Text style={styles.ageWarn}>
+                {ageNum > 0 && ageNum < MIN_AGE
+                  ? 'You must be 18 or over to use Veiled.'
+                  : 'Please enter a valid age.'}
+              </Text>
+            )}
             <Text style={styles.label}>I am a</Text>
             <View style={styles.row}>
               {['Man', 'Woman'].map((g) => (
@@ -301,6 +314,7 @@ const styles = StyleSheet.create({
   q: { ...TYPE.hero, fontSize: 27, marginBottom: 6 },
   helper: { ...TYPE.soft, marginBottom: 18 },
   helper2: { ...TYPE.soft, fontSize: 12.5, marginTop: 3 },
+  ageWarn: { ...TYPE.caption, color: M.danger, fontWeight: '700', marginTop: 6 },
   selfieRing: {
     width: 110, height: 110, borderRadius: 55, borderWidth: 4, borderColor: M.primary,
     alignItems: 'center', justifyContent: 'center', backgroundColor: M.primarySoft, marginTop: 20,

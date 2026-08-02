@@ -64,7 +64,7 @@ export default function VerifyScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.hBtn}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => navigation.goBack()} style={styles.hBtn}>
           <Ionicons name="chevron-back" size={28} color={M.text} />
         </Pressable>
         <Text style={styles.title}>Verification</Text>

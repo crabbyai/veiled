@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions, Alert, Linking } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,6 +13,9 @@ import * as purchases from '../integrations/purchases';
 import * as H from '../haptics';
 
 // Map a RevenueCat packageType to a friendly plan label.
+const TERMS_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
+const PRIVACY_URL = 'https://adeelahmedrahman.github.io/veiled-privacy/';
+
 const PKG_LABEL = { MONTHLY: '1 month', THREE_MONTH: '3 months', SIX_MONTH: '6 months', ANNUAL: '12 months' };
 const PKG_PER = { MONTHLY: '/mo', THREE_MONTH: '/3mo', SIX_MONTH: '/6mo', ANNUAL: '/yr' };
 
@@ -79,7 +82,7 @@ export default function GoldScreen({ navigation }) {
       <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 360 }}>
         <IslamicPattern color="#FFFFFF" opacity={0.06} tile={52} />
       </View>
-      <Pressable onPress={() => navigation.goBack()} style={[styles.close, { top: insets.top + 8 }]}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={() => navigation.goBack()} style={[styles.close, { top: insets.top + 8 }]}>
         <Ionicons name="close" size={26} color="#fff" />
       </Pressable>
 
@@ -135,8 +138,21 @@ export default function GoldScreen({ navigation }) {
             </Pressable>
           )}
           <Text style={styles.terms}>
-            {iapEnabled ? 'Recurring billing · Cancel anytime · Terms apply' : 'Gold is free while Veiled launches — paid plans coming later'}
+            {iapEnabled
+              ? 'Subscriptions renew automatically unless cancelled at least 24 hours before the end of the period. Manage or cancel in your App Store settings.'
+              : 'Gold is free while Veiled launches — paid plans coming later'}
           </Text>
+          {/* App Store 3.1.2 requires functional Terms of Use + Privacy
+              Policy links wherever a subscription is offered. */}
+          <View style={styles.legalRow}>
+            <Pressable onPress={() => { H.tap(); Linking.openURL(TERMS_URL).catch(() => {}); }}>
+              <Text style={styles.legalLink}>Terms of Use</Text>
+            </Pressable>
+            <Text style={styles.legalDot}>·</Text>
+            <Pressable onPress={() => { H.tap(); Linking.openURL(PRIVACY_URL).catch(() => {}); }}>
+              <Text style={styles.legalLink}>Privacy Policy</Text>
+            </Pressable>
+          </View>
         </View>
       </ScrollView>
     </View>
@@ -169,4 +185,7 @@ const styles = StyleSheet.create({
   radioOn: { backgroundColor: M.gold, borderColor: M.gold },
   terms: { color: 'rgba(255,255,255,0.4)', fontSize: 11, textAlign: 'center', marginTop: 14 },
   restore: { color: 'rgba(255,255,255,0.75)', fontSize: 13, fontWeight: '700', textAlign: 'center' },
+  legalRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 10 },
+  legalLink: { color: 'rgba(255,255,255,0.6)', fontSize: 12, fontWeight: '700', textDecorationLine: 'underline' },
+  legalDot: { color: 'rgba(255,255,255,0.4)', fontSize: 12 },
 });

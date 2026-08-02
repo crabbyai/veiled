@@ -69,17 +69,26 @@ Open `store/metadata.md` and copy each block into App Store Connect:
 Version page → Build section → pick the processed build → **Add for
 Review** → **Submit to App Review**.
 
-## Why the previous rejections stay fixed
-- **2.1.0 (placeholder icon)** — real branded icon is in the binary
-  (`assets/icon.png`, veiled-silhouette mark, 1024, no alpha).
-- **5.6.0 (fake social proof)** — audited: no fabricated activity
-  anywhere; the only live counter is the genuine prayer timer.
-- **3.1.1 / 2.3.2 (purchases)** — the Gold paywall ships with
-  `IAP_ENABLED = false` (`src/muzz/screens/GoldScreen.js`): no prices
-  shown, Gold is a free launch perk. Flip to `true` only after creating
-  real auto-renewable subscriptions in App Store Connect and wiring
-  them through `react-native-iap`.
-- **2.3.8 (preview videos)** — submit with screenshots only.
+## App Store review checklist (all handled in code)
+
+| Guideline | Requirement | How Veiled satisfies it |
+|---|---|---|
+| **2.1.0** | Real app icon | Branded veiled-silhouette mark, 1024px, no alpha (`assets/icon.png`) |
+| **5.1.1(v)** | **Account deletion in-app** | Settings → **Delete my account** (two-step confirm) calls `DELETE /api/auth/account`, which erases the profile, photos (including objects in S3), swipes, matches, messages, reports, blocks and push tokens, then wipes local storage |
+| **1.2** | UGC safety: report, block, filter | Report + Block on every profile and chat; server-side image moderation on upload and text filtering on every message |
+| **3.1.1 / 3.1.2** | Real IAP, restore, terms | Gold uses live StoreKit/Play products via RevenueCat; **prices only render when a real purchase flow exists**, otherwise Gold is a free launch perk. Restore purchases, renewal disclosure, and **Terms of Use + Privacy Policy links** sit on the paywall |
+| **5.6.0** | No fake social proof | Audited and removed: no seeded "people who like you" behind the paywall, and no invented "profile views" metric — every counter shown is real |
+| **1.1.4 / age** | 18+ only | Onboarding blocks under-18 with an inline message; the server independently rejects `age < 18` (422), so a patched client can't bypass it |
+| **5.1.1** | Purpose strings | Camera, photo library, microphone (voice notes), Face ID and location strings all present in `app.json` |
+| **5.1.2** | Privacy manifest | `NSPrivacyAccessedAPITypes` declared in `app.json` |
+| **2.3.8** | Accurate previews | Submit with screenshots only (no preview videos) |
+
+Set the App Store age rating to **17+** and answer the questionnaire as a
+dating app. Fill in Support URL and Privacy Policy URL in App Store
+Connect (the policy HTML is in `store/privacy-policy.html`).
+
+> Before submitting, replace the placeholder support email and privacy
+> URL in `src/muzz/screens/SettingsScreen.js` with your real ones.
 
 ## Optional: go live with the backend
 The app is fully reviewable offline. To run live accounts/matching/chat:
