@@ -179,22 +179,41 @@ function findMatch(a, b) {
   ).get(a, b, b, a);
 }
 
-// `opener` (Hinge-style): { fromUserId, text } — a comment left when
-// liking. On match it's posted as the first message so the reply lands
-// in context, exactly like Hinge surfaces the like's comment.
+// Every comment either side left when liking, oldest first. A Hinge
+// comment must survive the wait: if she comment-likes you today and you
+// like her back next week, her comment still opens the conversation.
+const storedOpeners = (a, b) =>
+  db.prepare(`
+    SELECT user_id AS fromUserId, note AS text, created_at AS ts FROM dating_swipes
+    WHERE action = 'like' AND note IS NOT NULL AND note != ''
+      AND ((user_id = ? AND target_id = ?) OR (user_id = ? AND target_id = ?))
+    ORDER BY created_at ASC, id ASC
+  `).all(a, b, b, a);
+
+// `opener` (Hinge-style): { fromUserId, text } — the comment left with
+// this like. Combined with any comment the other side left earlier, all
+// are posted as the first messages so replies land in context.
 const createMatch = (a, b, source = 'like', opener = null) => {
   const existing = findMatch(a, b);
   if (existing) return existing;
   const r = db.prepare('INSERT INTO dating_matches (user_a, user_b, source) VALUES (?, ?, ?)').run(a, b, source);
   const match = db.prepare('SELECT * FROM dating_matches WHERE id = ?').get(r.lastInsertRowid);
 
-  if (opener && opener.text && (opener.fromUserId === a || opener.fromUserId === b)) {
+  // Merge the live opener with anything already stored on either swipe,
+  // de-duplicated (the current like's note is usually already stored).
+  const openers = storedOpeners(a, b);
+  if (opener && opener.text && !openers.some((o) => o.fromUserId === opener.fromUserId && o.text === opener.text)) {
+    openers.push({ fromUserId: opener.fromUserId, text: opener.text, ts: Date.now() });
+  }
+  for (const o of openers) {
+    if (o.fromUserId !== a && o.fromUserId !== b) continue;
+    const body = String(o.text).slice(0, 500);
     const msg = db.prepare('INSERT INTO dating_messages (match_id, sender_id, body) VALUES (?, ?, ?)')
-      .run(match.id, opener.fromUserId, String(opener.text).slice(0, 500));
-    const otherId = opener.fromUserId === a ? b : a;
+      .run(match.id, o.fromUserId, body);
+    const otherId = o.fromUserId === a ? b : a;
     emitToUser(otherId, 'message:new', {
       matchId: match.id,
-      message: { id: msg.lastInsertRowid, senderId: opener.fromUserId, body: String(opener.text).slice(0, 500), ts: Date.now() },
+      message: { id: msg.lastInsertRowid, senderId: o.fromUserId, body, ts: Date.now() },
     });
   }
 
@@ -563,14 +582,26 @@ router.post('/rewind', authenticate, (req, res) => {
         emitToUser(last.target_id, 'rewind', { userId: req.userId });
       }
     }
-    // Refund one like credit if the rewound swipe was a like this window.
+    // Refund what the rewound swipe cost. Roses and Super Likes are paid
+    // currency — undoing must never silently burn them.
+    const me = getProfile(req.userId);
+    const lim = getLimits(req.userId);
     if (last.action === 'like') {
-      const lim = getLimits(req.userId);
       if (Date.now() - lim.like_window_start <= LIKE_WINDOW_MS && lim.likes_in_window > 0) {
         db.prepare('UPDATE dating_limits SET likes_in_window = likes_in_window - 1 WHERE user_id = ?').run(req.userId);
       }
+      if (!me || !me.gold) {
+        if (last.is_rose) db.prepare('UPDATE dating_limits SET roses = roses + 1 WHERE user_id = ?').run(req.userId);
+        else if (last.is_super) db.prepare('UPDATE dating_limits SET super_likes = super_likes + 1 WHERE user_id = ?').run(req.userId);
+      }
     }
-    res.json({ ok: true, targetId: last.target_id, action: last.action });
+    const after = getLimits(req.userId);
+    res.json({
+      ok: true, targetId: last.target_id, action: last.action,
+      refunded: { rose: !!last.is_rose, superLike: !!last.is_super && !last.is_rose },
+      roses: me && me.gold ? -1 : after.roses,
+      superLikes: me && me.gold ? -1 : after.super_likes,
+    });
   } catch (err) {
     console.error('Rewind error:', err);
     res.status(500).json({ error: 'Server error' });

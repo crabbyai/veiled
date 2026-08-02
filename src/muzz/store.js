@@ -26,6 +26,7 @@ const initialState = {
   signalsReads: [],    // personIds whose full profile I've read (Signals)
   weMet: {},           // { personId: { met, wentWell, ts } } — Hinge We Met
   muted: {},           // { personId: true } — muted conversations
+  spent: {},           // { personId: 'rose' | 'super' } — so Rewind refunds
   chats: {},           // { personId: [{id, text, sender, ts, read}] }
   posts: SOCIAL_SEED,
   postLikes: {},       // local like toggles for social posts
@@ -58,6 +59,21 @@ export const FREE_LIKES_PER_WINDOW = 5;
 export const LIKE_WINDOW_MS = 12 * 3600000;
 export const FREE_INSTANT_CHATS_PER_DAY = 1;
 
+// Merge saved state over the defaults. Nested objects (me, filters) are
+// merged key-by-key, not replaced: an older install that predates a new
+// key would otherwise load it as `undefined`. That mattered — a stale
+// `filters` without `sect`/`prayerLevel`/`ethnicity` made every
+// `f.x !== 'Any'` check true and silently emptied the whole deck.
+function mergeSaved(defaults, saved) {
+  if (!saved || typeof saved !== 'object') return defaults;
+  return {
+    ...defaults,
+    ...saved,
+    me: { ...DEFAULT_ME, ...(saved.me || {}) },
+    filters: { ...defaults.filters, ...(saved.filters || {}) },
+  };
+}
+
 export function MuzzProvider({ children }) {
   const [state, setState] = useState(initialState);
   const [hydrated, setHydrated] = useState(false);
@@ -68,7 +84,7 @@ export function MuzzProvider({ children }) {
         const raw = await AsyncStorage.getItem(KEY);
         if (raw) {
           const saved = JSON.parse(raw);
-          setState((s) => ({ ...s, ...saved, me: { ...DEFAULT_ME, ...(saved.me || {}) } }));
+          setState((s) => mergeSaved(s, saved));
         }
       } catch {}
       setHydrated(true);
@@ -164,7 +180,11 @@ export function MuzzProvider({ children }) {
       const opener = comment ? [{ id: `op${Date.now()}`, text: comment, sender: 'me', ts: Date.now(), read: false }] : [];
       const chats = becameMatch && !s.chats[personId] ? { ...s.chats, [personId]: opener } : s.chats;
       const seen = s.seen.includes(personId) ? s.seen : [...s.seen, personId];
-      return { ...s, feedback, matches, chats, seen, roses: s.me.gold ? s.roses : Math.max(0, (s.roses || 0) - 1) };
+      return {
+        ...s, feedback, matches, chats, seen,
+        roses: s.me.gold ? s.roses : Math.max(0, (s.roses || 0) - 1),
+        spent: { ...(s.spent || {}), [personId]: 'rose' },
+      };
     });
     if (ok) api.mirror(() => api.rose(personId, { comment, contentType, contentRef }));
     return ok;
@@ -225,16 +245,27 @@ export function MuzzProvider({ children }) {
     api.mirror(() => api.swipe(personId, 'pass'));
   }, [update]);
 
-  // Rewind (Gold): undo the last like/pass so the card returns to the deck
+  // Rewind (Gold): undo the last like/pass so the card returns to the deck.
+  // Refunds whatever the swipe cost — a rewound Rose or Super Like must
+  // come back, not be silently burned.
   const undoSwipe = useCallback((personId) => {
     update((s) => {
       const feedback = { ...s.feedback };
       delete feedback[personId];
+      const spent = { ...(s.spent || {}) };
+      const cost = spent[personId];
+      delete spent[personId];
+      const gold = s.me.gold;
       return {
         ...s,
         feedback,
+        spent,
         matches: s.matches.filter((id) => id !== personId),
         seen: s.seen.filter((id) => id !== personId),
+        chats: cost ? Object.fromEntries(Object.entries(s.chats).filter(([id]) => id !== personId)) : s.chats,
+        roses: !gold && cost === 'rose' ? (s.roses || 0) + 1 : s.roses,
+        superLikes: !gold && cost === 'super' ? (s.superLikes || 0) + 1 : s.superLikes,
+        likesInWindow: Math.max(0, (s.likesInWindow || 0) - 1),
       };
     });
     api.mirror(() => api.rewind(personId));

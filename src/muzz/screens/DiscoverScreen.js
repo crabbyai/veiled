@@ -19,16 +19,21 @@ import Butterfly from '../components/Butterfly';
 import PrayerBar from '../components/PrayerBar';
 import * as H from '../haptics';
 
+// An unset filter must never exclude anyone: treat missing/'Any' as no
+// filter, so a partially-populated `filters` object can't empty the deck.
+const active = (v) => v != null && v !== 'Any' && v !== '';
+
 const matchesFilters = (p, f) => {
   if (!f) return true;
   // Passport: when a city is chosen, discover there and ignore distance.
-  if (f.passportCity) { if ((p.city || '') !== f.passportCity) return false; }
-  else if (p.distance > f.maxDistance) return false;
-  if (p.age < f.ageMin || p.age > f.ageMax) return false;
-  if (f.veil && f.veil !== 'Any' && p.veil !== f.veil) return false;
-  if (f.sect !== 'Any' && p.sect !== f.sect) return false;
-  if (f.prayerLevel !== 'Any' && p.prayerLevel !== f.prayerLevel) return false;
-  if (f.ethnicity !== 'Any' && p.ethnicity !== f.ethnicity) return false;
+  if (active(f.passportCity)) { if ((p.city || '') !== f.passportCity) return false; }
+  else if (active(f.maxDistance) && p.distance > f.maxDistance) return false;
+  if (active(f.ageMin) && p.age < f.ageMin) return false;
+  if (active(f.ageMax) && p.age > f.ageMax) return false;
+  if (active(f.veil) && p.veil !== f.veil) return false;
+  if (active(f.sect) && p.sect !== f.sect) return false;
+  if (active(f.prayerLevel) && p.prayerLevel !== f.prayerLevel) return false;
+  if (active(f.ethnicity) && p.ethnicity !== f.ethnicity) return false;
   if (f.verifiedOnly && !p.verified) return false;
   return true;
 };
@@ -91,8 +96,9 @@ export default function DiscoverScreen({ navigation }) {
     if (!superTarget) return;
     if (!me.gold && superLikes <= 0) { setSuperTarget(null); navigation.navigate('MuzzGold'); return; }
     const t = superTarget;
-    if (!me.gold) update((s) => ({ ...s, superLikes: Math.max(0, s.superLikes - 1) }));
-    likePerson(t.id, { mutual: true });
+    // Record the cost so Rewind can refund the Super Like.
+    if (!me.gold) update((s) => ({ ...s, superLikes: Math.max(0, s.superLikes - 1), spent: { ...(s.spent || {}), [t.id]: 'super' } }));
+    likePerson(t.id, { mutual: true, comment: superNote.trim() || null, contentType: 'profile', contentRef: 'profile' });
     setSuperTarget(null);
     setSuperNote('');
     H.success();
