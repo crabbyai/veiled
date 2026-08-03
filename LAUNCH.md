@@ -18,7 +18,7 @@ Realistic timeline: ~1 hour of your time, then 24–48h waiting on Apple.
 | Bundle ID | `com.veiledapp.hijabimarriage` |
 | Version / Build | `1.0.0` / `1` |
 | Expo account | `adeelahmedrahman` |
-| Age rating | **17+** (dating app) |
+| Age rating | Mature — set by answering **Dating: Yes** |
 | Category | Primary: **Lifestyle**, Secondary: **Social Networking** |
 
 All listing copy (description, keywords, promo text, privacy answers,
@@ -38,17 +38,18 @@ Apple ties these to a legal identity and 2FA, so no agent can do them.
    "Organization" needs a D-U-N-S number and takes weeks)
 4. Wait for the confirmation email before continuing
 
-### 1b. Put your Privacy Policy on the web — 5 min
-Apple requires a public URL. The HTML is already written for you at
-`store/privacy-policy.html`.
+### 1b. Publish your Support + Privacy pages — 5 min
+Apple requires **two** working URLs, and clicks both. A 404 is an instant
+rejection. Both pages are already written for you in `docs/`.
 
-Easiest free option — GitHub Pages:
-1. Create a new public repo called `veiled-privacy`
-2. Upload `store/privacy-policy.html`, renamed to **`index.html`**
-3. Repo **Settings → Pages → Source: main branch** → Save
-4. Your URL becomes `https://<your-github-username>.github.io/veiled-privacy/`
+1. Create a new **public** repo called `veiled-support`
+2. Upload **both** files from `docs/`: `index.html` and `privacy.html`
+3. Repo **Settings → Pages → Source: main branch, / (root)** → Save
+4. Wait ~1 minute, then check both load:
+   - Support URL: `https://<your-github-username>.github.io/veiled-support/`
+   - Privacy URL: `https://<your-github-username>.github.io/veiled-support/privacy.html`
 
-Write that URL down — you need it twice (in the app, and in App Store Connect).
+Write both URLs down — you need them in App Store Connect and in step 2.
 
 ### 1c. Decide your support email
 Any address you actually read, e.g. `support@yourdomain.com` or a Gmail.
@@ -152,14 +153,17 @@ Checklist:
 - [ ] **Promotional Text** — from metadata.md
 - [ ] **Description** — from metadata.md
 - [ ] **Keywords** — from metadata.md
-- [ ] **Support URL** — your privacy URL works, or a simple contact page
-- [ ] **Privacy Policy URL** — the URL from step 1b
+- [ ] **Support URL** — your GitHub Pages support page from step 1b
+- [ ] **Privacy Policy URL** — the /privacy.html URL from step 1b
+- [ ] **Marketing URL** — leave blank
+- [ ] **Copyright** — `2026 Veiled` (no © symbol)
+- [ ] **Content Rights** — "Does your app contain third-party content?" → **No**
 - [ ] **Screenshots** — drag in `store/screenshots/iphone-6.9/` (all 6)
       and `store/screenshots/ipad-13/` (all 6)
 - [ ] **App Preview videos** — leave empty (deliberate: avoids a 2.3.8 rejection)
 - [ ] **Category** — Lifestyle / Social Networking
 - [ ] **Age Rating** — click Edit, answer per the *Age Rating* section of
-      metadata.md. It must come out **17+**
+      metadata.md. Answering **Dating: Yes** sets the mature rating
 - [ ] **App Privacy** — Data Collection questionnaire, answers are in the
       *App Privacy* section of metadata.md
 - [ ] **App Review Information** → Notes — paste the *Notes for App

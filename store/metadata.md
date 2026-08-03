@@ -91,6 +91,26 @@ Suggested order: 01 veil card → 06 voice → 02 unveiled chat → 03 events
 - **App Previews (videos): leave empty.** They're optional; our previous
   slideshow-style videos caused rejection 2.3.8.
 
+## Content Rights declaration
+- **Does your app contain, show, or access third-party content?** → **No**
+
+  Veiled contains no third-party content. All artwork, copy, icons and
+  demo profile data are original to this app. Icons are Ionicons (MIT).
+
+## Copyright field
+```
+2026 Veiled
+```
+(App Store Connect adds the © itself — do not type the symbol.)
+
+## Support / Marketing URLs
+- **Support URL** (required): `https://<your-github-username>.github.io/veiled-support/`
+- **Privacy Policy URL** (required): `https://<your-github-username>.github.io/veiled-support/privacy.html`
+- **Marketing URL**: leave blank
+
+Both pages are in `docs/` and are designed to be published together as a
+single GitHub Pages site — see LAUNCH.md step 1b.
+
 ## Notes for App Review (paste in "App Review Information → Notes")
 ```
 Veiled is a Muslim matchmaking app for adults seeking marriage.
