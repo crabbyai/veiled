@@ -76,13 +76,15 @@ export default function MatchesScreen({ navigation }) {
           )
         )}
 
+        {/* An empty state is not a sales opportunity: point people at
+            something that actually helps, not at the paywall. */}
         {tab === 'likes' && (
           likedYouPeople.length === 0 ? (
             <Empty
               icon="heart"
               title="No likes yet"
-              sub="Keep your profile shining — likes will land here as people discover you."
-              cta="Get a Boost" onPress={() => navigation.navigate('MuzzGold')}
+              sub="Likes will land here as people discover you. A complete profile with a few prompts answered gets seen the most."
+              cta="Complete my profile" onPress={() => navigation.navigate('MuzzTabs')}
             />
           ) : (
           <View>

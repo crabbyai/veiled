@@ -51,8 +51,10 @@ launch.
 ```
 
 ## Keywords (100 chars max, comma-separated)
+<!-- 'muzz' removed: using a competitor's trademark as a keyword risks
+     rejection and a trademark complaint. -->
 ```
-muslim,marriage,nikah,hijab,niqab,halal,matchmaking,muzz,rishta,islamic,single,wali
+muslim,marriage,nikah,hijab,niqab,halal,matchmaking,rishta,islamic,single,wali,deen,modest
 ```
 
 ## URLs
@@ -61,12 +63,14 @@ muslim,marriage,nikah,hijab,niqab,halal,matchmaking,muzz,rishta,islamic,single,w
 - **Privacy Policy URL** (required): host a privacy policy before submitting
 
 ## Age Rating questionnaire
-Answer "None" to all violence/adult content questions except:
-- **Unrestricted web access**: No
-- **Gambling**: No
-- Result should be **17+** is NOT required — dating/matchmaking apps must
-  select "Frequent/Intense" for *Dating* → Apple applies **17+**
-  automatically. Select honestly: this is a matchmaking/dating category app.
+Answer **None / No** to every violence, sexual content, horror, drugs and
+gambling question. Then:
+- **Unrestricted Web Access**: No
+- **Dating**: **Yes**
+
+Answering "Dating: Yes" is what makes Apple assign the mature rating
+(18+). Do not try to force a lower rating on a dating app — mismatched
+age ratings are a 2.3.8 metadata rejection.
 
 ## App Privacy (data collection questionnaire)
 With the app running fully on-device/offline (no EXPO_PUBLIC_API_URL):
@@ -89,14 +93,39 @@ Suggested order: 01 veil card → 06 voice → 02 unveiled chat → 03 events
 
 ## Notes for App Review (paste in "App Review Information → Notes")
 ```
-Veiled is a Muslim matchmaking app. Demo notes for review:
-• The app is fully functional offline with seeded demo profiles — no
-  account or server needed for review.
-• "The Veil": some profiles show frosted photos by design; they unveil
-  after a mutual match (privacy feature, user-controlled).
-• Voice matchmaking simulates voice notes locally in this build; no
-  audio is recorded or transmitted.
-• Veiled Gold is free during launch — no prices shown, no purchases.
+Veiled is a Muslim matchmaking app for adults seeking marriage.
+
+NO APPLE PAY / PASSKIT
+This build does not integrate Apple Pay and does not link PassKit. The
+in-app-payments entitlement has been removed from the project. Veiled has
+no physical goods or services, so it would use StoreKit in-app purchase,
+not Apple Pay.
+
+NO IN-APP PURCHASE PRODUCTS IN THIS BUILD
+No IAP products are configured or referenced in this binary, and none are
+awaiting review. "Veiled Gold" is granted free during launch: the button
+reads "Join Gold — free during launch", no prices are displayed, and no
+purchase sheet can be triggered anywhere in the app. Prices only ever
+render if a live store product is returned, which cannot happen in this
+build. We will submit IAP products for review before enabling any charge.
+
+ACCOUNT DELETION (5.1.1(v))
+Profile tab → Settings (gear, top right) → Account → "Delete my account".
+Two-step confirmation, then all data is erased.
+
+AGE
+18+ only. Onboarding blocks anyone under 18, and the server independently
+rejects an age below 18.
+
+HOW TO REVIEW
+• Fully functional offline with seeded demo profiles — no account or
+  server needed. Just launch and swipe.
+• "The Veil": some profiles show frosted photos by design; the member
+  unveils them for a match. This is a user-controlled privacy feature.
+• Voice matchmaking simulates voice notes locally in this build; no audio
+  is recorded or transmitted.
 • A wali (guardian) chat-oversight feature is a cultural safety feature;
-  no third-party gains account access.
+  no third party gains account access.
+• Report and Block are on every profile ("..." in the top right) and in
+  every chat.
 ```

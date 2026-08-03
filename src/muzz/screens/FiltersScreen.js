@@ -30,6 +30,8 @@ export default function FiltersScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { filters, setFilters, me } = useMuzz();
   const [f, setF] = useState(filters);
+  const [lockedHint, setLockedHint] = useState(null);
+  const showLocked = (what) => { H.select(); setLockedHint(what); };
   const gold = me.gold;
 
   const apply = () => { setFilters(f); H.success(); navigation.goBack(); };
@@ -83,19 +85,34 @@ export default function FiltersScreen({ navigation }) {
           {['Any', ...SECTS].map((s) => <Chip key={s} label={s} active={f.sect === s} onPress={() => setF({ ...f, sect: s })} />)}
         </View>
 
+        {/* Gold-only filters. Tapping a locked option explains what it
+            does — it never hijacks the tap into a full-screen sales page.
+            Upgrading is a separate, deliberate tap below. */}
         <Text style={[styles.section, gold ? null : styles.locked]}>Prayer level {!gold && <Text style={styles.goldTag}>GOLD</Text>}</Text>
         <View style={styles.wrap}>
           {['Any', ...PRAYER_LEVELS].map((p) => (
-            <Chip key={p} label={p} color={M.butterfly} active={f.prayerLevel === p} onPress={() => { if (gold) setF({ ...f, prayerLevel: p }); else navigation.navigate('MuzzGold'); }} />
+            <Chip key={p} label={p} color={M.butterfly} active={f.prayerLevel === p} onPress={() => { if (gold) setF({ ...f, prayerLevel: p }); else showLocked('prayer level'); }} />
           ))}
         </View>
 
         <Text style={[styles.section, gold ? null : styles.locked]}>Ethnicity {!gold && <Text style={styles.goldTag}>GOLD</Text>}</Text>
         <View style={styles.wrap}>
           {['Any', ...ETHNICITIES].map((e) => (
-            <Chip key={e} label={e} active={f.ethnicity === e} onPress={() => { if (gold) setF({ ...f, ethnicity: e }); else navigation.navigate('MuzzGold'); }} />
+            <Chip key={e} label={e} active={f.ethnicity === e} onPress={() => { if (gold) setF({ ...f, ethnicity: e }); else showLocked('ethnicity'); }} />
           ))}
         </View>
+
+        {!gold && lockedHint && (
+          <View style={styles.lockedNote}>
+            <Ionicons name="lock-closed" size={14} color={M.textSoft} />
+            <Text style={styles.lockedNoteText}>
+              Filtering by {lockedHint} is part of Veiled Gold. Everything else here is free.
+            </Text>
+            <Pressable onPress={() => { H.tap(); navigation.navigate('MuzzGold'); }} hitSlop={6}>
+              <Text style={styles.lockedNoteLink}>See Gold</Text>
+            </Pressable>
+          </View>
+        )}
 
         <Pressable onPress={() => { H.select(); setF({ ...f, verifiedOnly: !f.verifiedOnly }); }} style={styles.toggleRow}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -132,6 +149,9 @@ const styles = StyleSheet.create({
   passClearText: { ...TYPE.caption, color: M.textSoft, fontWeight: '700' },
   passSub: { ...TYPE.caption, color: M.textMuted, marginTop: 4, marginBottom: 12 },
   passHint: { ...TYPE.caption, color: M.textMuted, marginTop: 6 },
+  lockedNote: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14, backgroundColor: M.bgSoft, borderRadius: RADIUS.md, borderWidth: 1, borderColor: M.border, paddingHorizontal: 14, paddingVertical: 12 },
+  lockedNoteText: { flex: 1, ...TYPE.caption, color: M.textSoft, lineHeight: 17 },
+  lockedNoteLink: { ...TYPE.caption, color: M.primary, fontWeight: '800' },
   locked: { color: M.textMuted },
   goldTag: { color: M.text, fontWeight: '900', fontSize: 10 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap' },
