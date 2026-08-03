@@ -6,11 +6,11 @@ import { M, RADIUS, SPACE, TYPE, isDark, setThemeMode } from '../theme';
 import { useMuzz } from '../store';
 import * as H from '../haptics';
 
-const PRIVACY_URL = 'https://adeelahmedrahman.github.io/veiled-privacy/';
+const PRIVACY_URL = 'https://crabbyai.github.io/veiled-support/privacy.html';
 // Apple requires a Terms of Use (EULA) link in-app for auto-renewable
 // subscriptions. Apple's standard EULA is acceptable if you don't host one.
 const TERMS_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
-const SUPPORT_EMAIL = 'support@veiledapp.com';
+const SUPPORT_EMAIL = 'adeelahmedrahman@gmail.com';
 
 export default function SettingsScreen({ navigation }) {
   const insets = useSafeAreaInsets();

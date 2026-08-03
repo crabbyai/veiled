@@ -14,7 +14,7 @@ import * as H from '../haptics';
 
 // Map a RevenueCat packageType to a friendly plan label.
 const TERMS_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
-const PRIVACY_URL = 'https://adeelahmedrahman.github.io/veiled-privacy/';
+const PRIVACY_URL = 'https://crabbyai.github.io/veiled-support/privacy.html';
 
 const PKG_LABEL = { MONTHLY: '1 month', THREE_MONTH: '3 months', SIX_MONTH: '6 months', ANNUAL: '12 months' };
 const PKG_PER = { MONTHLY: '/mo', THREE_MONTH: '/3mo', SIX_MONTH: '/6mo', ANNUAL: '/yr' };
