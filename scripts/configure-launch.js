@@ -38,6 +38,8 @@ const FILES = {
   gold: 'src/muzz/screens/GoldScreen.js',
   eas: 'eas.json',
   env: '.env',
+  app: 'app.json',
+  payments: 'backend/services/payments.js',
 };
 
 const read = (f) => (fs.existsSync(p(f)) ? fs.readFileSync(p(f), 'utf8') : null);
@@ -71,7 +73,9 @@ if (opt.check) {
   const ascId = easJson?.submit?.production?.ios?.ascAppId;
   const env = read(FILES.env) || '';
   const apiUrl = (env.match(/^EXPO_PUBLIC_API_URL=(.*)$/m) || [])[1];
+  const appJson = read(FILES.app) ? JSON.parse(read(FILES.app)) : {};
   const rows = [
+    ['Bundle ID', appJson?.expo?.ios?.bundleIdentifier],
     ['Support email', currentConst(FILES.settings, 'SUPPORT_EMAIL')],
     ['Privacy URL (Settings)', currentConst(FILES.settings, 'PRIVACY_URL')],
     ['Privacy URL (Paywall)', currentConst(FILES.gold, 'PRIVACY_URL')],
@@ -103,6 +107,35 @@ if (opt['terms-url']) {
   setConst(FILES.gold, 'TERMS_URL', opt['terms-url']);
 }
 
+// Bundle ID is permanent once an App Store Connect record exists, so when
+// reusing an existing record the app must adopt that record's bundle ID.
+// It appears in several places — change them together or the build breaks.
+if (opt['bundle-id']) {
+  const id = String(opt['bundle-id']).trim();
+  if (!/^[A-Za-z0-9.-]+$/.test(id) || !id.includes('.')) {
+    console.error(`\nRefusing to set an invalid bundle ID: "${id}"`);
+    console.error('It must be reverse-DNS, e.g. com.yourcompany.veiled\n');
+    process.exit(1);
+  }
+  const appSrc = read(FILES.app);
+  if (appSrc) {
+    const j = JSON.parse(appSrc);
+    const before = j.expo?.ios?.bundleIdentifier;
+    if (before !== id) {
+      // Rewrite every occurrence of the old id (iOS bundle, Android
+      // package, Apple Pay merchant id, proguard rule).
+      const updated = appSrc.split(before).join(id);
+      write(FILES.app, updated);
+      changes.push(`app.json: bundle ID ${before} -> ${id}`);
+      const paySrc = read(FILES.payments);
+      if (paySrc && paySrc.includes(before)) {
+        write(FILES.payments, paySrc.split(before).join(id));
+        changes.push(`backend/services/payments.js: default Android package -> ${id}`);
+      }
+    }
+  }
+}
+
 if (opt['asc-app-id']) {
   const easSrc = read(FILES.eas);
   if (easSrc) {
@@ -131,7 +164,7 @@ if (opt['api-url']) {
 
 if (!changes.length) {
   console.log('Nothing changed. Pass --check to see current values, or use flags:');
-  console.log('  --support-email --privacy-url --terms-url --asc-app-id --api-url');
+  console.log('  --bundle-id --support-email --privacy-url --terms-url --asc-app-id --api-url');
   process.exit(0);
 }
 

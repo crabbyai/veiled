@@ -55,6 +55,11 @@ Any address you actually read, e.g. `support@yourdomain.com` or a Gmail.
 Apple emails users here. Write it down.
 
 ### 1d. Create the app record in App Store Connect — 5 min
+
+> **Already have a rejected app record you want to reuse?**
+> See [Reusing an existing app record](#reusing-an-existing-app-record)
+> at the bottom before doing this step — it changes what you do here.
+
 1. Go to <https://appstoreconnect.apple.com> → **My Apps** → **+** → **New App**
 2. Fill in:
    - Platform: **iOS**
@@ -209,11 +214,97 @@ each one is just environment variables, no code changes.
 
 ---
 
+# Reusing an existing app record
+
+If you already have an app in App Store Connect that was **rejected and
+never released** (status `1.0 Rejected`), you can turn that record into
+Veiled instead of creating a new one.
+
+### The one thing that decides it: the bundle ID is permanent
+
+You can rename an app, change its icon, screenshots, description and
+category — but **the bundle ID can never be changed** once the record
+exists. So reusing a record means Veiled permanently adopts that record's
+bundle ID.
+
+That's usually fine. A bundle ID is invisible to users. But it's forever,
+so pick deliberately:
+
+| | Reuse the old record | Create a fresh record |
+|---|---|---|
+| Bundle ID | Stuck with the old app's | Clean, e.g. `com.veiledapp.hijabimarriage` |
+| Rejection history | Reviewers see the previous rejection on this record | None |
+| Effort | Rename + swap metadata | 5 minutes to create |
+| Cost | Free | Free |
+
+**My recommendation: create a fresh record.** It costs five minutes, it's
+free, and it gives Veiled a clean bundle ID and no prior-rejection
+history. Reuse only if you specifically want that record — for example
+you like the bundle ID, or the name `Androgenic` is one you want to keep.
+
+⚠️ One caution if you do reuse: if the old app was rejected for something
+that reflects on intent — spam, misleading metadata, guideline 4.3
+(duplicate/spam apps) — repurposing that same record into an unrelated
+app can attract extra scrutiny. If the rejection was mundane (missing
+info, a crash, a broken link), reuse is low risk. **Read the old rejection
+message first.**
+
+### If you reuse it — what to do
+
+**In App Store Connect (you):**
+1. Open the rejected app → **App Information**
+2. Change **Name** to `Veiled: Hijabi Marriage`
+3. Change **Subtitle**, **Category** (Lifestyle / Social Networking) and
+   **Age Rating** (must come out 17+) per `store/metadata.md`
+4. Copy the **Bundle ID** shown on that page — you need it next
+5. Copy the **Apple ID** number — you need it too
+6. Delete the old screenshots and description; you'll replace them in STEP 4
+
+**Then hand this to Cowork:**
+
+```
+I'm reusing an existing App Store Connect record for Veiled.
+
+Run:
+node scripts/configure-launch.js \
+  --bundle-id <BUNDLE ID FROM APP STORE CONNECT> \
+  --asc-app-id <APPLE ID NUMBER> \
+  --support-email <MY SUPPORT EMAIL> \
+  --privacy-url <MY PRIVACY POLICY URL>
+
+Then run `node scripts/configure-launch.js --check` and show me the
+output. Confirm the old bundle ID no longer appears anywhere:
+  grep -rn "com.veiledapp.hijabimarriage" --include=*.json --include=*.js . | grep -v node_modules
+That grep must return nothing. Then commit and push.
+```
+
+The script updates the bundle ID everywhere it appears (iOS bundle,
+Android package, Apple Pay merchant ID, Proguard rule and the backend's
+default package) so the build can't break from a half-renamed ID.
+
+After that, continue from **STEP 3** as normal.
+
+### If the old app was rejected, read why first
+
+Whatever the reason, it's worth knowing — the same issue may apply to
+Veiled. Paste it into Cowork:
+
+```
+My previous app was rejected by Apple for this reason:
+<paste the full rejection text from "View App Review Issues & Messages">
+
+Check whether Veiled has the same problem. Look at the actual code, tell
+me honestly if it applies, and fix it if it does.
+```
+
+---
+
 # Quick reference
 
 | I want to… | Do this |
 |---|---|
 | Check my launch config | `node scripts/configure-launch.js --check` |
+| Reuse an existing app record | `node scripts/configure-launch.js --bundle-id <id> --asc-app-id <n>` |
 | Change support email / URLs | `node scripts/configure-launch.js --support-email … --privacy-url …` |
 | Build a new version | `eas build --platform ios --profile production` |
 | Upload the newest build | `eas submit --platform ios --latest` |
