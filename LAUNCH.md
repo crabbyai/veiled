@@ -115,31 +115,36 @@ in the app, and writes your App Store Connect app ID into `eas.json`.
 
 # STEP 3 — Build and upload (~20 min, mostly waiting)
 
-Paste this into Cowork:
+`eas login` needs an interactive terminal, which agents and CI don't have.
+Use a token instead — then no login prompt ever appears.
+
+**Get a token (once):** <https://expo.dev> → Account Settings →
+**Access Tokens** → Create. Treat it like a password.
+
+**First build only** — EAS has to create your iOS signing certificate, so
+it also needs Apple credentials. Create an app-specific password at
+<https://account.apple.com> → Sign-In and Security → App-Specific
+Passwords.
+
+Then run:
 
 ```
-Build and submit Veiled to TestFlight:
+export EXPO_TOKEN=<your expo token>
+export EXPO_APPLE_ID=<your apple id email>
+export EXPO_APPLE_APP_SPECIFIC_PASSWORD=<app-specific password>
 
-1. npm install -g eas-cli
-2. eas login          (I will type my Expo password)
-3. eas init           (link this project to my Expo account)
-4. eas build --platform ios --profile production
-   - When it asks to generate a Distribution Certificate and Provisioning
-     Profile, say YES to both — let EAS manage them.
-   - This takes 10-20 minutes. Wait for it and tell me when it finishes.
-5. eas submit --platform ios --latest
-   - When it asks for App Store Connect credentials, pause and tell me,
-     because I need to provide my API key.
-
-Report any error to me in full rather than guessing a fix.
+./scripts/build-ios.sh --submit
 ```
 
-**Your part during this step:** type your Expo password at step 2, and at
-step 5 provide the API key from 1e (path to the `.p8` file, Key ID,
-Issuer ID). EAS stores them securely for next time.
+The script refuses to build a stale checkout, refuses if any launch value
+is still a placeholder, and refuses if the Apple Pay entitlement ever
+comes back — then builds and uploads. Drop `--submit` to build only.
 
-When it finishes, the build appears in App Store Connect → **TestFlight**
-after ~10 minutes of Apple processing. You'll get an email.
+> Set these as environment variables in your own terminal. Don't paste
+> tokens or passwords into a chat with anyone, including me.
+
+The build appears in App Store Connect → **TestFlight** after ~10 minutes
+of Apple processing. You'll get an email.
 
 ---
 
