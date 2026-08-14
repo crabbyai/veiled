@@ -12,6 +12,7 @@ import Animated, {
 import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE, gradVariantFor } from '../theme';
 import { useMuzz, getPerson } from '../store';
 import { rankMatches } from '../butterfly';
+import { SIMULATED_FEATURES } from '../config';
 import { PhotoTile, Verified, GButton, VeilBadge } from '../components/ui';
 import { AnswerSheet } from '../components/CompatQuestion';
 import Stories from '../components/Stories';
@@ -270,10 +271,12 @@ export default function DiscoverScreen({ navigation }) {
       <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
         <Text style={styles.wordmark}>veiled</Text>
         <View style={styles.headerRight}>
-          <Pressable onPress={() => { H.tap(); navigation.navigate('MuzzVoice'); }} style={styles.aiBtn}>
-            <Ionicons name="mic" size={15} color={M.butterfly} />
-            <Text style={styles.aiBtnText}>Voice</Text>
-          </Pressable>
+          {SIMULATED_FEATURES && (
+            <Pressable onPress={() => { H.tap(); navigation.navigate('MuzzVoice'); }} style={styles.aiBtn}>
+              <Ionicons name="mic" size={15} color={M.butterfly} />
+              <Text style={styles.aiBtnText}>Voice</Text>
+            </Pressable>
+          )}
           <Pressable onPress={() => { H.tap(); navigation.navigate('MuzzButterflyPicks'); }} style={styles.aiBtn}>
             <Ionicons name="sparkles" size={15} color={M.butterfly} />
             <Text style={styles.aiBtnText}>AI picks</Text>

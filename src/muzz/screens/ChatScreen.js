@@ -13,6 +13,7 @@ import { scoreMatch } from '../butterfly';
 import { PhotoTile, Verified } from '../components/ui';
 import { pickAndUpload } from '../photos';
 import * as realtime from '../realtime';
+import { SIMULATED_FEATURES } from '../config';
 import * as H from '../haptics';
 
 const REACTIONS = ['❤️', '😂', '😍', '👍', '🔥', '🤲'];
@@ -184,8 +185,12 @@ export default function ChatScreen({ route, navigation }) {
           </View>
         </Pressable>
         <View style={{ flexDirection: 'row', gap: 2 }}>
-          <Pressable style={styles.hBtn} onPress={() => navigation.navigate('MuzzCall', { personId, video: false })}><Ionicons name="call-outline" size={21} color={M.primary} /></Pressable>
-          <Pressable style={styles.hBtn} onPress={() => navigation.navigate('MuzzCall', { personId, video: true })}><Ionicons name="videocam-outline" size={23} color={M.primary} /></Pressable>
+          {SIMULATED_FEATURES && (
+            <>
+              <Pressable style={styles.hBtn} onPress={() => navigation.navigate('MuzzCall', { personId, video: false })}><Ionicons name="call-outline" size={21} color={M.primary} /></Pressable>
+              <Pressable style={styles.hBtn} onPress={() => navigation.navigate('MuzzCall', { personId, video: true })}><Ionicons name="videocam-outline" size={23} color={M.primary} /></Pressable>
+            </>
+          )}
           <Pressable style={styles.hBtn} onPress={() => { H.tap(); setMenuOpen(true); }}><Ionicons name="ellipsis-vertical" size={20} color={M.text} /></Pressable>
         </View>
       </View>
@@ -316,9 +321,9 @@ export default function ChatScreen({ route, navigation }) {
               <Pressable onPress={() => send()} style={styles.sendBtn}>
                 <LinearGradient colors={GRAD.primary} style={styles.sendGrad}><Ionicons name="send" size={18} color="#fff" /></LinearGradient>
               </Pressable>
-            ) : (
+            ) : SIMULATED_FEATURES ? (
               <Pressable style={styles.plus} onPress={() => { H.press(); setRecording(true); }}><Ionicons name="mic-outline" size={24} color={M.primary} /></Pressable>
-            )}
+            ) : null}
           </View>
           </View>
         )}

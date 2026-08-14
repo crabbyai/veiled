@@ -145,11 +145,12 @@ answers, and chat messages, and upload photos. Safety controls:
 PERMISSIONS THE APP ASKS FOR
 - Camera: taking a profile photo, and identity verification.
 - Photo library: choosing profile photos.
-- Microphone: voice notes in chat.
 - Notifications: new matches and messages.
 - Face ID: optional app lock.
 None of these are required to use the app. Denying any of them leaves
-every other feature working.
+every other feature working. The app does not request microphone,
+location, or contacts access, and does not use App Tracking
+Transparency.
 
 DEVICES AND OS TESTED
 [REPLACE WITH WHAT YOU ACTUALLY TESTED, e.g.:]
@@ -196,6 +197,10 @@ Delete the app first, so the recording starts genuinely fresh, and make
 sure you have a second account ready that has already liked your test
 account (so a match happens on camera).
 
+The notifications prompt appears on its own just after onboarding —
+**accept it on camera**, that's one of the permission prompts Apple
+asked to see.
+
 Start recording, then, without cutting:
 
 1. **Launch the app from the home screen.** Let the first screen appear.
@@ -212,11 +217,10 @@ Start recording, then, without cutting:
 8. Go back and open a profile that shows a **Compatibility Question**.
    Tap Like → the answer sheet opens → type an answer → Send answer.
 9. **Like the account you pre-arranged**, so the match screen appears.
-10. Open **Chats**, open that match, **send a message**. Tap the mic and
-    record a short voice note — **accept the microphone prompt on
-    camera**. — *covers a permission prompt*
+10. Open **Chats**, open that match, and **send a message**.
 11. Add a photo to your profile: **Profile → Edit profile → Add** —
-    **accept the photo library prompt on camera**. — *another prompt*
+    **accept the photo library prompt on camera**. — *covers a
+    permission prompt*
 12. Open **Profile → Settings**. Scroll to show **Privacy policy** and
     **Terms of Use**, and tap one so the browser opens, then come back.
 13. Tap **Veiled Gold** so the reviewer sees there is no purchase — the

@@ -20,3 +20,11 @@ export const HAS_BACKEND = !!API_URL;
 // profiles. Ignored whenever a backend is configured, so a shipping
 // build cannot accidentally carry them.
 export const DEMO_MODE = !HAS_BACKEND && process.env.EXPO_PUBLIC_DEMO_MODE === '1';
+
+// Screens that are still only a picture of a feature: voice notes never
+// open the microphone, the call screen is a connecting animation and a
+// timer with nobody on the other end, and the voice matchmaker invents
+// the lengths of answers it never recorded. They stay in the tree to be
+// built out, but a shipping build must not offer them — a control that
+// pretends to do something is worse than no control.
+export const SIMULATED_FEATURES = DEMO_MODE;
