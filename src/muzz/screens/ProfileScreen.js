@@ -11,6 +11,7 @@ import { useMuzz } from '../store';
 import * as api from '../api';
 import { INTERESTS, VALUES } from '../data';
 import { PhotoTile, Verified, Chip, GButton, OButton } from '../components/ui';
+import { QuestionEditor } from '../components/CompatQuestion';
 import Butterfly from '../components/Butterfly';
 import { pickAndUpload } from '../photos';
 import * as H from '../haptics';
@@ -21,9 +22,14 @@ const GRID_W = (width - SPACE.xl * 2 - 20) / 3;
 export default function ProfileScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const muzz = useMuzz();
-  const { me, matches, butterflyAuto, update, setMe, resetAll, addPhoto, removePhoto, chats, signalsReads } = muzz;
+  const { me, matches, butterflyAuto, update, setMe, resetAll, addPhoto, removePhoto, chats, signalsReads, setCompatQuestion } = muzz;
   const [edit, setEdit] = useState(false);
+  const [editQ, setEditQ] = useState(false);
   const [invited, setInvited] = useState(false);
+  const answers = muzz.answersReceived || [];
+  // Keep the "answers waiting" count honest without needing a visit to
+  // the Likes You tab first.
+  React.useEffect(() => { muzz.refreshLikes(); }, []);
 
   // Signals: earned by reading full profiles and actually replying.
   const reads = (signalsReads || []).length;
@@ -225,6 +231,33 @@ export default function ProfileScreen({ navigation }) {
           </Pressable>
         </View>
 
+        {/* Compatibility Question — set a question anyone who wants to
+            like you has to answer first. */}
+        <View style={styles.compatQ}>
+          <View style={styles.compatQHead}>
+            <View style={styles.compatQIcon}><Ionicons name="help-circle" size={19} color={M.textOnPrimary} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.compatQTitle}>Compatibility Question</Text>
+              <Text style={styles.compatQSub}>
+                {me.compatQuestion
+                  ? 'Anyone you haven\'t liked has to answer this before they can like you.'
+                  : 'Set a question people have to answer if they want to like your profile.'}
+              </Text>
+            </View>
+          </View>
+          {me.compatQuestion ? <Text style={styles.compatQText}>{me.compatQuestion}</Text> : null}
+          <View style={styles.compatQActions}>
+            <Pressable onPress={() => { H.tap(); setEditQ(true); }} style={styles.compatQBtn}>
+              <Text style={styles.compatQBtnText}>{me.compatQuestion ? 'Edit question' : 'Set a question'}</Text>
+            </Pressable>
+            {answers.length > 0 && (
+              <Text style={styles.compatQCount}>
+                {answers.length} answer{answers.length === 1 ? '' : 's'} waiting
+              </Text>
+            )}
+          </View>
+        </View>
+
         {/* Stats */}
         <View style={styles.stats}>
           {/* Only real counts here — no invented "profile views" style
@@ -307,6 +340,13 @@ export default function ProfileScreen({ navigation }) {
           </ScrollView>
         </View>
       </Modal>
+
+      <QuestionEditor
+        visible={editQ}
+        initial={me.compatQuestion}
+        onClose={() => setEditQ(false)}
+        onSave={(q) => { setCompatQuestion(q); setEditQ(false); }}
+      />
     </View>
   );
 }
@@ -367,6 +407,16 @@ const styles = StyleSheet.create({
   takeInviteSub: { ...TYPE.caption, marginTop: 2, lineHeight: 15 },
   takeInviteBtn: { backgroundColor: M.primary, paddingHorizontal: 14, paddingVertical: 9, borderRadius: RADIUS.pill },
   takeInviteBtnText: { color: M.textOnPrimary, fontWeight: '800', fontSize: 12.5 },
+  compatQ: { marginHorizontal: SPACE.xl, marginTop: 12, backgroundColor: M.bgSoft, borderRadius: RADIUS.lg, padding: 14, borderWidth: 1, borderColor: M.border },
+  compatQHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  compatQIcon: { width: 38, height: 38, borderRadius: 19, backgroundColor: M.butterfly, alignItems: 'center', justifyContent: 'center' },
+  compatQTitle: { ...TYPE.h3, fontSize: 15 },
+  compatQSub: { ...TYPE.caption, marginTop: 2, lineHeight: 15 },
+  compatQText: { ...TYPE.body, fontWeight: '600', marginTop: 12, lineHeight: 21 },
+  compatQActions: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 },
+  compatQBtn: { backgroundColor: M.primary, paddingHorizontal: 14, paddingVertical: 9, borderRadius: RADIUS.pill },
+  compatQBtnText: { color: M.textOnPrimary, fontWeight: '800', fontSize: 12.5 },
+  compatQCount: { ...TYPE.caption, color: M.butterfly, fontWeight: '800' },
   stats: { flexDirection: 'row', gap: 12, paddingHorizontal: SPACE.xl, marginTop: 16 },
   stat: { flex: 1, backgroundColor: M.bgSoft, borderRadius: RADIUS.md, padding: 14, alignItems: 'center' },
   statVal: { fontSize: 22, fontWeight: '900', color: M.text, marginTop: 6 },

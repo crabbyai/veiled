@@ -17,13 +17,23 @@ const COL_W = (width - SPACE.xl * 2 - 24) / 3;
 export default function MatchesScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const muzz = useMuzz();
-  const { me, matches, likedYou, feedback, likePerson } = muzz;
+  const { me, matches, likedYou, feedback, likePerson, passPerson, refreshLikes } = muzz;
   const [tab, setTab] = useState('likes');
+
+  // Likes (and any answers to my Compatibility Question) live on the
+  // server — pull them when this tab opens.
+  React.useEffect(() => { refreshLikes(); }, []);
 
   const matchPeople = useMemo(() => matches.map(getPerson).filter(Boolean), [matches]);
   const likedYouPeople = useMemo(
     () => likedYou.filter((id) => !matches.includes(id)).map(getPerson).filter(Boolean),
     [likedYou, matches]
+  );
+  // Answers to my question, from people I haven't matched with yet. She
+  // reads the answer and decides — that's the whole point of asking.
+  const answers = useMemo(
+    () => (muzz.answersReceived || []).filter((a) => !matches.includes(a.personId)),
+    [muzz.answersReceived, matches]
   );
 
   return (
@@ -78,14 +88,60 @@ export default function MatchesScreen({ navigation }) {
 
         {/* An empty state is not a sales opportunity: point people at
             something that actually helps, not at the paywall. */}
+        {/* Answers to my Compatibility Question, first — she asked, so
+            the replies lead. The answer is readable whether or not she
+            has Gold; only who wrote it follows the usual rules. */}
+        {tab === 'likes' && answers.length > 0 && (
+          <View style={styles.answers}>
+            <Text style={styles.answersTitle}>Answered your question</Text>
+            {answers.map((a, i) => (
+              <Animated.View key={a.personId} entering={FadeInDown.delay(i * 50)} style={styles.answerCard}>
+                {a.question ? <Text style={styles.answerQ}>{a.question}</Text> : null}
+                <Text style={styles.answerText}>{a.text}</Text>
+                <View style={styles.answerFoot}>
+                  <Text style={styles.answerBy}>
+                    {a.name || 'Someone'}{a.rose ? ' · sent a Rose' : ''}
+                  </Text>
+                  <View style={styles.answerBtns}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Pass on ${a.name || 'this answer'}`}
+                      onPress={() => { H.tap(); passPerson(a.personId); }}
+                      style={[styles.answerBtn, styles.answerPass]}
+                    >
+                      <Ionicons name="close" size={18} color={M.textSoft} />
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Match with ${a.name || 'this person'}`}
+                      onPress={() => {
+                        H.press();
+                        likePerson(a.personId, { mutual: true });
+                        navigation.navigate('MuzzMatchReveal', { personId: a.personId, score: 90 });
+                      }}
+                      style={[styles.answerBtn, styles.answerLike]}
+                    >
+                      <Ionicons name="heart" size={18} color={M.textOnPrimary} />
+                    </Pressable>
+                  </View>
+                </View>
+              </Animated.View>
+            ))}
+          </View>
+        )}
+
         {tab === 'likes' && (
           likedYouPeople.length === 0 ? (
+            // Answers are likes too, so an empty state only makes sense
+            // when there are neither.
+            answers.length > 0 ? null : (
             <Empty
               icon="heart"
               title="No likes yet"
               sub="Likes will land here as people discover you. A complete profile with a few prompts answered gets seen the most."
               cta="Complete my profile" onPress={() => navigation.navigate('MuzzTabs')}
             />
+            )
           ) : (
           <View>
             <View style={styles.likesBanner}>
@@ -190,6 +246,17 @@ const styles = StyleSheet.create({
   likeName: { color: '#fff', fontWeight: '800', fontSize: 13 },
   tapToMatch: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4, backgroundColor: M.primary, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 },
   tapText: { color: '#fff', fontWeight: '800', fontSize: 11 },
+  answers: { paddingHorizontal: SPACE.xl, paddingTop: 16 },
+  answersTitle: { ...TYPE.caption, color: M.butterfly, textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: '800', marginBottom: 10 },
+  answerCard: { backgroundColor: M.bgSoft, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: M.border, padding: 16, marginBottom: 12 },
+  answerQ: { ...TYPE.caption, color: M.textSoft, marginBottom: 8, lineHeight: 16 },
+  answerText: { ...TYPE.body, fontSize: 16, lineHeight: 23, color: M.text },
+  answerFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 },
+  answerBy: { ...TYPE.caption, color: M.textSoft, fontWeight: '700', flex: 1 },
+  answerBtns: { flexDirection: 'row', gap: 10 },
+  answerBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  answerPass: { backgroundColor: M.bg, borderWidth: 1, borderColor: M.border },
+  answerLike: { backgroundColor: M.primary },
   empty: { alignItems: 'center', paddingTop: 70, paddingHorizontal: SPACE.xxl },
   emptyIcon: { width: 80, height: 80, borderRadius: 40, backgroundColor: M.primarySoft, alignItems: 'center', justifyContent: 'center' },
   emptyTitle: { ...TYPE.h1, marginTop: 20 },

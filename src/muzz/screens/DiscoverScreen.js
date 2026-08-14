@@ -14,6 +14,7 @@ import { useMuzz, getPerson } from '../store';
 import { PEOPLE } from '../data';
 import { rankMatches } from '../butterfly';
 import { PhotoTile, Verified, GButton, VeilBadge } from '../components/ui';
+import { AnswerSheet } from '../components/CompatQuestion';
 import Stories from '../components/Stories';
 import Butterfly from '../components/Butterfly';
 import PrayerBar from '../components/PrayerBar';
@@ -50,11 +51,15 @@ export default function DiscoverScreen({ navigation }) {
   const {
     me, feedback, matches, butterflyAuto, filters, superLikes, boostUntil,
     likePerson, passPerson, undoSwipe, likesRemaining, useInstantChat, activateBoost, update,
+    needsAnswer,
   } = muzz;
   const [photoIdx, setPhotoIdx] = useState(0);
   const [lastSwiped, setLastSwiped] = useState(null);
   const [superTarget, setSuperTarget] = useState(null);
   const [superNote, setSuperNote] = useState('');
+  // A like from the deck held back until her question is answered:
+  // { person, kind }.
+  const [answering, setAnswering] = useState(null);
   const [showBoost, setShowBoost] = useState(false);
   const [now, setNow] = useState(Date.now());
 
@@ -96,6 +101,9 @@ export default function DiscoverScreen({ navigation }) {
     if (!superTarget) return;
     if (!me.gold && superLikes <= 0) { setSuperTarget(null); navigation.navigate('MuzzGold'); return; }
     const t = superTarget;
+    // Her question gates a Super Like too — and is checked before the
+    // Super Like is spent.
+    if (needsAnswer(t.id)) { setSuperTarget(null); setAnswering({ person: t, kind: 'super' }); return; }
     // Record the cost so Rewind can refund the Super Like.
     if (!me.gold) update((s) => ({ ...s, superLikes: Math.max(0, s.superLikes - 1), spent: { ...(s.spent || {}), [t.id]: 'super' } }));
     likePerson(t.id, { mutual: true, comment: superNote.trim() || null, contentType: 'profile', contentRef: 'profile' });
@@ -115,11 +123,11 @@ export default function DiscoverScreen({ navigation }) {
   const tx = useSharedValue(0);
   const ty = useSharedValue(0);
 
-  const commit = useCallback((dir, personId, score) => {
+  const commit = useCallback((dir, personId, score, answer = null) => {
     setLastSwiped(personId);
     setPhotoIdx(0);
     if (dir > 0) {
-      likePerson(personId, { mutual: true });
+      likePerson(personId, { mutual: true, answer });
       navigation.navigate('MuzzMatchReveal', { personId, score });
     } else {
       passPerson(personId);
@@ -127,6 +135,35 @@ export default function DiscoverScreen({ navigation }) {
     tx.value = 0;
     ty.value = 0;
   }, [likePerson, passPerson, navigation]);
+
+  // She set a Compatibility Question and hasn't liked him: hold the card
+  // and ask. Returns true when the like was intercepted.
+  const askFirst = useCallback((person, kind = 'like') => {
+    if (!needsAnswer(person.id)) return false;
+    tx.value = withSpring(0, { damping: 16, stiffness: 160 });
+    ty.value = withSpring(0, { damping: 16, stiffness: 160 });
+    H.tap();
+    setAnswering({ person, kind });
+    return true;
+  }, [needsAnswer]);
+
+  // Answer written — run the like it was holding.
+  const onAnswer = useCallback((text) => {
+    const pending = answering;
+    setAnswering(null);
+    if (!pending) return;
+    const { person, kind } = pending;
+    if (kind === 'super') {
+      if (!me.gold) update((s) => ({ ...s, superLikes: Math.max(0, s.superLikes - 1), spent: { ...(s.spent || {}), [person.id]: 'super' } }));
+      likePerson(person.id, { mutual: true, comment: superNote.trim() || null, contentType: 'profile', contentRef: 'profile', answer: text });
+      setSuperNote('');
+      H.success();
+      navigation.navigate('MuzzMatchReveal', { personId: person.id, score: 99, superLike: true });
+      return;
+    }
+    const entry = stack.find((m) => m.person.id === person.id);
+    commit(1, person.id, entry ? entry.score : 90, text);
+  }, [answering, me.gold, superNote, stack, commit, likePerson, navigation, update]);
 
   // Called when a drag ends: decide fling vs spring-back, with the
   // like-limit gate applied before committing a right swipe.
@@ -145,13 +182,14 @@ export default function DiscoverScreen({ navigation }) {
       navigation.navigate('MuzzGold');
       return;
     }
+    if (dir > 0 && askFirst(top.person)) return;
     H.press();
     const { id } = top.person;
     const score = top.score;
     tx.value = withTiming(dir * width * 1.4, { duration: 240, easing: Easing.in(Easing.quad) }, () => {
       runOnJS(commit)(dir, id, score);
     });
-  }, [top, likesRemaining, commit, navigation]);
+  }, [top, likesRemaining, commit, navigation, askFirst]);
 
   const pan = Gesture.Pan()
     .activeOffsetX([-14, 14])
@@ -183,6 +221,7 @@ export default function DiscoverScreen({ navigation }) {
       navigation.navigate('MuzzGold');
       return;
     }
+    if (dir > 0 && askFirst(top.person)) return;
     H.press();
     const { id } = top.person;
     const score = top.score;
@@ -405,6 +444,15 @@ export default function DiscoverScreen({ navigation }) {
           </Animated.View>
         </Pressable>
       </Modal>
+
+      {/* Her Compatibility Question, holding the like until it's answered */}
+      <AnswerSheet
+        visible={!!answering}
+        question={answering ? answering.person.compatQuestion : null}
+        name={answering ? answering.person.name : ''}
+        onClose={() => setAnswering(null)}
+        onSend={onAnswer}
+      />
     </View>
   );
 }
@@ -462,6 +510,14 @@ function Card({ m, photoIdx = 0 }) {
             <View key={t} style={styles.tag}><Text style={styles.tagText}>{t}</Text></View>
           ))}
         </View>
+        {/* Say so up front — a like that suddenly asks for an essay is a
+            worse experience than one you could see coming. */}
+        {p.compatQuestion ? (
+          <View style={styles.qRow}>
+            <Ionicons name="help-circle" size={13} color="#fff" />
+            <Text style={styles.qRowText} numberOfLines={1}>Asks a question before a like</Text>
+          </View>
+        ) : null}
       </View>
     </PhotoTile>
   );
@@ -538,6 +594,8 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.pill, borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)',
   },
   tagText: { color: '#fff', fontWeight: '700', fontSize: 12 },
+  qRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10 },
+  qRowText: { color: 'rgba(255,255,255,0.92)', fontWeight: '700', fontSize: 12 },
   actions: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14,
     paddingTop: 10, paddingBottom: 2,

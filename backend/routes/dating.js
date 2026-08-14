@@ -91,6 +91,9 @@ const parseProfile = (row, viewerId = null) => {
     languages: JSON.parse(row.languages || '["English"]'),
     prompts: JSON.parse(row.prompts || '[]'),
     friendTakes: JSON.parse(row.friend_takes || '[]'),
+    // Her Compatibility Question, if she set one. Public by design: you
+    // can't answer a question you can't read.
+    compatQuestion: row.compat_question || null,
     waliEnabled: !!row.wali_enabled,
     photoPrivacy: !!row.photo_privacy,
     verified: !!row.selfie_verified,
@@ -263,6 +266,8 @@ router.put('/profile', authenticate, (req, res) => {
     p.name = name;
     if (p.bio != null) p.bio = String(p.bio).slice(0, 1000);
     if (p.job != null) p.job = String(p.job).slice(0, 80);
+    // Compatibility Question — one short question, or null to remove it.
+    p.compatQuestion = p.compatQuestion == null ? null : (String(p.compatQuestion).trim().slice(0, 140) || null);
     if (p.veil != null && !['Hijab', 'Niqab'].includes(p.veil)) p.veil = null;
     // Gold is granted by verified purchases only. In production keep the
     // server's current value so a client can neither grant nor clear it.
@@ -280,8 +285,9 @@ router.put('/profile', authenticate, (req, res) => {
         (user_id, name, age, gender, city, distance, job, bio, height, intention,
          veil, photo_veiled,
          sect, prayer_level, ethnicity, halal_diet, interests, "values", languages,
-         prompts, friend_takes, wali_enabled, photo_privacy, selfie_verified, is_gold, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         prompts, friend_takes, wali_enabled, photo_privacy, selfie_verified, is_gold,
+         compat_question, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(user_id) DO UPDATE SET
         name=excluded.name, age=excluded.age, gender=excluded.gender,
         city=excluded.city, distance=excluded.distance, job=excluded.job,
@@ -294,6 +300,7 @@ router.put('/profile', authenticate, (req, res) => {
         friend_takes=excluded.friend_takes,
         wali_enabled=excluded.wali_enabled, photo_privacy=excluded.photo_privacy,
         selfie_verified=excluded.selfie_verified, is_gold=excluded.is_gold,
+        compat_question=excluded.compat_question,
         updated_at=excluded.updated_at
     `).run(
       req.userId, p.name, p.age, p.gender, p.city || '', p.distance || 0,
@@ -305,7 +312,7 @@ router.put('/profile', authenticate, (req, res) => {
       JSON.stringify(p.languages || ['English']), JSON.stringify(p.prompts || []),
       JSON.stringify(p.friendTakes || []),
       p.waliEnabled ? 1 : 0, p.photoPrivacy ? 1 : 0,
-      p.selfieVerified ? 1 : 0, p.gold ? 1 : 0, Date.now()
+      p.selfieVerified ? 1 : 0, p.gold ? 1 : 0, p.compatQuestion, Date.now()
     );
     res.json({ profile: getProfile(req.userId) });
   } catch (err) {
@@ -528,10 +535,38 @@ router.get('/butterfly/pick', authenticate, (req, res) => {
 const cleanComment = (v) => (v == null ? null : String(v).trim().slice(0, 500) || null);
 const cleanContentType = (v) => (['photo', 'prompt', 'profile'].includes(v) ? v : null);
 
+// ── Compatibility Question ───────────────────────────────────────────
+// If she has set a question, a like she hasn't invited has to answer it
+// first. "Hasn't invited" is the whole rule: once she has liked you, the
+// question has already done its job and you can like her back freely.
+//
+// Returns the question that must be answered, or null if the like may go
+// through. Enforced here rather than in the client alone — the gate is
+// the feature, and a like posted straight at the API would walk past a
+// client-side check.
+const compatGate = (likerId, targetId, answer) => {
+  const row = db.prepare('SELECT compat_question FROM dating_profiles WHERE user_id = ?').get(targetId);
+  const question = row && row.compat_question;
+  if (!question) return null;
+  if (cleanComment(answer)) return null;
+  const sheLikedMe = db.prepare(
+    "SELECT 1 FROM dating_swipes WHERE user_id = ? AND target_id = ? AND action = 'like'"
+  ).get(targetId, likerId);
+  return sheLikedMe ? null : question;
+};
+
+// The answer, plus the question exactly as it read when it was answered.
+const answerColumns = (targetId, answer) => {
+  const body = cleanComment(answer);
+  if (!body) return { answer: null, question: null };
+  const row = db.prepare('SELECT compat_question FROM dating_profiles WHERE user_id = ?').get(targetId);
+  return { answer: body, question: (row && row.compat_question) || null };
+};
+
 // POST /api/dating/swipe { targetId, action, comment?, contentType?, contentRef? }
 router.post('/swipe', authenticate, (req, res) => {
   try {
-    const { targetId, action, comment, contentType, contentRef } = req.body || {};
+    const { targetId, action, comment, contentType, contentRef, answer } = req.body || {};
     if (!targetId || !['like', 'pass'].includes(action)) {
       return res.status(400).json({ error: 'targetId and action (like|pass) required' });
     }
@@ -542,6 +577,11 @@ router.post('/swipe', authenticate, (req, res) => {
     }
 
     if (action === 'like') {
+      // Answer her question before the like counts against the limit —
+      // a rejected like must not cost one.
+      const question = compatGate(req.userId, toInt(targetId), answer);
+      if (question) return res.status(422).json({ error: 'Answer required', answerRequired: true, question });
+
       const remaining = likesRemaining(req.userId, me.gold);
       if (remaining <= 0) return res.status(429).json({ error: 'Like limit reached', upgradeRequired: true });
       if (!me.gold) {
@@ -556,11 +596,14 @@ router.post('/swipe', authenticate, (req, res) => {
     const note = cleanComment(comment);
     const ct = cleanContentType(contentType);
     const cref = contentRef != null ? String(contentRef).slice(0, 200) : null;
+    const ans = action === 'like' ? answerColumns(toInt(targetId), answer) : { answer: null, question: null };
     db.prepare(`
-      INSERT INTO dating_swipes (user_id, target_id, action, note, content_type, content_ref) VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO dating_swipes (user_id, target_id, action, note, content_type, content_ref, compat_answer, compat_question)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(user_id, target_id) DO UPDATE SET action = excluded.action, created_at = excluded.created_at,
-        note = excluded.note, content_type = excluded.content_type, content_ref = excluded.content_ref
-    `).run(req.userId, targetId, action, note, ct, cref);
+        note = excluded.note, content_type = excluded.content_type, content_ref = excluded.content_ref,
+        compat_answer = excluded.compat_answer, compat_question = excluded.compat_question
+    `).run(req.userId, targetId, action, note, ct, cref, ans.answer, ans.question);
 
     let match = null;
     if (action === 'like') {
@@ -664,7 +707,8 @@ router.get('/likes-you', authenticate, (req, res) => {
     // Include the Hinge like context: what they liked and their comment.
     const rows = db.prepare(`
       SELECT p.*, s.note AS like_note, s.content_type AS like_ct, s.content_ref AS like_ref,
-             s.is_rose AS like_rose, s.is_super AS like_super
+             s.is_rose AS like_rose, s.is_super AS like_super,
+             s.compat_answer AS like_answer, s.compat_question AS like_question
       FROM dating_swipes s
       JOIN dating_profiles p ON p.user_id = s.user_id
       WHERE s.target_id = ? AND s.action = 'like'
@@ -673,16 +717,32 @@ router.get('/likes-you', authenticate, (req, res) => {
           FROM dating_matches WHERE user_a = ? OR user_b = ?
         )
         ${NOT_BLOCKED}
-      ORDER BY s.is_rose DESC, s.is_super DESC, s.created_at DESC
+      ORDER BY s.is_rose DESC, s.is_super DESC, (s.compat_answer IS NOT NULL) DESC, s.created_at DESC
     `).all(req.userId, req.userId, req.userId, req.userId, req.userId, req.userId);
     const withLike = (r) => ({
       ...parseProfile(r, req.userId),
-      like: { comment: r.like_note || null, contentType: r.like_ct || null, contentRef: r.like_ref || null, rose: !!r.like_rose, superLike: !!r.like_super },
+      like: {
+        comment: r.like_note || null, contentType: r.like_ct || null, contentRef: r.like_ref || null,
+        rose: !!r.like_rose, superLike: !!r.like_super,
+        // Her Compatibility Question and how he answered it.
+        answer: r.like_answer || null, question: r.like_question || null,
+      },
     });
     const people = rows.map(withLike);
     res.json({
       count: people.length,
-      people: me && me.gold ? people : people.map((p) => ({ id: p.id, name: p.name, veil: p.veil, verified: p.verified, like: { rose: p.like.rose, superLike: p.like.superLike, hasComment: !!p.like.comment } })),
+      // Free members get names and the like's flags but not the profile.
+      // The answer to her own Compatibility Question is deliberately not
+      // withheld: she asked it, and charging her to read the reply would
+      // make the feature a paywall lever rather than a filter. Who wrote
+      // it stays gated as before; what he wrote does not.
+      people: me && me.gold ? people : people.map((p) => ({
+        id: p.id, name: p.name, veil: p.veil, verified: p.verified,
+        like: {
+          rose: p.like.rose, superLike: p.like.superLike, hasComment: !!p.like.comment,
+          answer: p.like.answer, question: p.like.question,
+        },
+      })),
     });
   } catch (err) {
     console.error('Likes-you error:', err);
@@ -1026,10 +1086,13 @@ router.post('/boost', authenticate, (req, res) => {
 // POST /api/dating/super-like { targetId, note, contentType?, contentRef? }
 router.post('/super-like', authenticate, (req, res) => {
   try {
-    const { targetId, note, contentType, contentRef } = req.body || {};
+    const { targetId, note, contentType, contentRef, answer } = req.body || {};
     if (!targetId) return res.status(400).json({ error: 'targetId required' });
     const me = getProfile(req.userId);
     const lim = getLimits(req.userId);
+    // Check before spending the Super Like — a rejected like costs nothing.
+    const question = compatGate(req.userId, toInt(targetId), answer);
+    if (question) return res.status(422).json({ error: 'Answer required', answerRequired: true, question });
     if (!me.gold && lim.super_likes <= 0) {
       return res.status(429).json({ error: 'Out of Super Likes', upgradeRequired: true });
     }
@@ -1039,11 +1102,14 @@ router.post('/super-like', authenticate, (req, res) => {
     const comment = cleanComment(note);
     const ct = cleanContentType(contentType);
     const cref = contentRef != null ? String(contentRef).slice(0, 200) : null;
+    const ans = answerColumns(toInt(targetId), answer);
     db.prepare(`
-      INSERT INTO dating_swipes (user_id, target_id, action, is_super, note, content_type, content_ref) VALUES (?, ?, 'like', 1, ?, ?, ?)
+      INSERT INTO dating_swipes (user_id, target_id, action, is_super, note, content_type, content_ref, compat_answer, compat_question)
+      VALUES (?, ?, 'like', 1, ?, ?, ?, ?, ?)
       ON CONFLICT(user_id, target_id) DO UPDATE SET action = 'like', is_super = 1, note = excluded.note,
-        content_type = excluded.content_type, content_ref = excluded.content_ref
-    `).run(req.userId, targetId, comment, ct, cref);
+        content_type = excluded.content_type, content_ref = excluded.content_ref,
+        compat_answer = excluded.compat_answer, compat_question = excluded.compat_question
+    `).run(req.userId, targetId, comment, ct, cref, ans.answer, ans.question);
     // Super likes are very likely to match in the demo (bots always match)
     const targetIsBot = db.prepare('SELECT is_bot FROM dating_profiles WHERE user_id = ?').get(targetId);
     const theirLike = db.prepare("SELECT 1 FROM dating_swipes WHERE user_id = ? AND target_id = ? AND action = 'like'").get(targetId, req.userId);
@@ -1061,11 +1127,14 @@ router.post('/super-like', authenticate, (req, res) => {
 // be seen and to match. Comment posts as the opener on match.
 router.post('/rose', authenticate, (req, res) => {
   try {
-    const { targetId, comment, contentType, contentRef } = req.body || {};
+    const { targetId, comment, contentType, contentRef, answer } = req.body || {};
     if (!targetId) return res.status(400).json({ error: 'targetId required' });
     const me = getProfile(req.userId);
     if (!me) return res.status(400).json({ error: 'Create your profile first' });
     if (isBlockedPair(req.userId, toInt(targetId))) return res.status(403).json({ error: 'Unavailable' });
+    // Check before spending the Rose — a rejected like costs nothing.
+    const question = compatGate(req.userId, toInt(targetId), answer);
+    if (question) return res.status(422).json({ error: 'Answer required', answerRequired: true, question });
     const lim = getLimits(req.userId);
     if (!me.gold && lim.roses <= 0) {
       return res.status(429).json({ error: 'Out of Roses', upgradeRequired: true });
@@ -1075,12 +1144,14 @@ router.post('/rose', authenticate, (req, res) => {
     const note = cleanComment(comment);
     const ct = cleanContentType(contentType);
     const cref = contentRef != null ? String(contentRef).slice(0, 200) : null;
+    const ans = answerColumns(toInt(targetId), answer);
     db.prepare(`
-      INSERT INTO dating_swipes (user_id, target_id, action, is_super, is_rose, note, content_type, content_ref)
-      VALUES (?, ?, 'like', 1, 1, ?, ?, ?)
+      INSERT INTO dating_swipes (user_id, target_id, action, is_super, is_rose, note, content_type, content_ref, compat_answer, compat_question)
+      VALUES (?, ?, 'like', 1, 1, ?, ?, ?, ?, ?)
       ON CONFLICT(user_id, target_id) DO UPDATE SET action = 'like', is_super = 1, is_rose = 1,
-        note = excluded.note, content_type = excluded.content_type, content_ref = excluded.content_ref
-    `).run(req.userId, targetId, note, ct, cref);
+        note = excluded.note, content_type = excluded.content_type, content_ref = excluded.content_ref,
+        compat_answer = excluded.compat_answer, compat_question = excluded.compat_question
+    `).run(req.userId, targetId, note, ct, cref, ans.answer, ans.question);
 
     const targetIsBot = db.prepare('SELECT is_bot FROM dating_profiles WHERE user_id = ?').get(targetId);
     const theirLike = db.prepare("SELECT 1 FROM dating_swipes WHERE user_id = ? AND target_id = ? AND action = 'like'").get(targetId, req.userId);

@@ -230,6 +230,16 @@ ensure('dating_profiles', 'phone_verified', 'phone_verified INTEGER DEFAULT 0');
 ensure('dating_swipes', 'content_type', 'content_type TEXT');
 ensure('dating_swipes', 'content_ref', 'content_ref TEXT');
 ensure('dating_swipes', 'is_rose', 'is_rose INTEGER DEFAULT 0');
+// Compatibility Question: a member can set one question that anyone who
+// wants to like her must answer first. The answer rides on the like
+// itself rather than a table of its own — one answer per pair falls out
+// of dating_swipes' UNIQUE(user_id, target_id), a rewind takes the
+// answer back with the like, and deleting either account cascades. The
+// question is copied onto the swipe as it was asked, so an answer still
+// reads correctly after she rewords or removes the question.
+ensure('dating_profiles', 'compat_question', 'compat_question TEXT');
+ensure('dating_swipes', 'compat_answer', 'compat_answer TEXT');
+ensure('dating_swipes', 'compat_question', 'compat_question TEXT');
 ensure('dating_matches', 'unveiled_a', 'unveiled_a INTEGER DEFAULT 0');
 ensure('dating_matches', 'unveiled_b', 'unveiled_b INTEGER DEFAULT 0');
 

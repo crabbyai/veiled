@@ -11,6 +11,7 @@ import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE, gradVariantFor } from '../theme';
 import { useMuzz, getPerson } from '../store';
 import { scoreMatch, compatLabel } from '../butterfly';
 import { PhotoTile, Verified, Chip, VeilBadge } from '../components/ui';
+import { CompatQuestionCard, AnswerSheet, Avoider } from '../components/CompatQuestion';
 import * as H from '../haptics';
 
 const { width } = Dimensions.get('window');
@@ -34,6 +35,7 @@ export default function ProfileDetailScreen({ route, navigation }) {
   const {
     me, matches, feedback, likePerson, passPerson, likesRemaining,
     isUnveiled, markProfileRead, reportPerson, blockPerson, sendRose, roses,
+    needsAnswer, answersGiven,
   } = useMuzz();
   const person = getPerson(personId);
   // Signals: opening a full profile counts as a genuine read.
@@ -41,6 +43,8 @@ export default function ProfileDetailScreen({ route, navigation }) {
 
   const [like, setLike] = React.useState(null); // { type, ref, label }
   const [comment, setComment] = React.useState('');
+  // The like waiting on her Compatibility Question: { kind, info, comment }.
+  const [answering, setAnswering] = React.useState(null);
 
   if (!person) return null;
   const photos = person.photos || [];
@@ -51,26 +55,51 @@ export default function ProfileDetailScreen({ route, navigation }) {
   const compat = scoreMatch(me, person, feedback);
   const prompts = person.prompts || [];
 
+  // Her Compatibility Question, and whether this like has to go through
+  // it. Answering once clears it — the answer rides on the like.
+  const question = person.compatQuestion || null;
+  const answered = !!(answersGiven && answersGiven[personId]);
+  const mustAnswer = needsAnswer(personId);
+
   const openLike = (type, ref, label) => { H.tap(); setComment(''); setLike({ type, ref, label }); };
   const closeLike = () => setLike(null);
 
-  const doLike = () => {
-    if (likesRemaining() <= 0) { setLike(null); navigation.navigate('MuzzGold'); return; }
-    const c = comment.trim() || null;
-    const info = like || { type: 'profile', ref: 'profile' };
+  // Hold the like until she's been answered, then replay it with the
+  // answer attached.
+  const gate = (kind, info) => {
+    if (!mustAnswer) return false;
     setLike(null);
-    likePerson(personId, { mutual: true, comment: c, contentType: info.type, contentRef: String(info.ref) });
+    setAnswering({ kind, info, comment: comment.trim() || null });
+    return true;
+  };
+
+  const doLike = (answer = null, pending = null) => {
+    if (likesRemaining() <= 0) { setLike(null); navigation.navigate('MuzzGold'); return; }
+    const info = pending ? pending.info : (like || { type: 'profile', ref: 'profile' });
+    if (!answer && gate('like', info)) return;
+    const c = pending ? pending.comment : (comment.trim() || null);
+    setLike(null); setAnswering(null);
+    likePerson(personId, { mutual: true, comment: c, contentType: info.type, contentRef: String(info.ref), answer });
     H.success();
     navigation.replace('MuzzMatchReveal', { personId, score: compat.score });
   };
 
-  const doRose = () => {
+  const doRose = (answer = null, pending = null) => {
     if (!me.gold && (roses || 0) <= 0) { setLike(null); navigation.navigate('MuzzGold'); return; }
-    const c = comment.trim() || null;
-    const info = like || { type: 'profile', ref: 'profile' };
-    setLike(null);
-    const ok = sendRose(personId, { comment: c, contentType: info.type, contentRef: String(info.ref) });
+    const info = pending ? pending.info : (like || { type: 'profile', ref: 'profile' });
+    if (!answer && gate('rose', info)) return;
+    const c = pending ? pending.comment : (comment.trim() || null);
+    setLike(null); setAnswering(null);
+    const ok = sendRose(personId, { comment: c, contentType: info.type, contentRef: String(info.ref), answer });
     if (ok) { H.success(); navigation.replace('MuzzMatchReveal', { personId, score: compat.score, rose: true }); }
+  };
+
+  // Answer submitted — run the like that was waiting on it.
+  const onAnswer = (text) => {
+    const pending = answering;
+    if (!pending) return;
+    if (pending.kind === 'rose') doRose(text, pending);
+    else doLike(text, pending);
   };
 
   const onPass = () => { passPerson(personId); H.tap(); navigation.goBack(); };
@@ -156,6 +185,17 @@ export default function ProfileDetailScreen({ route, navigation }) {
 
         {/* Card 1: first photo */}
         <PhotoCard idx={0} />
+
+        {/* Her Compatibility Question — sits high, because it decides
+            whether a like is even possible. */}
+        {question && !isMatch ? (
+          <CompatQuestionCard
+            question={question}
+            name={person.name}
+            answered={answered}
+            onPress={answered ? undefined : () => { H.tap(); setAnswering({ kind: 'like', info: { type: 'profile', ref: 'profile' }, comment: null }); }}
+          />
+        ) : null}
 
         {/* About */}
         {person.bio ? (
@@ -264,7 +304,7 @@ export default function ProfileDetailScreen({ route, navigation }) {
       {/* Like sheet — comment + "Send a Rose instead?" (Hinge) */}
       <Modal visible={!!like} transparent animationType="slide" onRequestClose={closeLike}>
         <Pressable style={styles.sheetBg} onPress={closeLike}>
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <Avoider>
             <Pressable style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 18) }]} onPress={() => {}}>
               <View style={styles.sheetHandle} />
               {!!(like && like.label) && (
@@ -287,16 +327,31 @@ export default function ProfileDetailScreen({ route, navigation }) {
               <Text style={styles.roseTitle}>Send a Rose instead?</Text>
               <Text style={styles.roseSub}>Upgrade your Like to a Rose to be seen first and increase your chance of a match.</Text>
 
-              <Pressable onPress={doRose} style={styles.roseBtn}>
+              {mustAnswer && (
+                <View style={styles.gateNote}>
+                  <Ionicons name="help-circle" size={14} color={M.butterfly} />
+                  <Text style={styles.gateNoteText}>{person.name} asks a question first</Text>
+                </View>
+              )}
+              <Pressable onPress={() => doRose()} style={styles.roseBtn}>
                 <Text style={styles.roseBtnText}>Send a Rose{!me.gold ? `  ·  ${roses || 0}` : ''}</Text>
               </Pressable>
-              <Pressable onPress={doLike} style={styles.likeAnyway}>
+              <Pressable onPress={() => doLike()} style={styles.likeAnyway}>
                 <Text style={styles.likeAnywayText}>{comment.trim() ? 'Send Like with comment' : 'Send Like anyway'}</Text>
               </Pressable>
             </Pressable>
-          </KeyboardAvoidingView>
+          </Avoider>
         </Pressable>
       </Modal>
+
+      {/* Her question, holding the like until it's answered */}
+      <AnswerSheet
+        visible={!!answering}
+        question={question}
+        name={person.name}
+        onClose={() => setAnswering(null)}
+        onSend={onAnswer}
+      />
     </View>
   );
 }
@@ -374,4 +429,6 @@ const styles = StyleSheet.create({
   roseBtnText: { color: '#fff', fontWeight: '800', fontSize: 16 },
   likeAnyway: { paddingVertical: 16 },
   likeAnywayText: { color: ROSE, fontWeight: '800', fontSize: 15 },
+  gateNote: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
+  gateNoteText: { ...TYPE.caption, color: M.textSoft, fontWeight: '700' },
 });

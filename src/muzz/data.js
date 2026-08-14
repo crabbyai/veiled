@@ -105,6 +105,7 @@ export const PEOPLE = [
     ],
     sect: 'Sunni', prayerLevel: 'Always prays', ethnicity: 'South Asian', halalDiet: 'Always halal',
     height: `5'7"`, languages: ['English', 'Urdu'],
+    compatQuestion: 'What does an ordinary Tuesday look like in the home you want to build?',
     friendTakes: [
       { by: 'Hafsa', rel: 'Hiking buddy', kind: 'text', text: 'She will genuinely wake you for fajr on a mountain and make it feel like a gift. 10/10.' },
     ],
@@ -157,6 +158,7 @@ export const PEOPLE = [
     ],
     sect: 'Sunni', prayerLevel: 'Usually prays', ethnicity: 'Mixed', halalDiet: 'Mostly halal',
     height: `5'6"`, languages: ['English'],
+    compatQuestion: 'How would you want us to handle a disagreement neither of us can win?',
   },
   {
     id: 'p7', name: 'Mariam', age: 29, city: 'Leeds', distance: 22,
@@ -202,6 +204,7 @@ export const PEOPLE = [
     ],
     sect: 'Prefer not to say', prayerLevel: 'Sometimes prays', ethnicity: 'Arab', halalDiet: 'Sometimes',
     height: `5'5"`, languages: ['English', 'Italian'],
+    compatQuestion: 'What is something you changed your mind about, and what changed it?',
   },
   {
     id: 'p10', name: 'Aaliyah', age: 27, city: 'Bristol', distance: 26,
@@ -275,6 +278,9 @@ export const DEFAULT_ME = {
   sect: 'Sunni', prayerLevel: 'Usually prays', ethnicity: 'Other', halalDiet: 'Mostly halal',
   veil: null,            // set when a sister creates her profile: 'Hijab' | 'Niqab'
   photoVeiled: true,     // sisters' photos start veiled by default
+  // Compatibility Question: one question anyone who wants to like me has
+  // to answer first. null = not set.
+  compatQuestion: null,
   waliEnabled: false,
   photoPrivacy: false,
   selfieVerified: false,

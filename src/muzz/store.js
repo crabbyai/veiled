@@ -10,6 +10,12 @@ import * as errors from './integrations/errors';
 
 const KEY = '@veiled_state_v1';
 
+// The Compatibility Question a person is asking, if any.
+const questionFor = (personId) => {
+  const p = PEOPLE.find((x) => x.id === personId);
+  return (p && p.compatQuestion) || null;
+};
+
 const MuzzContext = createContext(null);
 export const useMuzz = () => useContext(MuzzContext);
 
@@ -30,6 +36,12 @@ const initialState = {
   signalsReads: [],    // personIds whose full profile I've read (Signals)
   weMet: {},           // { personId: { met, wentWell, ts } } — Hinge We Met
   muted: {},           // { personId: true } — muted conversations
+  // Compatibility Question: answers I've written to other people's
+  // questions, keyed by the person I answered.
+  answersGiven: {},    // { personId: { question, text, ts } }
+  // Answers written to MY question. Populated from the server; nothing is
+  // seeded, so an empty list here means nobody has answered yet.
+  answersReceived: [], // [{ personId, question, text, ts }]
   spent: {},           // { personId: 'rose' | 'super' } — so Rewind refunds
   chats: {},           // { personId: [{id, text, sender, ts, read}] }
   posts: SOCIAL_SEED,
@@ -149,7 +161,9 @@ export function MuzzProvider({ children }) {
 
   // `comment` (Hinge): when you like a specific photo/prompt with a note,
   // it seeds the conversation as your opening message on match.
-  const likePerson = useCallback((personId, { mutual = true, comment = null, contentType = null, contentRef = null } = {}) => {
+  // `answer`: her Compatibility Question, answered. The server refuses an
+  // unanswered like on someone who set one — see needsAnswer() below.
+  const likePerson = useCallback((personId, { mutual = true, comment = null, contentType = null, contentRef = null, answer = null } = {}) => {
     update((s) => {
       const feedback = { ...s.feedback, [personId]: 'liked' };
       const becameMatch = mutual && !s.matches.includes(personId);
@@ -164,16 +178,19 @@ export function MuzzProvider({ children }) {
       const windowExpired = now - s.likeWindowStart > LIKE_WINDOW_MS;
       const likeWindowStart = windowExpired ? now : s.likeWindowStart;
       const likesInWindow = windowExpired ? 1 : s.likesInWindow + 1;
-      return { ...s, feedback, matches, chats, seen, likeWindowStart, likesInWindow };
+      const answersGiven = answer
+        ? { ...(s.answersGiven || {}), [personId]: { question: questionFor(personId), text: answer, ts: now } }
+        : s.answersGiven;
+      return { ...s, feedback, matches, chats, seen, likeWindowStart, likesInWindow, answersGiven };
     });
     api.mirror(() => (comment
-      ? api.likeWithComment(personId, { comment, contentType, contentRef })
-      : api.swipe(personId, 'like')));
+      ? api.likeWithComment(personId, { comment, contentType, contentRef, answer })
+      : api.swipe(personId, 'like', { answer })));
   }, [update]);
 
   // Rose (Hinge): a standout like. Consumes a Rose; behaves like a like
   // with an optional comment, but flagged special.
-  const sendRose = useCallback((personId, { comment = null, contentType = null, contentRef = null } = {}) => {
+  const sendRose = useCallback((personId, { comment = null, contentType = null, contentRef = null, answer = null } = {}) => {
     let ok = false;
     update((s) => {
       if (!s.me.gold && (s.roses || 0) <= 0) return s;
@@ -188,11 +205,62 @@ export function MuzzProvider({ children }) {
         ...s, feedback, matches, chats, seen,
         roses: s.me.gold ? s.roses : Math.max(0, (s.roses || 0) - 1),
         spent: { ...(s.spent || {}), [personId]: 'rose' },
+        answersGiven: answer
+          ? { ...(s.answersGiven || {}), [personId]: { question: questionFor(personId), text: answer, ts: Date.now() } }
+          : s.answersGiven,
       };
     });
-    if (ok) api.mirror(() => api.rose(personId, { comment, contentType, contentRef }));
+    if (ok) api.mirror(() => api.rose(personId, { comment, contentType, contentRef, answer }));
     return ok;
   }, [update]);
+
+  // ── Compatibility Question ─────────────────────────────────────────
+  // Set (or clear, with null) the one question anyone who wants to like
+  // me has to answer first.
+  const setCompatQuestion = useCallback((text) => {
+    const q = text == null ? null : String(text).trim().slice(0, 140) || null;
+    update((s) => ({ ...s, me: { ...s.me, compatQuestion: q } }));
+    api.mirror(async () => {
+      const { profile } = await api.getMyProfile();
+      await api.saveProfile({ ...profile, compatQuestion: q });
+    });
+  }, [update]);
+
+  // Pull who likes me — and, for anyone who answered my Compatibility
+  // Question, what they wrote. No-ops without a backend, which is why
+  // answersReceived starts empty rather than seeded: an answer shown here
+  // is one a real person actually wrote.
+  const refreshLikes = useCallback(async () => {
+    if (!api.isConfigured()) return;
+    try {
+      if (!(await api.isAvailable())) return;
+      const { people } = await api.likesYou();
+      if (!Array.isArray(people)) return;
+      const likedYou = people.map((p) => api.toLocalId(p.id));
+      const answersReceived = people
+        .filter((p) => p.like && p.like.answer)
+        .map((p) => ({
+          personId: api.toLocalId(p.id),
+          name: p.name,
+          question: p.like.question || null,
+          text: p.like.answer,
+          rose: !!p.like.rose,
+        }));
+      update((s) => ({ ...s, likedYou, answersReceived }));
+    } catch {}
+  }, [update]);
+
+  // True when I must answer her question before I can like her. Mirrors
+  // the server's rule exactly: a question only gates people she hasn't
+  // already liked. Once she likes me, the question has done its job.
+  const needsAnswer = useCallback((personId) => {
+    const person = getPerson(personId);
+    const question = questionFor(personId);
+    if (!question) return false;
+    if (state.answersGiven && state.answersGiven[personId]) return false;
+    const sheLikedMe = state.likedYou.includes(personId) || (person && person.likedYou);
+    return !sheLikedMe;
+  }, [state.answersGiven, state.likedYou]);
 
   // Mute a conversation (no notifications from this person).
   const toggleMute = useCallback((personId) => {
@@ -259,11 +327,16 @@ export function MuzzProvider({ children }) {
       const spent = { ...(s.spent || {}) };
       const cost = spent[personId];
       delete spent[personId];
+      // The answer went with the like, so it comes back with it too:
+      // liking her again asks the question again.
+      const answersGiven = { ...(s.answersGiven || {}) };
+      delete answersGiven[personId];
       const gold = s.me.gold;
       return {
         ...s,
         feedback,
         spent,
+        answersGiven,
         matches: s.matches.filter((id) => id !== personId),
         seen: s.seen.filter((id) => id !== personId),
         chats: cost ? Object.fromEntries(Object.entries(s.chats).filter(([id]) => id !== personId)) : s.chats,
@@ -453,7 +526,8 @@ export function MuzzProvider({ children }) {
     addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson,
     unmatchPerson, pauseProfile, sendRose, recordWeMet, toggleMute,
     unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead,
-  }), [state, hydrated, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, deleteAccount, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson, unmatchPerson, pauseProfile, sendRose, recordWeMet, toggleMute, unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead]);
+    setCompatQuestion, needsAnswer, refreshLikes,
+  }), [state, hydrated, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, deleteAccount, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson, unmatchPerson, pauseProfile, sendRose, recordWeMet, toggleMute, unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead, setCompatQuestion, needsAnswer, refreshLikes]);
 
   return <MuzzContext.Provider value={value}>{children}</MuzzContext.Provider>;
 }

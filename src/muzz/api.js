@@ -118,8 +118,10 @@ export async function discover(filters) {
 export const toServerId = (localId) => idMap[localId] || localId;
 export const toLocalId = (serverId) => reverseMap[serverId] || serverId;
 
-export const swipe = (targetId, action) =>
-  request('/dating/swipe', { method: 'POST', body: { targetId: toServerId(targetId), action } });
+// `answer` carries the reply to her Compatibility Question when she has
+// one — the server refuses an unanswered like with 422 answerRequired.
+export const swipe = (targetId, action, { answer = null } = {}) =>
+  request('/dating/swipe', { method: 'POST', body: { targetId: toServerId(targetId), action, answer } });
 // Rewind: undo the most recent swipe (or a specific person's) on the server.
 export const rewind = (targetId) =>
   request('/dating/rewind', { method: 'POST', body: targetId ? { targetId: toServerId(targetId) } : {} });
@@ -146,11 +148,11 @@ export const sendMessage = (matchId, body) =>
 export const superLike = (targetId, note, content) =>
   request('/dating/super-like', { method: 'POST', body: { targetId: toServerId(targetId), note, ...(content || {}) } });
 // Hinge: like with a comment on a specific photo/prompt.
-export const likeWithComment = (targetId, { comment, contentType, contentRef } = {}) =>
-  request('/dating/swipe', { method: 'POST', body: { targetId: toServerId(targetId), action: 'like', comment, contentType, contentRef } });
+export const likeWithComment = (targetId, { comment, contentType, contentRef, answer = null } = {}) =>
+  request('/dating/swipe', { method: 'POST', body: { targetId: toServerId(targetId), action: 'like', comment, contentType, contentRef, answer } });
 // Hinge: Roses (standout like) + Standouts set + We Met feedback.
-export const rose = (targetId, { comment, contentType, contentRef } = {}) =>
-  request('/dating/rose', { method: 'POST', body: { targetId: toServerId(targetId), comment, contentType, contentRef } });
+export const rose = (targetId, { comment, contentType, contentRef, answer = null } = {}) =>
+  request('/dating/rose', { method: 'POST', body: { targetId: toServerId(targetId), comment, contentType, contentRef, answer } });
 export const standouts = () => request('/dating/standouts');
 export const weMet = (matchId, met, wentWell) =>
   request(`/dating/matches/${matchId}/we-met`, { method: 'POST', body: { met, wentWell } });
