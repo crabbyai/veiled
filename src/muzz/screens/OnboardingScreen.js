@@ -10,6 +10,7 @@ import { INTERESTS, VALUES, INTENTIONS, VEILS, SECTS, PRAYER_LEVELS, HALAL_DIET 
 import { useMuzz } from '../store';
 import { GButton, Chip } from '../components/ui';
 import Butterfly from '../components/Butterfly';
+import { startVerification } from '../integrations/verify';
 import * as H from '../haptics';
 
 const { width } = Dimensions.get('window');
@@ -38,7 +39,8 @@ export default function OnboardingScreen() {
   const [halalDiet, setHalalDiet] = useState('Mostly halal');
   const [wali, setWali] = useState(false);
   const [verifying, setVerifying] = useState(false);
-  const [verified, setVerified] = useState(false);
+  // idle | pending (provider flow opened) | unavailable
+  const [verifyState, setVerifyState] = useState('idle');
 
   const steps = ['Welcome', 'You', 'Looking for', 'Deen', 'Interests', 'Values', 'Verify', 'Ready'];
   const total = steps.length;
@@ -60,14 +62,21 @@ export default function OnboardingScreen() {
     if (step === STEP.you) return name.trim().length > 1 && ageOk && (gender !== 'Woman' || !!veil);
     if (step === STEP.interests) return interests.length >= 3;
     if (step === STEP.values) return values.length >= 2;
-    if (step === STEP.verify) return verified;
+    // Verification is optional: it needs a camera and a third-party
+    // provider, and neither is a reason to lock someone out of the app.
     return true;
   };
 
-  const runVerification = () => {
+  // Hand off to the real liveness provider. The tick is set by the
+  // provider's webhook, never here — a badge other members read as
+  // "checked" has to mean someone actually checked.
+  const runVerification = async () => {
     H.press();
     setVerifying(true);
-    setTimeout(() => { setVerifying(false); setVerified(true); H.success(); }, 1800);
+    const r = await startVerification();
+    setVerifying(false);
+    if (r.started) { setVerifyState('pending'); H.success(); }
+    else { setVerifyState('unavailable'); H.warn(); }
   };
 
   const next = () => {
@@ -78,7 +87,7 @@ export default function OnboardingScreen() {
       veil: gender === 'Woman' ? veil : null,
       photoVeiled: gender === 'Woman' ? photoVeiled : false,
       intention, interests, values, bio: bio.trim(),
-      sect, prayerLevel, halalDiet, waliEnabled: wali, selfieVerified: verified,
+      sect, prayerLevel, halalDiet, waliEnabled: wali, selfieVerified: false,
     });
   };
 
@@ -228,29 +237,32 @@ export default function OnboardingScreen() {
 
         {step === STEP.verify && (
           <Animated.View entering={FadeInRight} style={styles.welcome}>
-            <View style={[styles.selfieRing, verified && { borderColor: M.success }]}>
+            <View style={[styles.selfieRing, verifyState === 'pending' && { borderColor: M.success }]}>
               <Ionicons
-                name={verified ? 'checkmark' : verifying ? 'scan' : 'camera'}
-                size={44} color={verified ? M.success : M.primary}
+                name={verifyState === 'pending' ? 'hourglass-outline' : verifying ? 'scan' : 'camera'}
+                size={44} color={verifyState === 'pending' ? M.success : M.primary}
               />
             </View>
             <Text style={styles.welcomeTitle}>
-              {verified ? 'You’re verified!' : 'Selfie verification'}
+              {verifyState === 'pending' ? 'Verification started' : 'Get verified'}
             </Text>
             <Text style={styles.welcomeSub}>
-              {verified
-                ? 'Your profile now carries the blue verified tick. Members trust verified profiles 3x more.'
-                : 'Everyone on the app is real. Take a quick selfie matching the pose — it’s never shown on your profile.'}
+              {verifyState === 'pending'
+                ? 'Finish the steps with our verification partner. Your tick appears as soon as they confirm.'
+                : verifyState === 'unavailable'
+                  ? "Verification isn't open yet — we're finishing setup with our partner. You can carry on and get verified later from Settings."
+                  : 'A quick liveness check proves you’re a real person and earns the verified tick. Your selfie is never shown on your profile.'}
             </Text>
-            {!verified && (
+            {verifyState === 'idle' && (
               <GButton
-                label={verifying ? 'Checking…' : 'Take selfie'}
+                label={verifying ? 'Opening…' : 'Get verified'}
                 icon={verifying ? undefined : 'camera'}
                 onPress={runVerification}
                 disabled={verifying}
                 style={{ alignSelf: 'stretch', marginTop: 26 }}
               />
             )}
+            <Text style={styles.skipNote}>Optional — you can get verified later from Settings.</Text>
           </Animated.View>
         )}
 
@@ -298,6 +310,7 @@ const styles = StyleSheet.create({
   progressSeg: { flex: 1, height: 4, borderRadius: 2 },
   scroll: { padding: SPACE.xl, paddingBottom: 30, flexGrow: 1 },
   welcome: { alignItems: 'center', paddingTop: 10 },
+  skipNote: { ...TYPE.caption, color: M.textMuted, marginTop: 16, textAlign: 'center' },
   bfWrap: { height: 170, alignItems: 'center', justifyContent: 'center' },
   heroCard: {
     backgroundColor: isDark ? '#0B0B0D' : '#F2F2F4', borderRadius: 28, marginBottom: 12,

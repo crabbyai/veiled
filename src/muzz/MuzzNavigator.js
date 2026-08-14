@@ -12,6 +12,7 @@ import { M } from './theme';
 import { MuzzProvider, useMuzz } from './store';
 import * as H from './haptics';
 
+import AuthScreen from './screens/AuthScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
 import DiscoverScreen from './screens/DiscoverScreen';
 import ButterflyScreen from './screens/ButterflyScreen';
@@ -101,12 +102,17 @@ function MuzzTabs({ navigation, route }) {
 }
 
 function Root() {
-  const { hydrated, onboarded } = useMuzz();
-  if (!hydrated) return <View style={{ flex: 1, backgroundColor: M.bg }} />;
+  const { hydrated, onboarded, authed } = useMuzz();
+  // `authed` is null while the stored session is being read — hold the
+  // splash rather than flashing the sign-in screen at someone who is
+  // already signed in.
+  if (!hydrated || authed === null) return <View style={{ flex: 1, backgroundColor: M.bg }} />;
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', contentStyle: { backgroundColor: M.bg } }}>
-        {!onboarded ? (
+        {!authed ? (
+          <Stack.Screen name="MuzzAuth" component={AuthScreen} />
+        ) : !onboarded ? (
           <Stack.Screen name="MuzzOnboarding" component={OnboardingScreen} />
         ) : (
           <>

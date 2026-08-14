@@ -8,6 +8,9 @@ const path = require('path');
 process.env.DB_PATH = path.join(os.tmpdir(), `veiled-compat-test-${process.pid}.db`);
 process.env.JWT_SECRET = 'test-secret-for-compat-question-gate-0123456789';
 process.env.NODE_ENV = 'test';
+// Importing the app also starts its own listener; put it on a free port
+// so the test can run while a dev server holds 3000.
+process.env.PORT = '0';
 require('fs').rmSync(process.env.DB_PATH, { force: true });
 process.on('exit', () => require('fs').rmSync(process.env.DB_PATH, { force: true }));
 

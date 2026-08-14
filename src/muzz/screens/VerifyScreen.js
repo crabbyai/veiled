@@ -28,13 +28,16 @@ export default function VerifyScreen({ navigation }) {
   const [phase, setPhase] = useState(me.selfieVerified ? 'done' : 'intro'); // intro | scanning | pending | done
   const [pose, setPose] = useState(0);
 
-  // Try the real liveness provider first; fall back to the guided demo
-  // scan when no provider is configured (offline / launch mode).
+  // The badge means a liveness provider checked this person. If no
+  // provider is configured there is nothing to check, so say so — an
+  // animation that ends in a tick would be handing out a trust signal
+  // other members rely on, to anyone who taps the button.
   const onStart = async () => {
     H.press();
     const r = await startVerification();
     if (r.started) { setPhase('pending'); return; }
-    setPhase('scanning');
+    H.warn();
+    setPhase('unavailable');
   };
 
   const scan = useSharedValue(0);
@@ -42,18 +45,6 @@ export default function VerifyScreen({ navigation }) {
     if (phase !== 'scanning') return;
     scan.value = 0;
     scan.value = withRepeat(withTiming(1, { duration: 1400, easing: Easing.inOut(Easing.quad) }), -1, true);
-    let p = 0;
-    const iv = setInterval(() => {
-      p += 1;
-      if (p < POSES.length) { setPose(p); H.select(); }
-      else {
-        clearInterval(iv);
-        setMe({ selfieVerified: true });
-        setPhase('done');
-        H.success();
-      }
-    }, 1100);
-    return () => clearInterval(iv);
   }, [phase]);
 
   const scanLine = useAnimatedStyle(() => ({
@@ -91,7 +82,7 @@ export default function VerifyScreen({ navigation }) {
               A quick selfie proves you're a real person. Follow the poses on screen — your selfie is used only to verify you and is never shown on your profile.
             </Text>
             <View style={styles.points}>
-              {['Match the pose prompts', 'Takes about 5 seconds', 'Earns the verified tick — members trust verified profiles 3× more'].map((t) => (
+              {['A liveness check with our verification partner', 'Takes about a minute', 'Earns the verified tick on your profile'].map((t) => (
                 <View key={t} style={styles.point}>
                   <Ionicons name="checkmark-circle" size={18} color={M.success} />
                   <Text style={styles.pointText}>{t}</Text>
@@ -121,7 +112,17 @@ export default function VerifyScreen({ navigation }) {
           <Animated.View entering={FadeInDown} style={styles.copy}>
             <Text style={styles.h}>You're verified</Text>
             <Text style={styles.p}>
-              Your profile now carries the verified tick. You'll appear more in Discover and members will trust your profile more.
+              Your profile now carries the verified tick.
+            </Text>
+          </Animated.View>
+        )}
+
+        {/* No provider configured: the badge is not ours to hand out. */}
+        {phase === 'unavailable' && (
+          <Animated.View entering={FadeInDown} style={styles.copy}>
+            <Text style={styles.h}>Verification isn't available yet</Text>
+            <Text style={styles.p}>
+              We're finishing the setup with our verification partner. You can use Veiled normally in the meantime — we'll let you know the moment it opens.
             </Text>
           </Animated.View>
         )}
@@ -132,6 +133,7 @@ export default function VerifyScreen({ navigation }) {
         {phase === 'pending' && <GButton label="I've finished — done" icon="checkmark" onPress={() => navigation.goBack()} />}
         {phase === 'scanning' && <Text style={styles.scanning}>Verifying…</Text>}
         {phase === 'done' && <GButton label="Done" icon="checkmark" onPress={() => navigation.goBack()} />}
+        {phase === 'unavailable' && <GButton label="Back to Veiled" onPress={() => navigation.goBack()} />}
       </View>
     </View>
   );

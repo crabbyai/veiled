@@ -23,13 +23,13 @@ export default function ButterflyScreen({ navigation }) {
   const muzz = useMuzz();
   const {
     me, feedback, seen, butterflyAuto, likePerson, passPerson, markSeen, update,
-    superLikes, likesRemaining, useInstantChat,
+    superLikes, likesRemaining, useInstantChat, people,
   } = muzz;
 
   const [phase, setPhase] = useState('idle'); // idle | searching | reveal
   const [pick, setPick] = useState(null);
 
-  const ranked = useMemo(() => rankMatches(me, feedback), [me, feedback]);
+  const ranked = useMemo(() => rankMatches(me, feedback, people), [me, feedback, people]);
   const queueCount = useMemo(
     () => ranked.filter((m) => !seen.includes(m.person.id) && feedback[m.person.id] !== 'liked').length,
     [ranked, seen, feedback]
@@ -38,7 +38,7 @@ export default function ButterflyScreen({ navigation }) {
   const fly = useCallback(() => {
     H.press();
     setPhase('searching');
-    const next = dailyPick(me, feedback, seen);
+    const next = dailyPick(me, feedback, seen, people);
     setTimeout(() => {
       if (next) {
         setPick(next);
@@ -59,10 +59,11 @@ export default function ButterflyScreen({ navigation }) {
       navigation.navigate('MuzzGold');
       return;
     }
-    likePerson(pick.person.id, { mutual: true });
+    const matched = likePerson(pick.person.id);
     if (superLike && superLikes > 0) update((s) => ({ ...s, superLikes: s.superLikes - 1 }));
     H.success();
-    navigation.navigate('MuzzMatchReveal', { personId: pick.person.id, score: pick.score });
+    // Only a real mutual like opens the match screen.
+    if (matched) navigation.navigate('MuzzMatchReveal', { personId: pick.person.id, score: pick.score });
     setPhase('idle');
     setPick(null);
   };

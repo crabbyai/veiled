@@ -3,8 +3,6 @@
 // your profile + feedback and automatically surfaces your best matches,
 // each with a human-readable reason for *why* it chose them.
 
-import { PEOPLE } from './data';
-
 const overlap = (a = [], b = []) => a.filter((x) => b.includes(x)).length;
 
 // Score one candidate against "me". Returns { score 0-100, reasons[] }.
@@ -87,7 +85,7 @@ export function scoreMatch(me, person, feedback = {}) {
 }
 
 // Rank everyone and return sorted matches with scores + reasons.
-export function rankMatches(me, feedback = {}, pool = PEOPLE) {
+export function rankMatches(me, feedback = {}, pool = []) {
   return pool
     .filter((p) => feedback[p.id] !== 'passed')
     .map((p) => ({ person: p, ...scoreMatch(me, p, feedback) }))
@@ -95,8 +93,8 @@ export function rankMatches(me, feedback = {}, pool = PEOPLE) {
 }
 
 // The butterfly's daily pick — top unseen, high-confidence match.
-export function dailyPick(me, feedback = {}, seenIds = []) {
-  const ranked = rankMatches(me, feedback).filter(
+export function dailyPick(me, feedback = {}, seenIds = [], pool = []) {
+  const ranked = rankMatches(me, feedback, pool).filter(
     (m) => !seenIds.includes(m.person.id) && feedback[m.person.id] !== 'liked'
   );
   return ranked[0] || null;

@@ -116,7 +116,7 @@ export default function MatchesScreen({ navigation }) {
                       accessibilityLabel={`Match with ${a.name || 'this person'}`}
                       onPress={() => {
                         H.press();
-                        likePerson(a.personId, { mutual: true });
+                        likePerson(a.personId);
                         navigation.navigate('MuzzMatchReveal', { personId: a.personId, score: 90 });
                       }}
                       style={[styles.answerBtn, styles.answerLike]}
@@ -168,7 +168,7 @@ export default function MatchesScreen({ navigation }) {
                     <Pressable onPress={() => {
                       H.press();
                       if (locked) { navigation.navigate('MuzzGold'); return; }
-                      likePerson(p.id, { mutual: true });
+                      likePerson(p.id);
                       navigation.navigate('MuzzMatchReveal', { personId: p.id, score: scoreMatch(me, p).score });
                     }}>
                       <View style={styles.likeTile}>

@@ -53,10 +53,15 @@ export const PASSPORT_CITIES = [
   'Toronto', 'New York', 'Sydney',
 ];
 
-// ── Discoverable sisters ─────────────────────────────────────────────
+// ── Written sample profiles (development only) ───────────────────────
+// These people are invented. They exist to build and demo the UI
+// against, and they are only ever loaded when EXPO_PUBLIC_DEMO_MODE=1
+// with no backend configured (see config.js). Real members come from
+// the API — never from this file.
+//
 // veil: 'Hijab' | 'Niqab' — every profile has one; it's the point.
 // photoVeiled: photos stay frosted until she unveils for a match.
-export const PEOPLE = [
+export const SAMPLE_PEOPLE = [
   {
     id: 'p1', name: 'Layla', age: 26, city: 'London', distance: 3,
     job: 'UX Designer', verified: true, online: true,
@@ -226,9 +231,11 @@ export const PEOPLE = [
   },
 ];
 
-// ── Veiled Social: seed feed posts ───────────────────────────────────
+// ── Veiled Social: sample feed posts (development only) ──────────────
+// Written by the same invented people above, and loaded under the same
+// condition. A shipping build starts with an empty feed.
 const hr = 3600000;
-export const SOCIAL_SEED = [
+export const SAMPLE_POSTS = [
   {
     id: 's1', authorId: 'p3', authorName: 'Sana', verified: false,
     text: 'Caught the most insane sunrise on the Helvellyn ridge this morning. Fajr with a view — 4am alarm absolutely worth it ☀️🏔️',

@@ -89,7 +89,14 @@ const verificationRoutes = require('./routes/verification');
 const { seedDating } = require('./seed-dating');
 const { status: integrationStatus } = require('./services/config');
 
-seedDating();
+// Demo accounts, for developing against. They are bots: they like
+// everyone back, so a production database must never contain them —
+// members would be "matching" with software. Opt in explicitly.
+if (process.env.SEED_DEMO_BOTS === '1' && process.env.NODE_ENV !== 'production') {
+  seedDating();
+} else if (process.env.NODE_ENV !== 'production') {
+  console.log('Demo bots not seeded (set SEED_DEMO_BOTS=1 for a populated dev database)');
+}
 
 app.use('/api/auth', authRoutes);
 app.use('/api/dating', datingRoutes);

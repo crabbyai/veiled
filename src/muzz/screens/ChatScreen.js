@@ -55,14 +55,9 @@ export default function ChatScreen({ route, navigation }) {
       H.success();
       return;
     }
+    // Ask, and leave it with her. Unveiling is hers to do.
     sendMessage(personId, `I'd love to get to know you properly — no rush on photos 🤍`, 'me');
-    setTyping(true);
-    setTimeout(() => {
-      setTyping(false);
-      unveilFor(personId);
-      sendMessage(personId, 'unveil:done', 'them');
-      H.success();
-    }, 1700);
+    H.success();
   };
 
   const confirmWali = () => {
@@ -112,37 +107,15 @@ export default function ChatScreen({ route, navigation }) {
     return out.slice(0, 3);
   }, [person, me]);
 
-  const botReply = useCallback(() => {
-    if (!person) return;
-    setTyping(true);
-    // They're reading & replying — mark my messages Seen (read receipts).
-    update((s) => ({
-      ...s,
-      chats: { ...s.chats, [personId]: (s.chats[personId] || []).map((m) => (m.sender === 'me' ? { ...m, read: true } : m)) },
-    }));
-    const pool = [
-      `Haha I love that! ${person.interests[0]} is honestly my favourite thing.`,
-      `Aw that's so sweet. So what does a perfect weekend look like for you?`,
-      `Okay you have good taste 😄 What's your go-to coffee order?`,
-      `I'm so glad we matched. The matchmaker really knew what it was doing.`,
-      `That's really thoughtful. Tell me something most people don't know about you?`,
-    ];
-    const reply = pool[messages.length % pool.length];
-    const delay = 1200 + Math.random() * 1200;
-    setTimeout(() => {
-      setTyping(false);
-      sendMessage(personId, reply, 'them');
-      H.tap();
-    }, delay);
-  }, [person, messages.length, personId, sendMessage]);
-
   const send = (t) => {
     const val = (t ?? text).trim();
     if (!val) return;
     H.tap();
+    // Her reply comes from her, over the realtime channel. Nothing here
+    // writes messages on her behalf — a canned answer under a real
+    // person's name is a lie to whoever is reading it.
     sendMessage(personId, val, 'me');
     setText('');
-    botReply();
   };
 
   // Voice note: hold the mic to "record", release to send a waveform bubble.
@@ -151,14 +124,12 @@ export default function ChatScreen({ route, navigation }) {
     const secs = 3 + Math.floor(Math.random() * 12);
     H.press();
     sendMessage(personId, `voice:${secs}`, 'me');
-    botReply();
   };
 
   const sendSticker = (glyph) => {
     H.press();
     setStickerOpen(false);
     sendMessage(personId, `sticker:${glyph}`, 'me');
-    botReply();
   };
 
   const sendImage = async () => {
@@ -166,7 +137,6 @@ export default function ChatScreen({ route, navigation }) {
     if (!uri) return;
     H.tap();
     sendMessage(personId, `image:${uri}`, 'me');
-    botReply();
   };
 
   const onReact = (msg, emoji) => {

@@ -11,7 +11,6 @@ import Animated, {
 } from 'react-native-reanimated';
 import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE, gradVariantFor } from '../theme';
 import { useMuzz, getPerson } from '../store';
-import { PEOPLE } from '../data';
 import { rankMatches } from '../butterfly';
 import { PhotoTile, Verified, GButton, VeilBadge } from '../components/ui';
 import { AnswerSheet } from '../components/CompatQuestion';
@@ -51,7 +50,7 @@ export default function DiscoverScreen({ navigation }) {
   const {
     me, feedback, matches, butterflyAuto, filters, superLikes, boostUntil,
     likePerson, passPerson, undoSwipe, likesRemaining, useInstantChat, activateBoost, update,
-    needsAnswer,
+    needsAnswer, people, loadingPeople, peopleError, refreshPeople, demoMode,
   } = muzz;
   const [photoIdx, setPhotoIdx] = useState(0);
   const [lastSwiped, setLastSwiped] = useState(null);
@@ -71,18 +70,18 @@ export default function DiscoverScreen({ navigation }) {
   }, [boostActive]);
 
   const stack = useMemo(
-    () => rankMatches(me, feedback).filter(
+    () => rankMatches(me, feedback, people).filter(
       (m) => feedback[m.person.id] !== 'liked' && !matches.includes(m.person.id)
         && matchesFilters(m.person, filters)
     ),
-    [me, feedback, matches, filters]
+    [me, feedback, matches, filters, people]
   );
   const top = stack[0];
   const next = stack[1];
 
   const onlinePeople = useMemo(
-    () => PEOPLE.filter((p) => p.online && !matches.includes(p.id)).slice(0, 8),
-    [matches]
+    () => people.filter((p) => p.online && !matches.includes(p.id)).slice(0, 8),
+    [people, matches]
   );
 
   // Top Picks: your highest-compatibility candidates, highlighted. Gold
@@ -93,8 +92,9 @@ export default function DiscoverScreen({ navigation }) {
   );
   const freePicks = 2;
 
-  // Swipe Surge: a live spike in activity — nudges you to swipe now.
-  const activeNow = useMemo(() => PEOPLE.filter((p) => p.online).length, []);
+  // Swipe Surge: a real spike in activity — a count of who is actually
+  // online right now, so the banner stays hidden when nobody is.
+  const activeNow = useMemo(() => people.filter((p) => p.online).length, [people]);
   const surging = activeNow >= 4;
 
   const sendSuperLike = () => {
@@ -106,11 +106,11 @@ export default function DiscoverScreen({ navigation }) {
     if (needsAnswer(t.id)) { setSuperTarget(null); setAnswering({ person: t, kind: 'super' }); return; }
     // Record the cost so Rewind can refund the Super Like.
     if (!me.gold) update((s) => ({ ...s, superLikes: Math.max(0, s.superLikes - 1), spent: { ...(s.spent || {}), [t.id]: 'super' } }));
-    likePerson(t.id, { mutual: true, comment: superNote.trim() || null, contentType: 'profile', contentRef: 'profile' });
+    const matched = likePerson(t.id, { comment: superNote.trim() || null, contentType: 'profile', contentRef: 'profile' });
     setSuperTarget(null);
     setSuperNote('');
     H.success();
-    navigation.navigate('MuzzMatchReveal', { personId: t.id, score: 99, superLike: true });
+    if (matched) navigation.navigate('MuzzMatchReveal', { personId: t.id, score: 99, superLike: true });
   };
 
   const doBoost = () => {
@@ -123,12 +123,15 @@ export default function DiscoverScreen({ navigation }) {
   const tx = useSharedValue(0);
   const ty = useSharedValue(0);
 
+  // A like only opens the match screen when it actually matched — that
+  // is, when she had already liked you. Otherwise the like goes to her
+  // and the deck moves on.
   const commit = useCallback((dir, personId, score, answer = null) => {
     setLastSwiped(personId);
     setPhotoIdx(0);
     if (dir > 0) {
-      likePerson(personId, { mutual: true, answer });
-      navigation.navigate('MuzzMatchReveal', { personId, score });
+      const matched = likePerson(personId, { answer });
+      if (matched) navigation.navigate('MuzzMatchReveal', { personId, score });
     } else {
       passPerson(personId);
     }
@@ -155,10 +158,10 @@ export default function DiscoverScreen({ navigation }) {
     const { person, kind } = pending;
     if (kind === 'super') {
       if (!me.gold) update((s) => ({ ...s, superLikes: Math.max(0, s.superLikes - 1), spent: { ...(s.spent || {}), [person.id]: 'super' } }));
-      likePerson(person.id, { mutual: true, comment: superNote.trim() || null, contentType: 'profile', contentRef: 'profile', answer: text });
+      const matched = likePerson(person.id, { comment: superNote.trim() || null, contentType: 'profile', contentRef: 'profile', answer: text });
       setSuperNote('');
       H.success();
-      navigation.navigate('MuzzMatchReveal', { personId: person.id, score: 99, superLike: true });
+      if (matched) navigation.navigate('MuzzMatchReveal', { personId: person.id, score: 99, superLike: true });
       return;
     }
     const entry = stack.find((m) => m.person.id === person.id);
@@ -284,6 +287,15 @@ export default function DiscoverScreen({ navigation }) {
         </View>
       </View>
 
+      {/* Demo builds say so, on screen, always. Sample profiles must
+          never be mistaken for members. */}
+      {demoMode && (
+        <View style={styles.demoBar}>
+          <Ionicons name="construct-outline" size={13} color={M.text} />
+          <Text style={styles.demoBarText}>Demo build — these profiles are samples, not real members</Text>
+        </View>
+      )}
+
       {/* Stories / moments rail */}
       <Stories people={onlinePeople} me={me} />
 
@@ -352,8 +364,35 @@ export default function DiscoverScreen({ navigation }) {
         {!top ? (
           <Animated.View entering={FadeIn} style={styles.empty}>
             <Butterfly size={120} />
-            <Text style={styles.emptyTitle}>You're all caught up</Text>
-            <Text style={styles.emptySub}>New people join every day. Your matchmaker will keep searching for you.</Text>
+            {/* Say which of these it actually is. "You're all caught up"
+                over an empty deck that failed to load is a lie. */}
+            {loadingPeople ? (
+              <>
+                <Text style={styles.emptyTitle}>Finding people near you</Text>
+                <Text style={styles.emptySub}>One moment — your matchmaker is looking.</Text>
+              </>
+            ) : peopleError ? (
+              <>
+                <Text style={styles.emptyTitle}>Can't reach Veiled</Text>
+                <Text style={styles.emptySub}>Check your connection and try again.</Text>
+                <Pressable onPress={() => { H.tap(); refreshPeople(); }} style={styles.retry}>
+                  <Text style={styles.retryText}>Try again</Text>
+                </Pressable>
+              </>
+            ) : people.length === 0 ? (
+              <>
+                <Text style={styles.emptyTitle}>No one here yet</Text>
+                <Text style={styles.emptySub}>Veiled is new in your area. Complete your profile and you'll be among the first people see.</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.emptyTitle}>You're all caught up</Text>
+                <Text style={styles.emptySub}>You've seen everyone matching your filters. Widen them, or check back as people join.</Text>
+                <Pressable onPress={() => { H.tap(); navigation.navigate('MuzzFilters'); }} style={styles.retry}>
+                  <Text style={styles.retryText}>Adjust filters</Text>
+                </Pressable>
+              </>
+            )}
           </Animated.View>
         ) : (
           <>
@@ -615,6 +654,10 @@ const styles = StyleSheet.create({
   },
   boostText: { color: '#fff', fontWeight: '800', fontSize: 12 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SPACE.xxl },
+  retry: { marginTop: 20, backgroundColor: M.primary, paddingHorizontal: 22, paddingVertical: 12, borderRadius: RADIUS.pill },
+  retryText: { color: M.textOnPrimary, fontWeight: '800', fontSize: 15 },
+  demoBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: M.warnSoft || '#FFF4E5', paddingVertical: 7 },
+  demoBarText: { color: M.text, fontWeight: '800', fontSize: 12 },
   emptyTitle: { ...TYPE.h1, marginTop: 14 },
   emptySub: { ...TYPE.soft, textAlign: 'center', marginTop: 8, fontSize: 15, lineHeight: 21 },
   sheetBg: { flex: 1, backgroundColor: M.overlay, justifyContent: 'flex-end' },

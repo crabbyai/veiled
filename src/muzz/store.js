@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { DEFAULT_ME, SOCIAL_SEED, PEOPLE } from './data';
+import { DEFAULT_ME, SAMPLE_POSTS, SAMPLE_PEOPLE } from './data';
+import { DEMO_MODE, HAS_BACKEND } from './config';
 import * as api from './api';
 import * as realtime from './realtime';
 import { registerForPush, localNotify } from './notifications';
@@ -10,9 +11,17 @@ import * as errors from './integrations/errors';
 
 const KEY = '@veiled_state_v1';
 
+// Everyone the app currently knows about. Filled from the API, or from
+// the written sample profiles when demo mode is on. Screens read it
+// through getPerson() rather than importing the sample file, so a build
+// without demo mode has no invented people in it at all.
+let REGISTRY = DEMO_MODE ? SAMPLE_PEOPLE : [];
+export const getPerson = (id) => REGISTRY.find((p) => p.id === id);
+const setRegistry = (people) => { REGISTRY = people; };
+
 // The Compatibility Question a person is asking, if any.
 const questionFor = (personId) => {
-  const p = PEOPLE.find((x) => x.id === personId);
+  const p = getPerson(personId);
   return (p && p.compatQuestion) || null;
 };
 
@@ -44,7 +53,7 @@ const initialState = {
   answersReceived: [], // [{ personId, question, text, ts }]
   spent: {},           // { personId: 'rose' | 'super' } — so Rewind refunds
   chats: {},           // { personId: [{id, text, sender, ts, read}] }
-  posts: SOCIAL_SEED,
+  posts: DEMO_MODE ? SAMPLE_POSTS : [],
   postLikes: {},       // local like toggles for social posts
   butterflyAuto: true, // auto-match toggle
   superLikes: 3,
@@ -93,6 +102,16 @@ function mergeSaved(defaults, saved) {
 export function MuzzProvider({ children }) {
   const [state, setState] = useState(initialState);
   const [hydrated, setHydrated] = useState(false);
+  const [loadingPeople, setLoadingPeople] = useState(HAS_BACKEND);
+  const [peopleError, setPeopleError] = useState(null);
+  // null = still checking for a stored session. Only meaningful when a
+  // backend is configured; without one there is nothing to sign in to.
+  const [authed, setAuthed] = useState(HAS_BACKEND ? null : true);
+
+  useEffect(() => {
+    if (!HAS_BACKEND) return;
+    (async () => { setAuthed(!!(await api.hasSession())); })();
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -107,9 +126,10 @@ export function MuzzProvider({ children }) {
     })();
   }, []);
 
-  // Connect the realtime channel once hydrated (no-op without a backend).
+  // Connect the realtime channel once hydrated and signed in (no-op
+  // without a backend).
   useEffect(() => {
-    if (!hydrated || !state.onboarded) return;
+    if (!hydrated || !state.onboarded || authed !== true) return;
     realtime.connect({
       onMessage: (personId, text) => {
         const msg = { id: `m${Date.now()}${Math.random().toString(36).slice(2, 6)}`, text, sender: 'them', ts: Date.now(), read: false };
@@ -130,13 +150,14 @@ export function MuzzProvider({ children }) {
       },
     });
     registerForPush();
+    refreshPeople();
     // Attach analytics + purchases identity, and tag crash reports.
     const uid = state.me?.id || 'me';
     analytics.identify(uid, { veil: state.me?.veil || null });
     errors.setUser(uid);
     purchases.init(uid).catch(() => {});
     return () => realtime.disconnect();
-  }, [hydrated, state.onboarded]);
+  }, [hydrated, state.onboarded, authed]);
 
   const persist = useCallback((next) => {
     setState(next);
@@ -163,10 +184,19 @@ export function MuzzProvider({ children }) {
   // it seeds the conversation as your opening message on match.
   // `answer`: her Compatibility Question, answered. The server refuses an
   // unanswered like on someone who set one — see needsAnswer() below.
-  const likePerson = useCallback((personId, { mutual = true, comment = null, contentType = null, contentRef = null, answer = null } = {}) => {
+  //
+  // A like is only a like. It becomes a match when she has already liked
+  // you — otherwise it sits with her until she decides, and the match
+  // arrives over the realtime channel. Nothing here invents reciprocity.
+  // Returns true when the like matched, so the caller knows whether to
+  // show the match screen.
+  const likePerson = useCallback((personId, { comment = null, contentType = null, contentRef = null, answer = null } = {}) => {
+    let matched = false;
     update((s) => {
       const feedback = { ...s.feedback, [personId]: 'liked' };
-      const becameMatch = mutual && !s.matches.includes(personId);
+      const sheLikedMe = s.likedYou.includes(personId);
+      const becameMatch = sheLikedMe && !s.matches.includes(personId);
+      matched = becameMatch || s.matches.includes(personId);
       const matches = becameMatch ? [...s.matches, personId] : s.matches;
       const opener = comment ? [{ id: `op${Date.now()}`, text: comment, sender: 'me', ts: Date.now(), read: false }] : [];
       const chats = becameMatch && !s.chats[personId]
@@ -186,17 +216,22 @@ export function MuzzProvider({ children }) {
     api.mirror(() => (comment
       ? api.likeWithComment(personId, { comment, contentType, contentRef, answer })
       : api.swipe(personId, 'like', { answer })));
+    return matched;
   }, [update]);
 
   // Rose (Hinge): a standout like. Consumes a Rose; behaves like a like
-  // with an optional comment, but flagged special.
+  // with an optional comment, but flagged special. A Rose is still only
+  // a like — it reaches her first, it doesn't decide for her. `matched`
+  // reports whether she had already liked you.
   const sendRose = useCallback((personId, { comment = null, contentType = null, contentRef = null, answer = null } = {}) => {
     let ok = false;
+    let matched = false;
     update((s) => {
       if (!s.me.gold && (s.roses || 0) <= 0) return s;
       ok = true;
       const feedback = { ...s.feedback, [personId]: 'liked' };
-      const becameMatch = !s.matches.includes(personId);
+      const becameMatch = s.likedYou.includes(personId) && !s.matches.includes(personId);
+      matched = becameMatch || s.matches.includes(personId);
       const matches = becameMatch ? [...s.matches, personId] : s.matches;
       const opener = comment ? [{ id: `op${Date.now()}`, text: comment, sender: 'me', ts: Date.now(), read: false }] : [];
       const chats = becameMatch && !s.chats[personId] ? { ...s.chats, [personId]: opener } : s.chats;
@@ -211,7 +246,7 @@ export function MuzzProvider({ children }) {
       };
     });
     if (ok) api.mirror(() => api.rose(personId, { comment, contentType, contentRef, answer }));
-    return ok;
+    return { ok, matched };
   }, [update]);
 
   // ── Compatibility Question ─────────────────────────────────────────
@@ -225,6 +260,69 @@ export function MuzzProvider({ children }) {
       await api.saveProfile({ ...profile, compatQuestion: q });
     });
   }, [update]);
+
+  // ── Account ────────────────────────────────────────────────────────
+  // Turn a server error into something worth reading. The API's own
+  // message is usually the clearest thing we have ("Email already
+  // registered"), so prefer it over anything invented here.
+  const authError = (e) => {
+    const msg = (e && e.message) || '';
+    if (/network|fetch|failed/i.test(msg)) return "Can't reach Veiled. Check your connection and try again.";
+    return msg || 'Something went wrong. Please try again.';
+  };
+
+  const signUp = useCallback(async (email, password) => {
+    try {
+      await api.register(email, password, null);
+      setAuthed(true);
+      return { ok: true };
+    } catch (e) { return { ok: false, error: authError(e) }; }
+  }, []);
+
+  const signIn = useCallback(async (email, password) => {
+    try {
+      await api.login(email, password);
+      setAuthed(true);
+      // Pull the profile this account already has, so signing in on a
+      // new device restores it instead of starting onboarding again.
+      try {
+        const { profile } = await api.getMyProfile();
+        if (profile) update((s) => ({ ...s, onboarded: true, me: { ...s.me, ...profile } }));
+      } catch {}
+      return { ok: true };
+    } catch (e) { return { ok: false, error: authError(e) }; }
+  }, [update]);
+
+  // Load discoverable members from the API. This is the only source of
+  // people in a shipping build; without a backend the deck stays empty
+  // rather than filling with invented profiles.
+  const refreshPeople = useCallback(async () => {
+    if (!HAS_BACKEND) { setRegistry(DEMO_MODE ? SAMPLE_PEOPLE : []); return; }
+    setLoadingPeople(true);
+    try {
+      if (!(await api.isAvailable())) { setPeopleError('offline'); return; }
+      const { candidates } = await api.discover(state.filters);
+      const people = (candidates || []).map((c) => ({
+        ...c.person,
+        id: api.toLocalId(c.person.id),
+        photos: (c.person.photos || []).map(api.mediaUrl),
+      }));
+      setRegistry(people);
+      setPeopleError(null);
+      update((s) => ({ ...s, peopleVersion: (s.peopleVersion || 0) + 1 }));
+    } catch {
+      setPeopleError('offline');
+    } finally {
+      setLoadingPeople(false);
+    }
+  }, [state.filters, update]);
+
+  // Filters are applied server-side, so changing them reloads the deck.
+  useEffect(() => {
+    if (!hydrated || !state.onboarded || !HAS_BACKEND || authed !== true) return;
+    const t = setTimeout(() => { refreshPeople(); }, 300);
+    return () => clearTimeout(t);
+  }, [hydrated, state.onboarded, state.filters, authed]);
 
   // Pull who likes me — and, for anyone who answered my Compatibility
   // Question, what they wrote. No-ops without a backend, which is why
@@ -499,7 +597,14 @@ export function MuzzProvider({ children }) {
     api.mirror(() => api.createPost(post.text, post.tag, post.id));
   }, [update]);
 
-  const resetAll = useCallback(() => persist(initialState), [persist]);
+  // Log out: drop the session token and everything cached on the device.
+  const resetAll = useCallback(() => {
+    try { realtime.disconnect(); } catch {}
+    api.logout().catch(() => {});
+    setRegistry(DEMO_MODE ? SAMPLE_PEOPLE : []);
+    if (HAS_BACKEND) setAuthed(false);
+    persist(initialState);
+  }, [persist]);
 
   // Permanently delete the account (App Store 5.1.1(v) requires this to be
   // doable in-app). Deletes server-side first, then wipes everything
@@ -514,6 +619,9 @@ export function MuzzProvider({ children }) {
       } catch { serverOk = false; }
     }
     try { realtime.disconnect(); } catch {}
+    await api.logout().catch(() => {});
+    setRegistry(DEMO_MODE ? SAMPLE_PEOPLE : []);
+    if (HAS_BACKEND) setAuthed(false);
     await persist(initialState);
     return { ok: serverOk };
   }, [persist]);
@@ -527,9 +635,10 @@ export function MuzzProvider({ children }) {
     unmatchPerson, pauseProfile, sendRose, recordWeMet, toggleMute,
     unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead,
     setCompatQuestion, needsAnswer, refreshLikes,
-  }), [state, hydrated, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, deleteAccount, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson, unmatchPerson, pauseProfile, sendRose, recordWeMet, toggleMute, unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead, setCompatQuestion, needsAnswer, refreshLikes]);
+    people: REGISTRY, refreshPeople, loadingPeople, peopleError, demoMode: DEMO_MODE, hasBackend: HAS_BACKEND,
+    authed, signIn, signUp,
+  }), [state, hydrated, loadingPeople, peopleError, refreshPeople, authed, signIn, signUp, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, deleteAccount, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson, unmatchPerson, pauseProfile, sendRose, recordWeMet, toggleMute, unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead, setCompatQuestion, needsAnswer, refreshLikes]);
 
   return <MuzzContext.Provider value={value}>{children}</MuzzContext.Provider>;
 }
 
-export const getPerson = (id) => PEOPLE.find((p) => p.id === id);

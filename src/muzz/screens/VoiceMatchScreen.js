@@ -30,14 +30,14 @@ const QUESTIONS = [
 
 export default function VoiceMatchScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { me, feedback, matches, likePerson } = useMuzz();
+  const { me, feedback, matches, likePerson, people } = useMuzz();
   const [convo, setConvo] = useState([]); // { id, from: 'ai'|'me', text?, secs? }
   const [qIdx, setQIdx] = useState(0);
   const [phase, setPhase] = useState('intro'); // intro | asking | recording | thinking | reveal
   const scrollRef = useRef(null);
 
   const pick = useMemo(
-    () => rankMatches(me, feedback).filter((m) => !matches.includes(m.person.id))[0] || null,
+    () => rankMatches(me, feedback, people).filter((m) => !matches.includes(m.person.id))[0] || null,
     [me, feedback, matches]
   );
 
@@ -79,8 +79,9 @@ export default function VoiceMatchScreen({ navigation }) {
   const introduce = () => {
     if (!pick) return;
     H.success();
-    likePerson(pick.person.id, { mutual: true });
-    navigation.replace('MuzzMatchReveal', { personId: pick.person.id, score: pick.score });
+    const matched = likePerson(pick.person.id);
+    if (matched) navigation.replace('MuzzMatchReveal', { personId: pick.person.id, score: pick.score });
+    else navigation.goBack();
   };
 
   return (

@@ -15,10 +15,10 @@ const COL_W = (width - SPACE.xl * 2 - 12) / 2;
 
 export default function ExploreScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { me, feedback } = useMuzz();
+  const { me, feedback, people } = useMuzz();
   const [sort, setSort] = useState('match');
   const ranked = useMemo(() => {
-    const r = rankMatches(me, feedback);
+    const r = rankMatches(me, feedback, people);
     if (sort === 'distance') return [...r].sort((a, b) => a.person.distance - b.person.distance);
     if (sort === 'online') return [...r].sort((a, b) => (b.person.online ? 1 : 0) - (a.person.online ? 1 : 0));
     return r;

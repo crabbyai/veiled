@@ -15,12 +15,12 @@ import * as H from '../haptics';
 // Send a Rose to reach the top of their likes.
 export default function StandoutsScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { me, feedback, matches, roses, sendRose, isUnveiled } = useMuzz();
+  const { me, feedback, matches, roses, sendRose, isUnveiled, people } = useMuzz();
 
   // Stable within the ISO week, rotating weekly — like Hinge Standouts.
   const week = Math.floor(Date.now() / (7 * 86400000));
   const standouts = useMemo(() => {
-    const ranked = rankMatches(me, feedback).filter(
+    const ranked = rankMatches(me, feedback, people).filter(
       (m) => feedback[m.person.id] !== 'liked' && !matches.includes(m.person.id)
     );
     return ranked.slice(0, 8).map((m) => {
@@ -34,8 +34,8 @@ export default function StandoutsScreen({ navigation }) {
   const onRose = (personId) => {
     H.press();
     if (!me.gold && (roses || 0) <= 0) { navigation.navigate('MuzzGold'); return; }
-    const ok = sendRose(personId, {});
-    if (ok) navigation.navigate('MuzzMatchReveal', { personId, score: 99, rose: true });
+    const { ok, matched } = sendRose(personId, {});
+    if (ok && matched) navigation.navigate('MuzzMatchReveal', { personId, score: 99, rose: true });
   };
 
   return (

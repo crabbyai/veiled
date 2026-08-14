@@ -79,9 +79,10 @@ export default function ProfileDetailScreen({ route, navigation }) {
     if (!answer && gate('like', info)) return;
     const c = pending ? pending.comment : (comment.trim() || null);
     setLike(null); setAnswering(null);
-    likePerson(personId, { mutual: true, comment: c, contentType: info.type, contentRef: String(info.ref), answer });
+    const matched = likePerson(personId, { comment: c, contentType: info.type, contentRef: String(info.ref), answer });
     H.success();
-    navigation.replace('MuzzMatchReveal', { personId, score: compat.score });
+    if (matched) navigation.replace('MuzzMatchReveal', { personId, score: compat.score });
+    else navigation.goBack();
   };
 
   const doRose = (answer = null, pending = null) => {
@@ -90,8 +91,12 @@ export default function ProfileDetailScreen({ route, navigation }) {
     if (!answer && gate('rose', info)) return;
     const c = pending ? pending.comment : (comment.trim() || null);
     setLike(null); setAnswering(null);
-    const ok = sendRose(personId, { comment: c, contentType: info.type, contentRef: String(info.ref), answer });
-    if (ok) { H.success(); navigation.replace('MuzzMatchReveal', { personId, score: compat.score, rose: true }); }
+    const { ok, matched } = sendRose(personId, { comment: c, contentType: info.type, contentRef: String(info.ref), answer });
+    if (ok) {
+      H.success();
+      if (matched) navigation.replace('MuzzMatchReveal', { personId, score: compat.score, rose: true });
+      else navigation.goBack();
+    }
   };
 
   // Answer submitted — run the like that was waiting on it.
