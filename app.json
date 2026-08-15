@@ -97,8 +97,7 @@
         "USE_BIOMETRIC",
         "USE_FINGERPRINT",
         "INTERNET",
-        "ACCESS_NETWORK_STATE",
-        "com.android.vending.BILLING"
+        "ACCESS_NETWORK_STATE"
       ],
       "blockedPermissions": [
         "ACCESS_FINE_LOCATION",
@@ -188,8 +187,7 @@
             "deploymentTarget": "15.1"
           }
         }
-      ],
-      "react-native-iap"
+      ]
     ],
     "owner": "adeelahmedrahman"
   }
