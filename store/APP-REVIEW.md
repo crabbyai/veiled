@@ -71,8 +71,33 @@ export EXPO_TOKEN=…            # expo.dev → Account Settings → Access Toke
 ```
 
 The script refuses to build a stale checkout or a placeholder config, so
-if it complains, fix what it says and re-run. Build number is currently
-`1` in `app.json` — bump it to `2` before rebuilding, since 1 is used.
+if it complains, fix what it says and re-run.
+
+Don't touch `buildNumber` in `app.json`. `eas.json` sets
+`appVersionSource: remote` with `autoIncrement` on the production
+profile, so EAS keeps the build number on its side and bumps it for you.
+Editing it by hand only causes conflicts.
+
+### Getting it onto your phone
+
+TestFlight has no link to share for your own app — as the account
+holder, your builds appear automatically once they finish processing.
+
+1. After `--submit`, the build lands in **App Store Connect →
+   TestFlight**. It shows *Processing* for ~10 minutes.
+2. Export compliance won't stop you: `ITSAppUsesNonExemptEncryption` is
+   already declared in `app.json`, so there's no questionnaire to answer.
+3. In **TestFlight → Internal Testing**, make sure there's a group with
+   your own Apple ID in it, and that the new build is added to it. The
+   account holder is usually there already.
+4. On the iPhone: install **TestFlight** from the App Store, sign in
+   with **the same Apple ID as your developer account**, and Veiled
+   appears under *Apps*. Tap **Install**.
+5. You'll get an email when the build is ready to test, too.
+
+If Veiled doesn't appear in TestFlight on your phone, it's almost always
+one of: still processing, you're signed into a different Apple ID, or
+the build hasn't been added to an internal testing group.
 
 ---
 
