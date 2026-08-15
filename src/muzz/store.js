@@ -81,6 +81,9 @@ const initialState = {
   instantChatsUsed: 0,
 };
 
+// How long start-up work gets before the app gives up waiting on it.
+const STARTUP_TIMEOUT_MS = 4000;
+
 export const FREE_LIKES_PER_WINDOW = 5;
 export const LIKE_WINDOW_MS = 12 * 3600000;
 export const FREE_INSTANT_CHATS_PER_DAY = 1;
@@ -109,12 +112,23 @@ export function MuzzProvider({ children }) {
   // backend is configured; without one there is nothing to sign in to.
   const [authed, setAuthed] = useState(HAS_BACKEND ? null : true);
 
+  // Nothing renders until both of these resolve, so neither is allowed
+  // to hang. If device storage stalls, carry on with defaults: a signed
+  // -out app someone can use beats a blank screen with no way forward.
   useEffect(() => {
     if (!HAS_BACKEND) return;
-    (async () => { setAuthed(!!(await api.hasSession())); })();
+    let done = false;
+    const settle = (v) => { if (!done) { done = true; setAuthed(v); } };
+    const t = setTimeout(() => settle(false), STARTUP_TIMEOUT_MS);
+    api.hasSession().then((v) => settle(!!v)).catch(() => settle(false))
+      .finally(() => clearTimeout(t));
+    return () => clearTimeout(t);
   }, []);
 
   useEffect(() => {
+    let done = false;
+    const settle = () => { if (!done) { done = true; setHydrated(true); } };
+    const t = setTimeout(settle, STARTUP_TIMEOUT_MS);
     (async () => {
       try {
         const raw = await AsyncStorage.getItem(KEY);
@@ -123,8 +137,10 @@ export function MuzzProvider({ children }) {
           setState((s) => mergeSaved(s, saved));
         }
       } catch {}
-      setHydrated(true);
+      clearTimeout(t);
+      settle();
     })();
+    return () => clearTimeout(t);
   }, []);
 
   // Connect the realtime channel once hydrated and signed in (no-op

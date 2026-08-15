@@ -103,10 +103,17 @@ function MuzzTabs({ navigation, route }) {
 
 function Root() {
   const { hydrated, onboarded, authed } = useMuzz();
-  // `authed` is null while the stored session is being read — hold the
-  // splash rather than flashing the sign-in screen at someone who is
-  // already signed in.
-  if (!hydrated || authed === null) return <View style={{ flex: 1, backgroundColor: M.bg }} />;
+  // `authed` is null while the stored session is being read — hold here
+  // rather than flashing the sign-in screen at someone already signed
+  // in. Show the mark while holding: a plain empty screen is
+  // indistinguishable from an app that failed to start.
+  if (!hydrated || authed === null) {
+    return (
+      <View style={{ flex: 1, backgroundColor: M.bg, alignItems: 'center', justifyContent: 'center' }}>
+        <VeilGlyph color={M.text} size={72} />
+      </View>
+    );
+  }
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', contentStyle: { backgroundColor: M.bg } }}>
