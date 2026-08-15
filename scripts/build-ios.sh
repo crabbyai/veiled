@@ -63,6 +63,22 @@ step "Installing dependencies"
 npm ci --no-audit --no-fund
 ok "dependencies installed"
 
+# A missing or duplicated native module builds fine and then white-screens
+# on launch — the JS bundle loads, the native side isn't there. That cost
+# us a review cycle once (@expo/vector-icons needs expo-font, and npm had
+# resolved two different versions of it). Catch it here instead.
+step "Checking native module health"
+DOCTOR=$(npx expo-doctor@latest 2>&1 || true)
+if printf '%s' "$DOCTOR" | grep -q "Missing peer dependency"; then
+  printf '%s\n' "$DOCTOR" | grep -A 3 "Missing peer dependency"
+  fail "A native peer dependency is missing. Install it before building."
+fi
+if printf '%s' "$DOCTOR" | grep -q "Found duplicates for"; then
+  printf '%s\n' "$DOCTOR" | grep -A 4 "Found duplicates for"
+  fail "Two versions of a native module are installed. De-duplicate before building."
+fi
+ok "no missing or duplicated native modules"
+
 step "Building iOS (production) — this takes 10-20 minutes"
 npx eas-cli@latest build --platform ios --profile production --non-interactive
 
