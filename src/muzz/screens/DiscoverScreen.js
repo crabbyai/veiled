@@ -52,7 +52,17 @@ export default function DiscoverScreen({ navigation }) {
     me, feedback, matches, butterflyAuto, filters, superLikes, boostUntil,
     likePerson, passPerson, undoSwipe, likesRemaining, useInstantChat, activateBoost, update,
     needsAnswer, people, loadingPeople, peopleError, refreshPeople, demoMode,
+    pendingMatch, clearPendingMatch,
   } = muzz;
+
+  // A match the server confirmed after the fact — she liked you while
+  // you were swiping, so the like didn't look mutual when you sent it.
+  useEffect(() => {
+    if (!pendingMatch) return;
+    const personId = pendingMatch;
+    clearPendingMatch();
+    navigation.navigate('MuzzMatchReveal', { personId, score: 90 });
+  }, [pendingMatch]);
   const [photoIdx, setPhotoIdx] = useState(0);
   const [lastSwiped, setLastSwiped] = useState(null);
   const [superTarget, setSuperTarget] = useState(null);

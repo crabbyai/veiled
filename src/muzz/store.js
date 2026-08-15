@@ -76,6 +76,7 @@ const initialState = {
   // Free-tier limits (mirrors real Muzz: 5 likes / 12h, 1 instant chat / day)
   likeWindowStart: 0,
   likesInWindow: 0,
+  pendingMatch: null,     // a confirmed match the UI hasn't announced yet
   instantChatDay: '',
   instantChatsUsed: 0,
 };
@@ -143,7 +144,7 @@ export function MuzzProvider({ children }) {
       onMatch: (personId) => {
         setState((s) => {
           if (s.matches.includes(personId)) return s;
-          const next = { ...s, matches: [...s.matches, personId], chats: s.chats[personId] ? s.chats : { ...s.chats, [personId]: [] } };
+          const next = { ...s, matches: [...s.matches, personId], chats: s.chats[personId] ? s.chats : { ...s.chats, [personId]: [] }, pendingMatch: personId };
           AsyncStorage.setItem(KEY, JSON.stringify(next)).catch(() => {});
           return next;
         });
@@ -151,6 +152,10 @@ export function MuzzProvider({ children }) {
     });
     registerForPush();
     refreshPeople();
+    // Who already likes me has to be known before the first swipe: it's
+    // what decides whether a like is a match, and Discover is the tab
+    // the app opens on.
+    refreshLikes();
     // Attach analytics + purchases identity, and tag crash reports.
     const uid = state.me?.id || 'me';
     analytics.identify(uid, { veil: state.me?.veil || null });
@@ -174,6 +179,24 @@ export function MuzzProvider({ children }) {
 
   // ── Actions ────────────────────────────────────────────────────────
   const setMe = useCallback((patch) => update((s) => ({ ...s, me: { ...s.me, ...patch } })), [update]);
+
+  // Record a match the server confirmed, if we didn't already know, and
+  // queue it so the screen you're on can announce it. This is the case
+  // where she likes you while you're mid-swipe: our copy of who likes us
+  // was written before she did, so the like looked one-sided at the
+  // moment you sent it.
+  const confirmMatch = useCallback((personId) => {
+    update((s) => (s.matches.includes(personId) ? s : {
+      ...s,
+      matches: [...s.matches, personId],
+      chats: s.chats[personId] ? s.chats : { ...s.chats, [personId]: [] },
+      pendingMatch: personId,
+    }));
+  }, [update]);
+
+  const clearPendingMatch = useCallback(() => {
+    update((s) => (s.pendingMatch ? { ...s, pendingMatch: null } : s));
+  }, [update]);
 
   const completeOnboarding = useCallback((mePatch) => {
     update((s) => ({ ...s, onboarded: true, me: { ...s.me, ...mePatch, butterflyTrained: true } }));
@@ -213,11 +236,18 @@ export function MuzzProvider({ children }) {
         : s.answersGiven;
       return { ...s, feedback, matches, chats, seen, likeWindowStart, likesInWindow, answersGiven };
     });
-    api.mirror(() => (comment
-      ? api.likeWithComment(personId, { comment, contentType, contentRef, answer })
-      : api.swipe(personId, 'like', { answer })));
+    // The server is the authority on whether this matched — our copy of
+    // who likes us can be a few minutes stale. If it says yes and we
+    // thought otherwise, record the match; the realtime channel opens
+    // the match screen.
+    api.mirror(async () => {
+      const res = await (comment
+        ? api.likeWithComment(personId, { comment, contentType, contentRef, answer })
+        : api.swipe(personId, 'like', { answer }));
+      if (res && res.match) confirmMatch(personId);
+    });
     return matched;
-  }, [update]);
+  }, [update, confirmMatch]);
 
   // Rose (Hinge): a standout like. Consumes a Rose; behaves like a like
   // with an optional comment, but flagged special. A Rose is still only
@@ -245,9 +275,14 @@ export function MuzzProvider({ children }) {
           : s.answersGiven,
       };
     });
-    if (ok) api.mirror(() => api.rose(personId, { comment, contentType, contentRef, answer }));
+    if (ok) {
+      api.mirror(async () => {
+        const res = await api.rose(personId, { comment, contentType, contentRef, answer });
+        if (res && res.match) confirmMatch(personId);
+      });
+    }
     return { ok, matched };
-  }, [update]);
+  }, [update, confirmMatch]);
 
   // ── Compatibility Question ─────────────────────────────────────────
   // Set (or clear, with null) the one question anyone who wants to like
@@ -634,10 +669,10 @@ export function MuzzProvider({ children }) {
     addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson,
     unmatchPerson, pauseProfile, sendRose, recordWeMet, toggleMute,
     unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead,
-    setCompatQuestion, needsAnswer, refreshLikes,
+    setCompatQuestion, needsAnswer, refreshLikes, clearPendingMatch,
     people: REGISTRY, refreshPeople, loadingPeople, peopleError, demoMode: DEMO_MODE, hasBackend: HAS_BACKEND,
     authed, signIn, signUp,
-  }), [state, hydrated, loadingPeople, peopleError, refreshPeople, authed, signIn, signUp, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, deleteAccount, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson, unmatchPerson, pauseProfile, sendRose, recordWeMet, toggleMute, unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead, setCompatQuestion, needsAnswer, refreshLikes]);
+  }), [state, hydrated, loadingPeople, peopleError, refreshPeople, authed, signIn, signUp, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, deleteAccount, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson, unmatchPerson, pauseProfile, sendRose, recordWeMet, toggleMute, unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead, setCompatQuestion, needsAnswer, refreshLikes, clearPendingMatch]);
 
   return <MuzzContext.Provider value={value}>{children}</MuzzContext.Provider>;
 }
