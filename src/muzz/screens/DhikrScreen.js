@@ -6,17 +6,27 @@ import Animated, {
   FadeIn, FadeInUp, useSharedValue, useAnimatedStyle, withSequence, withTiming, withSpring, Easing,
 } from 'react-native-reanimated';
 import { M, RADIUS, SPACE, SHADOW, TYPE } from '../theme';
-import { useMuzz, milestonesFor, isJumuah, SITTING_GAP_MS } from '../store';
+import {
+  useMuzz, isJumuah, SITTING_GAP_MS, dhikrProgress,
+  DAILY_POINT_CAP, GIFT_POINTS, DHIKR_PER_POINT,
+} from '../store';
+import { RoseMark } from '../components/RoseBloom';
 import * as H from '../haptics';
 
 // ─── Dhikr ──────────────────────────────────────────────────────────
 // A tasbih: a ring of beads you tap, a count, and the time you've been
-// sitting with it. Keep a sitting going and it earns you something —
-// a Rose, a Compliment or a Boost — and on Jumu'ah it comes sooner.
+// sitting with it.
 //
-// The counter is the point. The gift is a nudge, not a wage: nothing
-// here is required, and the app never claims a reward for the dhikr
-// itself. It's a count you keep, and the app thanks you for turning up.
+// Progress toward a gift is deliberately slow. It is measured out of a
+// hundred, no more than a tenth of it can be earned in a day, and the
+// hundred costs five thousand dhikr — so a gift is ten days of turning
+// up at the very least, and no amount of sitting will buy it in one
+// evening. Jumu'ah counts double, which halves the day's dhikr but not
+// the cap.
+//
+// The counter is the point. The gift is a nudge, not a wage: the count
+// is never refused once the day's tenth is full, and the app never
+// claims to reward the dhikr itself.
 
 const ADHKAR = [
   { key: 'subhanallah', ar: 'سُبْحَانَ اللّٰه', tr: 'SubhanAllah', en: 'Glory be to Allah', round: 33 },
@@ -60,9 +70,9 @@ export default function DhikrScreen({ navigation }) {
     return () => clearInterval(t);
   }, []);
 
-  const marks = useMemo(() => milestonesFor(), []);
+  // Recomputed each tick so a rollover past midnight lands on its own.
+  const prog = useMemo(() => dhikrProgress(d), [d, now]);
   const sitting = live ? d.sitting || 0 : 0;
-  const nextMark = marks.find((m) => sitting < m) || null;
   const inRound = sitting % pick.round;
   const beadsLit = pick.round === BEADS ? inRound : Math.round((inRound / pick.round) * BEADS);
 
@@ -115,7 +125,7 @@ export default function DhikrScreen({ navigation }) {
         {jumuah && (
           <Animated.View entering={FadeIn} style={styles.jumuah}>
             <Ionicons name="sparkles" size={14} color={M.textOnPrimary} />
-            <Text style={styles.jumuahText}>It's Jumu'ah — gifts come sooner today</Text>
+            <Text style={styles.jumuahText}>It's Jumu'ah — today's tenth costs half</Text>
           </Animated.View>
         )}
 
@@ -183,43 +193,69 @@ export default function DhikrScreen({ navigation }) {
         {/* Where this sitting stands */}
         <View style={styles.stats}>
           <Stat label="This sitting" value={live ? clock(now - (d.sittingStart || now)) : '0:00'} />
-          <Stat label="Today" value={String(d.dayCount || 0)} />
+          <Stat label="Today" value={String(prog.dayCount)} />
           <Stat label="Day streak" value={String(d.streak || 0)} />
         </View>
 
-        {/* The next gift, and how far off it is */}
-        <View style={styles.goal}>
+        {/* Today's tenth */}
+        <View style={[styles.goal, prog.capped && styles.goalDone]}>
           <View style={styles.goalHead}>
-            <View style={styles.goalIcon}><Ionicons name="gift" size={17} color={M.textOnPrimary} /></View>
+            <View style={styles.goalIcon}>
+              <Ionicons name={prog.capped ? 'checkmark' : 'today-outline'} size={17} color={M.textOnPrimary} />
+            </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.goalTitle}>
-                {nextMark ? `${nextMark - sitting} more for a gift` : 'Every gift in this sitting is earned'}
+                {prog.capped
+                  ? "Today's tenth is done"
+                  : `${prog.dayCount} of ${prog.dayTarget} today`}
               </Text>
               <Text style={styles.goalSub}>
-                {nextMark
-                  ? 'Keep the sitting going and choose a Rose, a Compliment or a Boost.'
-                  : 'Start a new sitting whenever you like — the milestones come back.'}
+                {prog.capped
+                  ? 'Keep counting if you like — it all adds to your total. The next tenth opens tomorrow.'
+                  : `${DAILY_POINT_CAP}% a day is the most anyone can earn, and today you're at ${prog.dayPoints}%.`}
               </Text>
             </View>
           </View>
           <View style={styles.bar}>
-            <View
-              style={[
-                styles.barFill,
-                { width: `${nextMark ? Math.min(100, (sitting / nextMark) * 100) : 100}%` },
-              ]}
-            />
+            <View style={[styles.barFill, { width: `${Math.min(100, (prog.dayCount / prog.dayTarget) * 100)}%` }]} />
+          </View>
+        </View>
+
+        {/* The long road: ten segments, one for each day's tenth */}
+        <View style={styles.goal}>
+          <View style={styles.goalHead}>
+            <View style={styles.goalIcon}><Ionicons name="gift" size={17} color={M.textOnPrimary} /></View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.goalTitle}>{prog.points}% toward a gift</Text>
+              <Text style={styles.goalSub}>
+                {prog.daysLeft > 0
+                  ? `At a full tenth a day, ${prog.daysLeft} more ${prog.daysLeft === 1 ? 'day' : 'days'} — then choose a Rose, a Compliment or a Boost.`
+                  : 'Claim it, and the next hundred starts from zero.'}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.segs}>
+            {[...Array(10)].map((_, i) => {
+              const fill = Math.min(1, Math.max(0, (prog.points - i * 10) / 10));
+              return (
+                <View key={i} style={styles.seg}>
+                  <View style={[styles.segFill, { width: `${fill * 100}%` }]} />
+                </View>
+              );
+            })}
           </View>
           <Text style={styles.marks}>
-            Gifts at {marks.join(', ')}{jumuah ? ' — lowered for Jumu\'ah' : ''}
+            {GIFT_POINTS * DHIKR_PER_POINT} dhikr in all · {DHIKR_PER_POINT} a point
+            {jumuah ? ` · ${prog.perPoint} today, it's Jumu'ah` : ''}
           </Text>
         </View>
 
         <View style={styles.note}>
           <Ionicons name="information-circle-outline" size={15} color={M.textSoft} />
           <Text style={styles.noteText}>
-            A sitting is an unbroken run. Put the phone down for five minutes and the next one starts from
-            zero — your day's count, your streak and your total all stay.
+            A gift can't be rushed. A tenth a day is the ceiling however long you sit, so it takes ten days at
+            the very least. Counting past the day's tenth is never blocked — it just goes to your total, your
+            streak and your own count, which is what the tasbih is for.
           </Text>
         </View>
 
@@ -230,12 +266,10 @@ export default function DhikrScreen({ navigation }) {
       <Modal visible={!!gift} transparent animationType="fade" onRequestClose={() => {}}>
         <View style={styles.sheetBg}>
           <Animated.View entering={FadeInUp} style={[styles.sheet, { paddingBottom: insets.bottom + 18 }]}>
-            <View style={styles.sheetIcon}><Ionicons name="gift" size={28} color={M.textOnPrimary} /></View>
-            <Text style={styles.sheetTitle}>
-              {gift ? `${gift.at} in one sitting` : ''}
-            </Text>
+            <RoseMark size={104} style={{ alignSelf: 'center' }} />
+            <Text style={styles.sheetTitle}>Five thousand, and ten days of them</Text>
             <Text style={styles.sheetSub}>
-              {gift && gift.jumuah ? 'On Jumu\'ah, at that. Choose your gift.' : 'Choose your gift.'}
+              {gift && gift.jumuah ? 'Finished on a Jumu\'ah, at that. Choose your gift.' : 'Choose your gift.'}
             </Text>
             {GIFTS.map((g) => (
               <Pressable key={g.key} onPress={() => take(g.key)} style={({ pressed }) => [styles.giftRow, pressed && { opacity: 0.7 }]}>
@@ -317,8 +351,13 @@ const styles = StyleSheet.create({
   goalIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: M.primary, alignItems: 'center', justifyContent: 'center' },
   goalTitle: { ...TYPE.h3, fontSize: 15 },
   goalSub: { ...TYPE.soft, fontSize: 12.5, marginTop: 2, lineHeight: 17 },
+  goalDone: { borderColor: M.primary },
   bar: { height: 7, borderRadius: 4, backgroundColor: M.border, marginTop: 14, overflow: 'hidden' },
   barFill: { height: '100%', borderRadius: 4, backgroundColor: M.primary },
+  // Ten blocks, one for each day's tenth — the shape of the rule.
+  segs: { flexDirection: 'row', gap: 4, marginTop: 14 },
+  seg: { flex: 1, height: 9, borderRadius: 3, backgroundColor: M.border, overflow: 'hidden' },
+  segFill: { height: '100%', borderRadius: 3, backgroundColor: M.primary },
   marks: { ...TYPE.caption, color: M.textMuted, marginTop: 8 },
 
   note: { flexDirection: 'row', gap: 8, marginHorizontal: SPACE.xl, marginTop: 16 },

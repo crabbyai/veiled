@@ -82,19 +82,22 @@ const initialState = {
   // Compliments: an opener that goes straight to her chat, before a
   // match. One a day is free; more are earned (see dhikr) or bought.
   compliments: 0,
-  // The tasbih. `sitting` is the run you're on right now — it ends when
-  // you put the phone down, and the gifts are for keeping it going.
+  // The tasbih. `sitting` is the run you're on right now; `banked` and
+  // `dayPoints` are the slow part — progress toward a gift, which is
+  // capped at a tenth a day so it can only ever be earned over time.
   dhikr: {
     total: 0,          // every dhikr ever counted here
-    day: '',           // toDateString of dayCount
+    day: '',           // toDateString of dayCount / dayPoints
     dayCount: 0,
+    dayPoints: 0,      // points earned today, never above DAILY_POINT_CAP
+    banked: 0,         // points carried over from previous days
     sitting: 0,        // count in the current unbroken sitting
     sittingStart: 0,
     lastTs: 0,
-    claimed: [],       // milestones already rewarded in this sitting
     streak: 0,         // consecutive days with any dhikr
     lastDay: '',
     gift: null,        // an earned gift waiting to be chosen
+    giftsEarned: 0,
   },
 };
 
@@ -122,18 +125,49 @@ function mergeSaved(defaults, saved) {
 }
 
 // ── The tasbih ──────────────────────────────────────────────────────
-// A sitting is an unbroken run of dhikr. Put the phone down for longer
-// than this and the next one starts fresh — the gifts are for keeping
-// it going, not for a hundred taps spread over a week.
+// A sitting is an unbroken run of dhikr — used for the timer on screen.
 export const SITTING_GAP_MS = 5 * 60000;
-export const DHIKR_MILESTONES = [100, 300, 700];
-// Jumu'ah is the day for it, so the milestones come sooner.
-export const JUMUAH_MILESTONES = [66, 200, 500];
+
+// Progress toward a gift is measured in points out of a hundred, and
+// no more than a tenth of it can be earned in one day. A gift is
+// therefore ten days of turning up at the very least — it cannot be
+// rushed in an evening, however long you sit.
+export const DHIKR_PER_POINT = 50;    // 50 dhikr earns one point
+export const DAILY_POINT_CAP = 10;    // …and ten points is the day's lot
+export const GIFT_POINTS = 100;       // 5,000 dhikr over 10 days or more
+// Jumu'ah is the day for it, so it counts double — the cap is the same,
+// it just takes half the dhikr to fill.
+export const JUMUAH_BONUS = 2;
+
 // Device-local Friday. The Islamic day turns at Maghrib, but a rule
 // people can predict beats a rule that is technically righter, and the
 // screen says plainly which day it means.
 export const isJumuah = (d = new Date()) => d.getDay() === 5;
-export const milestonesFor = (d = new Date()) => (isJumuah(d) ? JUMUAH_MILESTONES : DHIKR_MILESTONES);
+export const dhikrPerPoint = (d = new Date()) => DHIKR_PER_POINT / (isJumuah(d) ? JUMUAH_BONUS : 1);
+
+// Everything the tasbih screen needs to describe where you are, derived
+// in one place so the screen and the store can't disagree about it.
+export function dhikrProgress(d) {
+  const today = new Date().toDateString();
+  const fresh = !d || d.day !== today;
+  const perPoint = dhikrPerPoint();
+  const dayCount = fresh ? 0 : d.dayCount || 0;
+  const banked = ((d && d.banked) || 0) + (fresh ? (d && d.dayPoints) || 0 : 0);
+  const dayPoints = Math.min(DAILY_POINT_CAP, Math.floor(dayCount / perPoint));
+  const points = Math.min(GIFT_POINTS, banked + dayPoints);
+  const capped = dayPoints >= DAILY_POINT_CAP;
+  return {
+    perPoint,
+    dayCount,
+    dayPoints,
+    points,
+    capped,
+    // What today still has room for, and what's left overall.
+    dayTarget: DAILY_POINT_CAP * perPoint,
+    toNextPoint: capped ? 0 : perPoint - (dayCount % perPoint),
+    daysLeft: Math.ceil((GIFT_POINTS - points) / DAILY_POINT_CAP),
+  };
+}
 
 export function MuzzProvider({ children }) {
   const [state, setState] = useState(initialState);
@@ -653,52 +687,69 @@ export function MuzzProvider({ children }) {
   }, [update]);
 
   // ── Dhikr ──────────────────────────────────────────────────────────
-  // Count one (or a few). Returns the milestone this tap reached, if it
-  // reached one, so the screen can celebrate at the right moment.
+  // Count one (or a few). Returns true when this tap completed a gift,
+  // so the screen can celebrate at the right moment.
+  //
+  // The count itself is never refused. Once the day's tenth is full the
+  // tasbih keeps counting — it just stops moving the gift along. A
+  // counter that locks you out of dhikr would have the whole thing
+  // backwards.
   const addDhikr = useCallback((n = 1) => {
     const now = Date.now();
     const today = new Date().toDateString();
-    let earned = null;
+    let earned = false;
     update((s) => {
       const d = s.dhikr || initialState.dhikr;
       const broke = !d.lastTs || now - d.lastTs > SITTING_GAP_MS;
-      const sitting = (broke ? 0 : d.sitting || 0) + n;
-      const claimed = broke ? [] : (d.claimed || []);
-      const marks = milestonesFor();
-      const hit = marks.find((m) => sitting >= m && !claimed.includes(m));
-      if (hit) earned = hit;
+      const rolled = d.day !== today;
+
+      // Yesterday's points are banked the first time you count today.
+      const banked = (d.banked || 0) + (rolled ? d.dayPoints || 0 : 0);
+      const dayCount = (rolled ? 0 : d.dayCount || 0) + n;
+      const perPoint = dhikrPerPoint();
+      const dayPoints = Math.min(DAILY_POINT_CAP, Math.floor(dayCount / perPoint));
+
+      // A gift lands when the hundred is complete, and only one waits at
+      // a time. The hundred is spent when it is earned, not when it is
+      // claimed, so the next one starts from zero.
+      const total = banked + dayPoints;
+      const hit = total >= GIFT_POINTS && !d.gift;
+      if (hit) earned = true;
+
       // A day's streak counts a day you turned up, not a target you hit.
       const yesterday = new Date(Date.now() - 86400000).toDateString();
       const streak = d.lastDay === today ? (d.streak || 1)
         : d.lastDay === yesterday ? (d.streak || 0) + 1
           : 1;
+
       return {
         ...s,
         dhikr: {
           ...d,
           total: (d.total || 0) + n,
           day: today,
-          dayCount: (d.day === today ? d.dayCount || 0 : 0) + n,
-          sitting,
+          dayCount,
+          dayPoints,
+          banked: hit ? banked - GIFT_POINTS : banked,
+          sitting: (broke ? 0 : d.sitting || 0) + n,
           sittingStart: broke ? now : d.sittingStart || now,
           lastTs: now,
-          claimed: hit ? [...claimed, hit] : claimed,
           streak,
           lastDay: today,
-          // Only one gift waits at a time — claim it before the next.
-          gift: hit && !d.gift ? { at: hit, jumuah: isJumuah(), ts: now } : d.gift,
+          gift: hit ? { jumuah: isJumuah(), ts: now } : d.gift,
+          giftsEarned: (d.giftsEarned || 0) + (hit ? 1 : 0),
         },
       };
     });
     return earned;
   }, [update]);
 
-  // Start the count again from zero. Only the sitting resets; the day's
-  // total, the streak and the lifetime count are yours.
+  // Start the tally again from zero. Only the sitting resets: the day's
+  // count, your progress, the streak and the lifetime total are yours.
   const resetDhikr = useCallback(() => {
     update((s) => ({
       ...s,
-      dhikr: { ...(s.dhikr || initialState.dhikr), sitting: 0, sittingStart: Date.now(), lastTs: Date.now(), claimed: [] },
+      dhikr: { ...(s.dhikr || initialState.dhikr), sitting: 0, sittingStart: Date.now(), lastTs: Date.now() },
     }));
   }, [update]);
 

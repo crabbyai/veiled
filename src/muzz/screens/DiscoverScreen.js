@@ -18,7 +18,7 @@ import { PhotoTile, Verified, GButton, VeilBadge } from '../components/ui';
 import { AnswerSheet } from '../components/CompatQuestion';
 import Stories from '../components/Stories';
 import { VeiledMark } from '../components/VeiledMark';
-import { RoseGrow, PetalFall } from '../components/RoseBloom';
+import { RoseGrow, PetalFall, RoseMark } from '../components/RoseBloom';
 import PrayerBar from '../components/PrayerBar';
 import * as H from '../haptics';
 
@@ -47,6 +47,11 @@ const CARD_W = width - SPACE.lg * 2;
 // Whether the card is showing her face or standing in for it. The rose
 // animation and the card note both key off this.
 const isFaceless = (p, idx = 0) => !!p.photoVeiled || !(p.photos && p.photos[idx]);
+
+// The rose is drawn over a photo here, so the line has to be the light
+// one — its usual near-black would vanish into a dark card.
+const DECK_INK = '#FFF1E8';
+const DECK_FILL = '#B3243F';
 
 // Muzz-style discovery: a full-screen card stack with circular action
 // buttons. The AI butterfly pre-sorts the deck by compatibility, so the
@@ -455,9 +460,9 @@ export default function DiscoverScreen({ navigation }) {
         {bloom ? (
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
             {bloom.faceless ? (
-              <RoseGrow style={styles.bloomBeside} onDone={finishRose} />
+              <RoseGrow style={styles.bloomBeside} ink={DECK_INK} fill={DECK_FILL} onDone={finishRose} />
             ) : (
-              <PetalFall width={deckSize.w} height={deckSize.h} onDone={finishRose} />
+              <PetalFall width={deckSize.w} height={deckSize.h} ink={DECK_INK} fill={DECK_FILL} onDone={finishRose} />
             )}
           </View>
         ) : null}
@@ -497,7 +502,7 @@ export default function DiscoverScreen({ navigation }) {
       <Modal visible={!!superTarget} transparent animationType="fade" onRequestClose={() => setSuperTarget(null)}>
         <Pressable style={styles.sheetBg} onPress={() => setSuperTarget(null)}>
           <Animated.View entering={FadeInUp} style={[styles.sheet, { paddingBottom: insets.bottom + 18 }]}>
-            <View style={[styles.superIcon, { backgroundColor: M.rose }]}><Ionicons name="rose" size={28} color="#fff" /></View>
+            <RoseMark size={92} />
             <Text style={styles.sheetTitle}>Send {superTarget?.name} a Rose</Text>
             <Text style={styles.sheetSub}>A Rose reaches her first and says you mean it. Add a note if you'd like.</Text>
             <TextInput
@@ -750,5 +755,5 @@ const styles = StyleSheet.create({
   roseStampText: { color: '#fff', fontSize: 17, fontWeight: '900', letterSpacing: 1.5 },
   // The empty side of a veiled card. The drawing anchors to the bottom
   // of this box, which puts the flower head level with her face.
-  bloomBeside: { position: 'absolute', right: 10, top: '22%', height: '60%', width: 132 },
+  bloomBeside: { position: 'absolute', right: 12, top: '12%', height: '58%', width: 132 },
 });
