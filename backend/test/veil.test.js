@@ -2,12 +2,41 @@
 // withheld from everyone until she unveils it for a specific match, and
 // nothing — not time, not his asking — reveals it on her behalf.
 //
-//   node backend/test/veil.test.js   (needs the API running on :3000)
-const API='http://localhost:3000/api';
-const api=async(p,{method='GET',body,token}={})=>{const r=await fetch(`${API}${p}`,{method,headers:{...(body?{'Content-Type':'application/json'}:{}),...(token?{Authorization:`Bearer ${token}`}:{})},...(body?{body:JSON.stringify(body)}:{})});const j=await r.json().catch(()=>({}));return {status:r.status, body:j};};
+//   node backend/test/veil.test.js     (exits non-zero on failure)
+//
+// Self-contained: it brings up the real Express app on a free port
+// against a throwaway SQLite file, so it needs no dev server running.
+const os=require('os');
+const path=require('path');
+const http=require('http');
+
+process.env.DB_PATH=path.join(os.tmpdir(),`veiled-veil-test-${process.pid}.db`);
+process.env.JWT_SECRET='test-secret-for-the-veil-0123456789';
+process.env.NODE_ENV='test';
+process.env.PORT='0';   // server.js listens on import; keep it off :3000
+require('fs').rmSync(process.env.DB_PATH,{force:true});
+process.on('exit',()=>require('fs').rmSync(process.env.DB_PATH,{force:true}));
+
+const app=require('../server.js');
+
+let API;
+const api=(p,{method='GET',body,token}={})=>new Promise((resolve,reject)=>{
+  const data=body?JSON.stringify(body):null;
+  const r=http.request(`${API}${p}`,{method,headers:{...(data?{'Content-Type':'application/json','Content-Length':Buffer.byteLength(data)}:{}),...(token?{Authorization:`Bearer ${token}`}:{})}},(res)=>{
+    let buf='';
+    res.on('data',(c)=>{buf+=c;});
+    res.on('end',()=>{let j=null;try{j=JSON.parse(buf);}catch{j={};}resolve({status:res.statusCode,body:j});});
+  });
+  r.on('error',reject);
+  if(data)r.write(data);
+  r.end();
+});
 let pass=0,fail=0;
 const ok=(n,c,x)=>{ if(c){pass++;console.log('  ✓',n);} else {fail++;console.log('  ✗',n, x!==undefined?JSON.stringify(x).slice(0,200):'');} };
 (async()=>{
+  const server=http.createServer(app).listen(0);
+  await new Promise((r)=>server.once('listening',r));
+  API=`http://127.0.0.1:${server.address().port}/api`;
   const mk=async(name,profile)=>{
     const r=await api('/auth/register',{method:'POST',body:{email:`${name}${Date.now()}@v.test`,password:'Passw0rd!test',displayName:name}});
     const token=r.body.token;
@@ -67,5 +96,6 @@ const ok=(n,c,x)=>{ if(c){pass++;console.log('  ✓',n);} else {fail++;console.l
   ok('withheld from him', asStranger && asStranger.unveiledPhoto===null, asStranger && asStranger.unveiledPhoto);
 
   console.log(`\n${pass} passed, ${fail} failed`);
+  server.close();
   process.exit(fail?1:0);
 })().catch(e=>{console.error('FATAL',e.message);process.exit(1);});

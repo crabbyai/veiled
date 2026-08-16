@@ -1,11 +1,15 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, Pressable, Dimensions, TextInput, Modal, Share,
-  KeyboardAvoidingView, Platform, RefreshControl, ScrollView, ActivityIndicator,
+  KeyboardAvoidingView, Platform, RefreshControl, ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  FadeInDown, FadeIn, useSharedValue, useAnimatedStyle, useAnimatedScrollHandler,
+  withTiming, withSequence, withSpring, withRepeat, withDelay, interpolate, runOnJS, Easing,
+} from 'react-native-reanimated';
 import { M, RADIUS, SPACE, SHADOW, TYPE } from '../theme';
 import { useMuzz } from '../store';
 import { PhotoTile, Verified, Avatar } from '../components/ui';
@@ -14,6 +18,7 @@ import * as api from '../api';
 import * as H from '../haptics';
 
 const { width } = Dimensions.get('window');
+const AnimatedFlatList = Animated.FlatList;
 
 function timeAgo(ts) {
   const m = Math.floor((Date.now() - ts) / 60000);
@@ -38,6 +43,7 @@ export default function SocialScreen({ navigation }) {
   const [tag, setTag] = useState('All');
   const [composeOpen, setComposeOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const list = useRef(null);
 
   React.useEffect(() => { refreshPosts(); }, []);
 
@@ -48,14 +54,52 @@ export default function SocialScreen({ navigation }) {
   }, [refreshPosts]);
 
   const filtered = tag === 'All' ? posts : posts.filter((p) => p.tag === tag);
+  const toTop = () => list.current?.scrollToOffset?.({ offset: 0, animated: true });
+
+  // The header gives its second line back to the feed as you scroll, and
+  // takes on an edge so the list has something to slide under.
+  const scrollY = useSharedValue(0);
+  const onScroll = useAnimatedScrollHandler((e) => { scrollY.value = e.contentOffset.y; });
+  const collapse = (v) => {
+    'worklet';
+    return Math.min(1, Math.max(0, v / 56));
+  };
+  const subStyle = useAnimatedStyle(() => {
+    const p = collapse(scrollY.value);
+    return { opacity: 1 - Math.min(1, p * 1.8), height: 15 * (1 - p), marginTop: 1 - p };
+  });
+  const headStyle = useAnimatedStyle(() => {
+    const p = collapse(scrollY.value);
+    return {
+      paddingBottom: 10 - p * 4,
+      borderBottomColor: M.border,
+      borderBottomWidth: p > 0.5 ? StyleSheet.hairlineWidth : 0,
+    };
+  });
+
+  const onPost = useCallback(async (payload) => {
+    const res = await addPost(payload);
+    if (res && res.ok) { setTag('All'); setTimeout(toTop, 60); }
+    return res;
+  }, [addPost]);
+
+  const renderPost = useCallback(({ item, index }) => (
+    <PostCard
+      p={item}
+      index={index}
+      liked={!!postLikes[item.id]}
+      onLike={() => togglePostLike(item.id)}
+      onOpen={() => navigation.navigate('MuzzPost', { postId: item.id })}
+    />
+  ), [postLikes, togglePostLike, navigation]);
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <View>
+      <Animated.View style={[styles.header, { paddingTop: insets.top + 8 }, headStyle]}>
+        <Pressable onPress={() => { H.tap(); toTop(); }} hitSlop={6}>
           <Text style={styles.title}>Social</Text>
-          <Text style={styles.subtitle}>The community</Text>
-        </View>
+          <Animated.Text numberOfLines={1} style={[styles.subtitle, subStyle]}>The community</Animated.Text>
+        </Pressable>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Pressable onPress={() => { H.tap(); navigation.navigate('MuzzEvents'); }} style={styles.eventsBtn}>
             <Ionicons name="calendar-outline" size={18} color={M.text} />
@@ -66,24 +110,33 @@ export default function SocialScreen({ navigation }) {
             <Text style={styles.composeText}>Post</Text>
           </Pressable>
         </View>
-      </View>
+      </Animated.View>
 
       <View style={styles.tagBarWrap}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: SPACE.xl, gap: 8, paddingVertical: 10 }}>
           {TAGS.map((t) => (
-            <Pressable key={t} onPress={() => { setTag(t); H.select(); }} style={[styles.tag, tag === t && styles.tagOn]}>
+            <Pressable key={t} onPress={() => { setTag(t); H.select(); toTop(); }} style={[styles.tag, tag === t && styles.tagOn]}>
               <Text style={[styles.tagText, tag === t && { color: M.textOnPrimary }]}>{t}</Text>
             </Pressable>
           ))}
         </ScrollView>
       </View>
 
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 120, flexGrow: 1 }}
+      <AnimatedFlatList
+        ref={list}
+        data={filtered}
+        keyExtractor={(p) => String(p.id)}
+        renderItem={renderPost}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 120, flexGrow: 1 }}
+        removeClippedSubviews={Platform.OS !== 'web'}
+        initialNumToRender={6}
+        windowSize={9}
+        keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={M.textSoft} />}
-      >
-        {filtered.length === 0 ? (
+        ListEmptyComponent={
           <Empty
             loading={loadingPosts && !refreshing}
             error={postsError}
@@ -93,25 +146,14 @@ export default function SocialScreen({ navigation }) {
             onWrite={() => { H.tap(); setComposeOpen(true); }}
             onClearFilter={() => setTag('All')}
           />
-        ) : (
-          filtered.map((p, i) => (
-            <PostCard
-              key={p.id}
-              p={p}
-              index={i}
-              liked={!!postLikes[p.id]}
-              onLike={() => { togglePostLike(p.id); H.tap(); }}
-              onOpen={() => navigation.navigate('MuzzPost', { postId: p.id })}
-            />
-          ))
-        )}
-      </ScrollView>
+        }
+      />
 
       <Composer
         visible={composeOpen}
         me={me}
         onClose={() => setComposeOpen(false)}
-        onPost={addPost}
+        onPost={onPost}
       />
     </View>
   );
@@ -120,11 +162,12 @@ export default function SocialScreen({ navigation }) {
 // Say which empty this is. "Nothing here" over a failed request is the
 // kind of thing that makes an app feel broken.
 function Empty({ loading, error, hasBackend, filtered, onRetry, onWrite, onClearFilter }) {
+  // While it's loading, show the shape of the thing that's coming
+  // rather than a spinner on a blank screen.
   if (loading) {
     return (
-      <View style={styles.empty}>
-        <ActivityIndicator color={M.textSoft} />
-        <Text style={styles.emptySub}>Loading the community…</Text>
+      <View style={{ paddingTop: 8 }}>
+        {[0, 1, 2].map((i) => <Skeleton key={i} index={i} />)}
       </View>
     );
   }
@@ -160,6 +203,29 @@ function Empty({ loading, error, hasBackend, filtered, onRetry, onWrite, onClear
   );
 }
 
+// A post-shaped placeholder, breathing gently.
+function Skeleton({ index }) {
+  const t = useSharedValue(0);
+  React.useEffect(() => {
+    t.value = withDelay(index * 140, withRepeat(withTiming(1, { duration: 900, easing: Easing.inOut(Easing.quad) }), -1, true));
+  }, []);
+  const style = useAnimatedStyle(() => ({ opacity: 0.35 + t.value * 0.35 }));
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardHead}>
+        <Animated.View style={[styles.skAvatar, style]} />
+        <View style={{ flex: 1, marginLeft: 10, gap: 6 }}>
+          <Animated.View style={[styles.skLine, { width: '38%' }, style]} />
+          <Animated.View style={[styles.skLine, { width: '22%', height: 9 }, style]} />
+        </View>
+      </View>
+      <Animated.View style={[styles.skLine, { width: '96%', marginTop: 14 }, style]} />
+      <Animated.View style={[styles.skLine, { width: '82%', marginTop: 8 }, style]} />
+      <Animated.View style={[styles.skLine, { width: '60%', marginTop: 8 }, style]} />
+    </View>
+  );
+}
+
 // The composer. It waits for the server, says what went wrong, and keeps
 // what you wrote if it fails — losing someone's words to a dropped
 // connection is unforgivable.
@@ -176,6 +242,7 @@ function Composer({ visible, me, onClose, onPost }) {
   }, [visible]);
 
   const ready = draft.trim().length > 0 && !posting;
+  const left = MAX_POST - draft.length;
 
   const submit = async () => {
     if (!ready) return;
@@ -224,12 +291,12 @@ function Composer({ visible, me, onClose, onPost }) {
               </View>
 
               {image ? (
-                <View style={styles.attached}>
+                <Animated.View entering={FadeIn} style={styles.attached}>
                   <PhotoTile uri={api.mediaUrl(image)} seed={image} rounded={RADIUS.md} style={styles.attachedImg} />
                   <Pressable onPress={() => setImage(null)} style={styles.attachedX} hitSlop={6}>
                     <Ionicons name="close" size={16} color="#fff" />
                   </Pressable>
-                </View>
+                </Animated.View>
               ) : null}
 
               <Text style={styles.pickLabel}>Tag</Text>
@@ -243,10 +310,10 @@ function Composer({ visible, me, onClose, onPost }) {
             </ScrollView>
 
             {error ? (
-              <View style={styles.errorRow}>
+              <Animated.View entering={FadeInDown} style={styles.errorRow}>
                 <Ionicons name="alert-circle" size={15} color={M.danger} />
                 <Text style={styles.errorText}>{error}</Text>
-              </View>
+              </Animated.View>
             ) : null}
 
             <View style={styles.composerBar}>
@@ -254,7 +321,9 @@ function Composer({ visible, me, onClose, onPost }) {
                 <Ionicons name="image-outline" size={22} color={M.primary} />
                 <Text style={styles.attachText}>{image ? 'Change photo' : 'Add a photo'}</Text>
               </Pressable>
-              <Text style={styles.count}>{draft.length}/{MAX_POST}</Text>
+              <Text style={[styles.count, left < 100 && { color: left < 0 ? M.danger : M.textSoft }]}>
+                {left < 100 ? left : `${draft.length}/${MAX_POST}`}
+              </Text>
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -264,8 +333,53 @@ function Composer({ visible, me, onClose, onPost }) {
 }
 
 function PostCard({ p, index, liked, onLike, onOpen }) {
+  // The heart on the button, and the big one that flashes over a
+  // double-tap. Both come off the same like.
+  const pop = useSharedValue(0);
+  const burst = useSharedValue(0);
+
+  const like = useCallback((viaTap) => {
+    // A double-tap only ever likes. Taking a like away by accident on
+    // the second tap of an enthusiastic one is a bad surprise — the
+    // button is there for unliking.
+    if (viaTap) {
+      burst.value = 0;
+      burst.value = withTiming(1, { duration: 780, easing: Easing.out(Easing.cubic) });
+      if (liked) { H.tap(); return; }
+    }
+    onLike();
+    H.tap();
+    pop.value = withSequence(
+      withTiming(1, { duration: 110, easing: Easing.out(Easing.quad) }),
+      withSpring(0, { damping: 11, stiffness: 240 })
+    );
+  }, [onLike, liked]);
+
+  // Double-tap likes; a single tap opens it. Exclusive so one tap never
+  // fires both.
+  const dbl = Gesture.Tap().numberOfTaps(2).maxDelay(260).onEnd((_e, ok) => {
+    if (ok) runOnJS(like)(true);
+  });
+  const single = Gesture.Tap().onEnd((_e, ok) => { if (ok) runOnJS(onOpen)(); });
+  const taps = Gesture.Exclusive(dbl, single);
+
+  const heartStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + pop.value * 0.45 }],
+  }));
+  const burstStyle = useAnimatedStyle(() => {
+    const b = burst.value;
+    if (b === 0 || b === 1) return { opacity: 0 };
+    return {
+      opacity: interpolate(b, [0, 0.15, 0.6, 1], [0, 1, 1, 0]),
+      transform: [
+        { scale: interpolate(b, [0, 0.2, 0.5, 1], [0.4, 1.25, 1, 1.35]) },
+        { rotate: `${interpolate(b, [0, 0.25], [-18, 0], 'clamp')}deg` },
+      ],
+    };
+  });
+
   return (
-    <Animated.View entering={FadeInDown.delay((index % 6) * 40)} style={styles.card}>
+    <Animated.View entering={FadeInDown.delay(Math.min(index, 5) * 40).duration(260)} style={styles.card}>
       <View style={styles.cardHead}>
         <Avatar name={p.authorName} seed={p.authorId} size={42} />
         <View style={{ flex: 1, marginLeft: 10 }}>
@@ -277,21 +391,31 @@ function PostCard({ p, index, liked, onLike, onOpen }) {
         </View>
       </View>
 
-      <Pressable onPress={onOpen}>
-        <Text style={styles.postText}>{p.text}</Text>
-      </Pressable>
+      <GestureDetector gesture={taps}>
+        <View>
+          <Text style={styles.postText}>{p.text}</Text>
 
-      {/* Only a real uploaded photo renders — no decorative stand-in
-          dressed up as one. */}
-      {p.imageSeed ? (
-        <Pressable onPress={onOpen}>
-          <PhotoTile uri={api.mediaUrl(p.imageSeed)} seed={String(p.id)} rounded={RADIUS.md} style={styles.postImage} />
-        </Pressable>
-      ) : null}
+          {/* Only a real uploaded photo renders — no decorative stand-in
+              dressed up as one. */}
+          {p.imageSeed ? (
+            <PhotoTile uri={api.mediaUrl(p.imageSeed)} seed={String(p.id)} rounded={RADIUS.md} style={styles.postImage} />
+          ) : null}
+
+          {/* Two hearts: the larger one in the background colour gives
+              the front one an edge, so it reads over a photo and over
+              the card alike. */}
+          <Animated.View style={[styles.burst, burstStyle]} pointerEvents="none">
+            <Ionicons name="heart" size={94} color={M.bg} style={styles.burstHalo} />
+            <Ionicons name="heart" size={82} color={M.primary} />
+          </Animated.View>
+        </View>
+      </GestureDetector>
 
       <View style={styles.cardActions}>
-        <Pressable onPress={onLike} style={styles.action} hitSlop={6}>
-          <Ionicons name={liked ? 'heart' : 'heart-outline'} size={22} color={liked ? M.primary : M.textSoft} />
+        <Pressable onPress={() => like(false)} style={styles.action} hitSlop={6}>
+          <Animated.View style={heartStyle}>
+            <Ionicons name={liked ? 'heart' : 'heart-outline'} size={22} color={liked ? M.primary : M.textSoft} />
+          </Animated.View>
           <Text style={[styles.actionText, liked && { color: M.primary }]}>{p.likes || 0}</Text>
         </Pressable>
         <Pressable onPress={onOpen} style={styles.action} hitSlop={6}>
@@ -329,9 +453,14 @@ const styles = StyleSheet.create({
   cardTime: { ...TYPE.caption, marginTop: 1 },
   postText: { ...TYPE.body, fontSize: 15.5, lineHeight: 22, marginTop: 12 },
   postImage: { height: width * 0.62, marginTop: 14 },
+  burst: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  burstHalo: { position: 'absolute' },
   cardActions: { flexDirection: 'row', alignItems: 'center', gap: 26, marginTop: 14 },
   action: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   actionText: { ...TYPE.soft, fontWeight: '700' },
+
+  skAvatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: M.bgSoft },
+  skLine: { height: 12, borderRadius: 6, backgroundColor: M.bgSoft },
 
   empty: { alignItems: 'center', justifyContent: 'center', flex: 1, paddingHorizontal: SPACE.xxl, paddingTop: 60, gap: 4 },
   emptyIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: M.bgSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },

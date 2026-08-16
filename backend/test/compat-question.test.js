@@ -62,8 +62,11 @@ const check = (name, cond, extra) => {
     return { token, id: put.body.profile.id };
   };
 
+  // She needs the reserved unveiled photo like any other woman — the
+  // profile endpoint refuses to save without one.
   const aisha = await mk('aisha@test.local', {
     name: 'Aisha', age: 27, gender: 'Woman', veil: 'Niqab', city: 'London',
+    unveiledPhoto: '/uploads/aisha-unveiled.jpg',
     compatQuestion: 'How do you want to raise your children in deen?',
   });
   const yusuf = await mk('yusuf@test.local', { name: 'Yusuf', age: 29, gender: 'Man', city: 'London' });
@@ -124,14 +127,14 @@ const check = (name, cond, extra) => {
   check('pass goes through', passed.status === 200, passed);
 
   console.log('\nNo question set means no gate');
-  const noQ = await mk('sumayya@test.local', { name: 'Sumayya', age: 26, gender: 'Woman', veil: 'Hijab', city: 'London' });
+  const noQ = await mk('sumayya@test.local', { name: 'Sumayya', age: 26, gender: 'Woman', veil: 'Hijab', city: 'London', unveiledPhoto: '/uploads/sumayya-unveiled.jpg' });
   const free = await req('POST', '/dating/swipe', { token: yusuf.token, body: { targetId: noQ.id, action: 'like' } });
   check('like without an answer is fine', free.status === 200, free);
 
   console.log('\nRemoving the question re-opens likes');
   await req('PUT', '/dating/profile', {
     token: aisha.token,
-    body: { name: 'Aisha', age: 27, gender: 'Woman', veil: 'Niqab', city: 'London', compatQuestion: null },
+    body: { name: 'Aisha', age: 27, gender: 'Woman', veil: 'Niqab', city: 'London', unveiledPhoto: '/uploads/aisha-unveiled.jpg', compatQuestion: null },
   });
   const hamza = await mk('hamza@test.local', { name: 'Hamza', age: 28, gender: 'Man', city: 'London' });
   const after = await req('POST', '/dating/swipe', { token: hamza.token, body: { targetId: aisha.id, action: 'like' } });
