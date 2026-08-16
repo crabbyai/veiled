@@ -34,6 +34,7 @@ import PostScreen from './screens/PostScreen';
 import VerifyScreen from './screens/VerifyScreen';
 import EventsScreen from './screens/EventsScreen';
 import DhikrScreen from './screens/DhikrScreen';
+import IncomingCall from './components/IncomingCall';
 import VoiceMatchScreen from './screens/VoiceMatchScreen';
 
 const Stack = createNativeStackNavigator();
@@ -135,6 +136,7 @@ function MuzzTabs({ navigation, route }) {
 
 function Root() {
   const { hydrated, onboarded, authed } = useMuzz();
+  const navRef = React.useRef(null);
   // `authed` is null while the stored session is being read — hold here
   // rather than flashing the sign-in screen at someone already signed
   // in. Show the mark while holding: a plain empty screen is
@@ -146,8 +148,8 @@ function Root() {
       </View>
     );
   }
-  return (
-    <NavigationContainer>
+  const tree = (
+    <NavigationContainer ref={navRef}>
       <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right', contentStyle: { backgroundColor: M.bg } }}>
         {!authed ? (
           <Stack.Screen name="MuzzAuth" component={AuthScreen} />
@@ -175,6 +177,16 @@ function Root() {
         )}
       </Stack.Navigator>
     </NavigationContainer>
+  );
+
+  // A call can arrive on any screen, so the announcer sits beside the
+  // navigator rather than inside a screen — and outside the container,
+  // which takes exactly one child.
+  return (
+    <View style={{ flex: 1 }}>
+      {tree}
+      {authed ? <IncomingCall navRef={navRef} /> : null}
+    </View>
   );
 }
 

@@ -38,7 +38,9 @@
         ],
         "UIBackgroundModes": [
           "fetch",
-          "remote-notification"
+          "remote-notification",
+          "audio",
+          "voip"
         ]
       },
       "config": {
@@ -99,7 +101,10 @@
         "USE_FINGERPRINT",
         "INTERNET",
         "ACCESS_NETWORK_STATE",
-        "RECORD_AUDIO"
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS",
+        "BLUETOOTH",
+        "FOREGROUND_SERVICE"
       ],
       "blockedPermissions": [
         "ACCESS_FINE_LOCATION",
@@ -194,6 +199,13 @@
           "ios": {
             "deploymentTarget": "15.1"
           }
+        }
+      ],
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "Allow Veiled to use your camera so you can make video calls.",
+          "microphonePermission": "Allow Veiled to use your microphone so you can call and send voice notes."
         }
       ]
     ],

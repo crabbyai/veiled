@@ -335,3 +335,32 @@ Adeel
       three bracketed spots
 - [ ] Test account in the notes actually signs in
 - [ ] Resolution Center reply sent with the recording attached
+
+## Calls, voice notes and photo messages (added after the last submission)
+
+Three things that used to be pictures of features are now the features.
+
+**Voice notes** record through the microphone (expo-audio), upload, and
+play back with their real length. `NSMicrophoneUsageDescription` is
+declared again — it was removed when the microphone was declared but
+unused, which is the 2.1 issue; it is genuinely used now.
+
+**Photo messages** attach from the library and send as a typed message.
+
+**Calls** are real WebRTC (react-native-webrtc), audio and video, between
+two matched members. Media is peer-to-peer; our server only relays the
+offer, answer and ICE candidates, and refuses to relay anything between
+two people who are not matched.
+
+### What a reviewer needs to know
+
+* Calls and voice notes need a full build. They do not run in Expo Go or
+  the web preview, and the app hides both rather than offering a control
+  that cannot work.
+* Calling needs two accounts, both signed in and matched, on two
+  devices — a call cannot be demonstrated on one device.
+* **TURN is required in production.** STUN alone connects most calls on
+  ordinary home wifi, but symmetric NAT and some mobile carriers need a
+  relay. Set `EXPO_PUBLIC_TURN_URL`, `EXPO_PUBLIC_TURN_USERNAME` and
+  `EXPO_PUBLIC_TURN_PASSWORD` before release, or a share of calls will
+  ring, negotiate and then connect to silence.

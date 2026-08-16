@@ -15,6 +15,7 @@ import { PhotoTile, Verified } from '../components/ui';
 import { pickAndUpload } from '../photos';
 import * as api from '../api';
 import { mediaUrl } from '../api';
+import { canCall } from '../calls';
 import {
   canRecord, requestPermission, beginSession, endSession,
   RECORDING_PRESET, fileInfoFor, formatDuration, MAX_MS,
@@ -242,10 +243,27 @@ export default function ChatScreen({ route, navigation }) {
           </View>
         </Pressable>
         <View style={{ flexDirection: 'row', gap: 2 }}>
-          {SIMULATED_FEATURES && (
+          {/* Calls are real now, so they're offered wherever they can
+              actually be placed — which is a full build, not the web
+              preview or Expo Go. */}
+          {canCall() && (
             <>
-              <Pressable style={styles.hBtn} onPress={() => navigation.navigate('MuzzCall', { personId, video: false })}><Ionicons name="call-outline" size={21} color={M.primary} /></Pressable>
-              <Pressable style={styles.hBtn} onPress={() => navigation.navigate('MuzzCall', { personId, video: true })}><Ionicons name="videocam-outline" size={23} color={M.primary} /></Pressable>
+              <Pressable
+                style={styles.hBtn}
+                accessibilityRole="button"
+                accessibilityLabel={`Call ${person.name}`}
+                onPress={() => { H.tap(); navigation.navigate('MuzzCall', { personId, video: false }); }}
+              >
+                <Ionicons name="call-outline" size={21} color={M.primary} />
+              </Pressable>
+              <Pressable
+                style={styles.hBtn}
+                accessibilityRole="button"
+                accessibilityLabel={`Video call ${person.name}`}
+                onPress={() => { H.tap(); navigation.navigate('MuzzCall', { personId, video: true }); }}
+              >
+                <Ionicons name="videocam-outline" size={23} color={M.primary} />
+              </Pressable>
             </>
           )}
           <Pressable style={styles.hBtn} onPress={() => { H.tap(); setMenuOpen(true); }}><Ionicons name="ellipsis-vertical" size={20} color={M.text} /></Pressable>
