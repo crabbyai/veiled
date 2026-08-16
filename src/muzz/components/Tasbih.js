@@ -33,6 +33,7 @@ export default function Tasbih({ count = 0, size = 286, children }) {
   // strand backwards.
   const rot = useSharedValue(0);
   const swing = useSharedValue(0);
+  const turn = useSharedValue(0);
   useEffect(() => {
     const target = -count * STEP;
     // A reset (or a big jump) snaps; a single bead springs.
@@ -42,9 +43,19 @@ export default function Tasbih({ count = 0, size = 286, children }) {
       withTiming(count % 2 ? 1 : -1, { duration: 90 }),
       withSpring(0, { damping: 6, stiffness: 90, mass: 0.7 })
     );
+    // The strand has come all the way round — mark it.
+    if (count > 0 && count % BEADS === 0) {
+      turn.value = withSequence(
+        withTiming(1, { duration: 130 }),
+        withSpring(0, { damping: 11, stiffness: 130 })
+      );
+    }
   }, [count]);
 
-  const strandStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${rot.value}deg` }] }));
+  const strandStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rot.value}deg` }, { scale: 1 + turn.value * 0.045 }],
+  }));
+  const haloStyle = useAnimatedStyle(() => ({ opacity: turn.value * 0.5, transform: [{ scale: 0.9 + turn.value * 0.25 }] }));
   // The tassel hangs, so it pivots from where it is tied on.
   const tasselStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: 34 }, { rotate: `${swing.value * 7}deg` }, { translateY: -34 }],
@@ -61,6 +72,9 @@ export default function Tasbih({ count = 0, size = 286, children }) {
 
   return (
     <View style={{ width: size, height: size }}>
+      {/* A ring of light when the strand completes a turn */}
+      <Animated.View style={[styles.halo, { borderRadius: size / 2 }, haloStyle]} pointerEvents="none" />
+
       {/* The strand — this is the part that turns */}
       <Animated.View style={[StyleSheet.absoluteFill, strandStyle]}>
         <Svg width={size} height={size}>
@@ -120,6 +134,7 @@ export default function Tasbih({ count = 0, size = 286, children }) {
 }
 
 const styles = StyleSheet.create({
+  halo: { ...StyleSheet.absoluteFillObject, borderWidth: 10, borderColor: M.primary },
   tassel: { position: 'absolute' },
   marker: { position: 'absolute' },
   centre: { flex: 1, alignItems: 'center', justifyContent: 'center' },

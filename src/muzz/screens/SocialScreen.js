@@ -11,6 +11,7 @@ import Animated, {
   withTiming, withSequence, withSpring, withRepeat, withDelay, interpolate, runOnJS, Easing,
 } from 'react-native-reanimated';
 import { M, RADIUS, SPACE, SHADOW, TYPE } from '../theme';
+import { Bounce } from '../motion';
 import { useMuzz } from '../store';
 import { PhotoTile, Verified, Avatar } from '../components/ui';
 import { pickAndUpload } from '../photos';
@@ -115,9 +116,9 @@ export default function SocialScreen({ navigation }) {
       <View style={styles.tagBarWrap}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: SPACE.xl, gap: 8, paddingVertical: 10 }}>
           {TAGS.map((t) => (
-            <Pressable key={t} onPress={() => { setTag(t); H.select(); toTop(); }} style={[styles.tag, tag === t && styles.tagOn]}>
+            <Bounce key={t} onPress={() => { setTag(t); toTop(); }} haptic="select" scale={0.93} style={[styles.tag, tag === t && styles.tagOn]}>
               <Text style={[styles.tagText, tag === t && { color: M.textOnPrimary }]}>{t}</Text>
-            </Pressable>
+            </Bounce>
           ))}
         </ScrollView>
       </View>
@@ -302,9 +303,9 @@ function Composer({ visible, me, onClose, onPost }) {
               <Text style={styles.pickLabel}>Tag</Text>
               <View style={styles.tagPick}>
                 {POST_TAGS.map((t) => (
-                  <Pressable key={t} onPress={() => { setTag(t); H.select(); }} style={[styles.tag, tag === t && styles.tagOn]}>
+                  <Bounce key={t} onPress={() => setTag(t)} haptic="select" scale={0.93} style={[styles.tag, tag === t && styles.tagOn]}>
                     <Text style={[styles.tagText, tag === t && { color: M.textOnPrimary }]}>{t}</Text>
-                  </Pressable>
+                  </Bounce>
                 ))}
               </View>
             </ScrollView>

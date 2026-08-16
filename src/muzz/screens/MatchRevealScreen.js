@@ -7,10 +7,11 @@ import { enterRow, enterAfter } from '../motion';
 import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE } from '../theme';
 import { useMuzz, getPerson } from '../store';
 import { PhotoTile, Avatar, GButton } from '../components/ui';
+import { PetalRain } from '../components/RoseBloom';
 import { VeiledMark } from '../components/VeiledMark';
 import * as H from '../haptics';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 export default function MatchRevealScreen({ route, navigation }) {
   const { personId, score } = route.params;
@@ -30,7 +31,9 @@ export default function MatchRevealScreen({ route, navigation }) {
   return (
     <View style={styles.container}>
       <LinearGradient colors={['#2A2A2E', '#161618', '#000000']} style={StyleSheet.absoluteFill} />
-      <Hearts />
+      {/* Rose petals rather than a scatter of hearts — a match is
+          the app's own occasion, and the rose is what it's made of. */}
+      <PetalRain width={width} height={height} count={16} ink="#FFF1E8" fill="#B3243F" />
       <Pressable style={styles.close} onPress={() => navigation.goBack()}>
         <Ionicons name="close" size={26} color="#fff" />
       </Pressable>
@@ -79,37 +82,11 @@ export default function MatchRevealScreen({ route, navigation }) {
 // Hearts drift down the left and right margins only. Scattered across
 // the full width they landed on top of "It's a Match!" and the names,
 // which is the one thing on this screen that has to stay readable.
-const HEART_MARGIN = Math.max(56, width * 0.16);
-
-function Hearts() {
-  return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      {[...Array(12)].map((_, i) => {
-        const onLeft = i % 2 === 0;
-        const inset = 8 + ((i * 29) % Math.max(1, HEART_MARGIN - 30));
-        return (
-          <Animated.View
-            key={i}
-            entering={FadeIn.delay(i * 80)}
-            style={[
-              styles.heart,
-              onLeft ? { left: inset } : { right: inset },
-              { top: 70 + ((i * 137) % 660) },
-            ]}
-          >
-            <Ionicons name="heart" size={12 + (i % 4) * 6} color="#fff" />
-          </Animated.View>
-        );
-      })}
-    </View>
-  );
-}
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
   close: { position: 'absolute', top: 56, right: 20, zIndex: 10, width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SPACE.xxl, zIndex: 2 },
-  heart: { position: 'absolute', opacity: 0.22, zIndex: 0 },
   title: { fontSize: 44, fontWeight: '900', color: '#fff', marginTop: 6, letterSpacing: -1 },
   sub: { ...TYPE.body, color: 'rgba(255,255,255,0.95)', textAlign: 'center', marginTop: 8, fontSize: 16, fontWeight: '600' },
   photos: { flexDirection: 'row', alignItems: 'center', marginTop: 34 },

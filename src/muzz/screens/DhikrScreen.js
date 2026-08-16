@@ -132,13 +132,15 @@ export default function DhikrScreen({ navigation }) {
           contentContainerStyle={styles.picker}
         >
           {ADHKAR.map((a) => (
-            <Pressable
+            <Bounce
               key={a.key}
-              onPress={() => { H.select(); setPick(a); }}
+              onPress={() => setPick(a)}
+              haptic="select"
+              scale={0.93}
               style={[styles.pickChip, pick.key === a.key && styles.pickChipOn]}
             >
               <Text style={[styles.pickTr, pick.key === a.key && { color: M.textOnPrimary }]}>{a.tr}</Text>
-            </Pressable>
+            </Bounce>
           ))}
         </ScrollView>
 
@@ -245,14 +247,14 @@ export default function DhikrScreen({ navigation }) {
               {gift && gift.jumuah ? 'Finished on a Jumu\'ah, at that. Choose your gift.' : 'Choose your gift.'}
             </Text>
             {GIFTS.map((g) => (
-              <Pressable key={g.key} onPress={() => take(g.key)} style={({ pressed }) => [styles.giftRow, pressed && { opacity: 0.7 }]}>
+              <Bounce key={g.key} onPress={() => take(g.key)} haptic={false} scale={0.97} style={styles.giftRow}>
                 <View style={styles.giftIcon}><Ionicons name={g.icon} size={20} color={M.textOnPrimary} /></View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.giftTitle}>{g.title}</Text>
                   <Text style={styles.giftSub}>{g.sub}</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={M.textMuted} />
-              </Pressable>
+              </Bounce>
             ))}
           </Animated.View>
         </View>

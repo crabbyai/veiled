@@ -6,7 +6,8 @@ import { M, GRAD, RADIUS, SHADOW, gradFor } from '../theme';
 import { mediaUrl } from '../api';
 import { IslamicPattern } from './Pattern';
 import { VeiledMark } from './VeiledMark';
-import { Bounce } from '../motion';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import { Bounce, TIMING } from '../motion';
 import * as H from '../haptics';
 
 // ── Photo surface ────────────────────────────────────────────────────
@@ -21,7 +22,7 @@ export function PhotoTile({ seed = '', name = '', style, rounded = RADIUS.lg, gr
   return (
     <View style={[{ borderRadius: rounded, overflow: 'hidden', backgroundColor: g[1] }, style]}>
       {src ? (
-        <Image source={{ uri: src }} style={StyleSheet.absoluteFill} resizeMode="cover" blurRadius={veiled ? 60 : 0} />
+        <FadingImage uri={src} blurRadius={veiled ? 60 : 0} fallback={g} />
       ) : (
         <>
           <LinearGradient colors={g} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
@@ -61,6 +62,29 @@ export function PhotoTile({ seed = '', name = '', style, rounded = RADIUS.lg, gr
       {dim && <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.18)' }]} />}
       {children}
     </View>
+  );
+}
+
+// A photo that arrives rather than appears. The gradient underneath
+// stands in until the bytes land, so a slow image is a surface easing
+// into focus instead of a grey hole that snaps to a face.
+function FadingImage({ uri, blurRadius, fallback }) {
+  const o = useSharedValue(0);
+  const style = useAnimatedStyle(() => ({ opacity: o.value }));
+  React.useEffect(() => { o.value = 0; }, [uri]);
+  return (
+    <>
+      <LinearGradient colors={fallback} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <Animated.View style={[StyleSheet.absoluteFill, style]}>
+        <Image
+          source={{ uri }}
+          style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+          blurRadius={blurRadius}
+          onLoad={() => { o.value = withTiming(1, TIMING); }}
+        />
+      </Animated.View>
+    </>
   );
 }
 
@@ -133,8 +157,11 @@ export function OButton({ label, icon, onPress, style, tint = M.text }) {
 // ── Chip / pill ──────────────────────────────────────────────────────
 export function Chip({ label, icon, active, onPress, color = M.primary }) {
   return (
-    <Pressable
-      onPress={onPress ? () => { H.select(); onPress(); } : undefined}
+    <Bounce
+      onPress={onPress}
+      haptic="select"
+      disabled={!onPress}
+      scale={0.93}
       style={[
         styles.chip,
         active
@@ -144,7 +171,7 @@ export function Chip({ label, icon, active, onPress, color = M.primary }) {
     >
       {icon && <Ionicons name={icon} size={13} color={active ? '#fff' : M.textSoft} style={{ marginRight: 5 }} />}
       <Text style={[styles.chipText, { color: active ? '#fff' : M.textSoft }]}>{label}</Text>
-    </Pressable>
+    </Bounce>
   );
 }
 
