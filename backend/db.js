@@ -249,5 +249,7 @@ ensure('dating_matches', 'unveil_asked_a', 'unveil_asked_a INTEGER DEFAULT 0');
 ensure('dating_matches', 'unveil_asked_b', 'unveil_asked_b INTEGER DEFAULT 0');
 // Her reserved unveiled photo — the one shown when she says yes.
 ensure('dating_profiles', 'unveiled_photo', 'unveiled_photo TEXT');
+// Her card note — the line shown on her card. Chosen by her.
+ensure('dating_profiles', 'card_note', 'card_note TEXT');
 
 module.exports = db;

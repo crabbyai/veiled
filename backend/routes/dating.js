@@ -94,6 +94,7 @@ const parseProfile = (row, viewerId = null) => {
     // Her Compatibility Question, if she set one. Public by design: you
     // can't answer a question you can't read.
     compatQuestion: row.compat_question || null,
+    cardNote: row.card_note || null,
     waliEnabled: !!row.wali_enabled,
     photoPrivacy: !!row.photo_privacy,
     verified: !!row.selfie_verified,
@@ -276,6 +277,8 @@ router.put('/profile', authenticate, (req, res) => {
     if (p.job != null) p.job = String(p.job).slice(0, 80);
     // Compatibility Question — one short question, or null to remove it.
     p.compatQuestion = p.compatQuestion == null ? null : (String(p.compatQuestion).trim().slice(0, 140) || null);
+    // Her card note: short, and hers to set or clear.
+    p.cardNote = p.cardNote == null ? null : (String(p.cardNote).trim().slice(0, 80) || null);
     if (p.veil != null && !['Hijab', 'Niqab'].includes(p.veil)) p.veil = null;
     // Gold is granted by verified purchases only. In production keep the
     // server's current value so a client can neither grant nor clear it.
@@ -308,8 +311,8 @@ router.put('/profile', authenticate, (req, res) => {
          veil, photo_veiled,
          sect, prayer_level, ethnicity, halal_diet, interests, "values", languages,
          prompts, friend_takes, wali_enabled, photo_privacy, selfie_verified, is_gold,
-         compat_question, unveiled_photo, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         compat_question, unveiled_photo, card_note, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(user_id) DO UPDATE SET
         name=excluded.name, age=excluded.age, gender=excluded.gender,
         city=excluded.city, distance=excluded.distance, job=excluded.job,
@@ -324,6 +327,7 @@ router.put('/profile', authenticate, (req, res) => {
         selfie_verified=excluded.selfie_verified, is_gold=excluded.is_gold,
         compat_question=excluded.compat_question,
         unveiled_photo=excluded.unveiled_photo,
+        card_note=excluded.card_note,
         updated_at=excluded.updated_at
     `).run(
       req.userId, p.name, p.age, p.gender, p.city || '', p.distance || 0,
@@ -335,7 +339,7 @@ router.put('/profile', authenticate, (req, res) => {
       JSON.stringify(p.languages || ['English']), JSON.stringify(p.prompts || []),
       JSON.stringify(p.friendTakes || []),
       p.waliEnabled ? 1 : 0, p.photoPrivacy ? 1 : 0,
-      p.selfieVerified ? 1 : 0, p.gold ? 1 : 0, p.compatQuestion, p.unveiledPhoto, Date.now()
+      p.selfieVerified ? 1 : 0, p.gold ? 1 : 0, p.compatQuestion, p.unveiledPhoto, p.cardNote, Date.now()
     );
     res.json({ profile: getProfile(req.userId) });
   } catch (err) {

@@ -53,6 +53,51 @@ export const PASSPORT_CITIES = [
   'Toronto', 'New York', 'Sydney',
 ];
 
+// ── Veil notes ───────────────────────────────────────────────────────
+// A short line a sister chooses for her card. Hers to pick, reword or
+// leave blank — the app never assigns one behind her back, because a
+// card that speaks in her voice had better be her voice.
+export const VEIL_NOTES = [
+  'Unveil me إن شاء الله',
+  'You could be my naseeb.',
+  'I am waiting for you.',
+  'Ya Allah bring us together.',
+  'Am I the woman of your dreams?',
+  '🌹',
+  'Where will you take me for our honeymoon?',
+  'You are so handsome!',
+  'May Allah bless us with children.',
+  'May Allah make you a good husband for me.',
+  'Lol this is so much better than that other app.',
+  'Half your deen is one message away.',
+  'Bring your wali, I\'ll bring mine.',
+  'Patience is a green flag 🤍',
+  'Ask me anything — I answer honestly.',
+  'My du\'a has your name in it.',
+  'Say bismillah and swipe.',
+  'Looking for a best friend, not a pen pal.',
+  'I make excellent karak. That\'s the whole pitch.',
+  'Serious only, ya akhi.',
+  'Could you be the one I\'ve been praying for?',
+  'I hope Allah wrote you for me.',
+  'Fajr together one day, إن شاء الله',
+  'You had me at salaam.',
+  'Tell me something real.',
+  'I am not here to waste anyone\'s time.',
+  'Somewhere between shy and forward 🤍',
+  'My mother already likes you.',
+  'Rings before things.',
+  'Nikah, then everything else.',
+  'Do you snore? Asking for my future self.',
+  'I promise I\'m worth the wait.',
+  'A quiet home, a loud kitchen.',
+  'Be the reason I say alhamdulillah tonight.',
+  'Barakah over butterflies.',
+];
+
+// A suggestion to start her off with — she can shuffle or replace it.
+export const randomVeilNote = () => VEIL_NOTES[Math.floor(Math.random() * VEIL_NOTES.length)];
+
 // ── Written sample profiles (development only) ───────────────────────
 // These people are invented. They exist to build and demo the UI
 // against, and they are only ever loaded when EXPO_PUBLIC_DEMO_MODE=1
@@ -287,6 +332,8 @@ export const DEFAULT_ME = {
   // The Veil: the one unveiled photo a sister sets aside. It is shown to
   // nobody until she unveils it for a specific match.
   unveiledPhoto: null,
+  // The line on her card, in her own words. null = she said nothing.
+  cardNote: null,
   waliEnabled: false,
   photoPrivacy: false,
   selfieVerified: false,

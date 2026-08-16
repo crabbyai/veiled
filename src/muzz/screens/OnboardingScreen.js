@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInRight, FadeInDown } from 'react-native-reanimated';
 import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE, isDark } from '../theme';
-import { INTERESTS, VALUES, INTENTIONS, VEILS, SECTS, PRAYER_LEVELS, HALAL_DIET } from '../data';
+import { INTERESTS, VALUES, INTENTIONS, VEILS, SECTS, PRAYER_LEVELS, HALAL_DIET, VEIL_NOTES, randomVeilNote } from '../data';
 import { useMuzz } from '../store';
 import { GButton, Chip, PhotoTile } from '../components/ui';
 import { pickAndUpload } from '../photos';
@@ -32,6 +32,9 @@ export default function OnboardingScreen() {
   const [veil, setVeil] = useState(null);
   const [photoVeiled, setPhotoVeiled] = useState(true);
   const [unveiledPhoto, setUnveiledPhoto] = useState(null);
+  // Her card note. Pre-filled with a suggestion so the card is never
+  // blank, and entirely hers to reword, shuffle or clear.
+  const [cardNote, setCardNote] = useState(randomVeilNote);
   const [job, setJob] = useState('');
   const [intention, setIntention] = useState('Ready for nikah');
   const [interests, setInterests] = useState([]);
@@ -94,6 +97,7 @@ export default function OnboardingScreen() {
       name: name.trim(), age: Number(age) || 27, gender, job: job.trim(),
       veil: gender === 'Woman' ? veil : null,
       unveiledPhoto: gender === 'Woman' ? unveiledPhoto : null,
+      cardNote: gender === 'Woman' ? (cardNote || '').trim() || null : null,
       photoVeiled: gender === 'Woman' ? photoVeiled : false,
       intention, interests, values, bio: bio.trim(),
       sect, prayerLevel, halalDiet, waliEnabled: wali, selfieVerified: false,
@@ -204,6 +208,32 @@ export default function OnboardingScreen() {
                     </>
                   )}
                 </Pressable>
+
+                {/* The line on her card, in her words. */}
+                <Text style={styles.label}>Your line</Text>
+                <Text style={styles.helper2}>
+                  Shown on your card in Discover. Say it however you like — or clear it and say nothing.
+                </Text>
+                <TextInput
+                  value={cardNote}
+                  onChangeText={setCardNote}
+                  placeholder="Say something in your own words…"
+                  placeholderTextColor={M.textMuted}
+                  maxLength={80}
+                  style={[styles.input, { marginTop: 8 }]}
+                />
+                <View style={styles.noteRow}>
+                  <Pressable onPress={() => { H.select(); setCardNote(randomVeilNote()); }} style={styles.noteChip}>
+                    <Ionicons name="shuffle" size={14} color={M.primary} />
+                    <Text style={styles.noteChipText}>Suggest another</Text>
+                  </Pressable>
+                  {!!cardNote && (
+                    <Pressable onPress={() => { H.tap(); setCardNote(''); }} style={styles.noteChip}>
+                      <Ionicons name="close" size={14} color={M.textSoft} />
+                      <Text style={[styles.noteChipText, { color: M.textSoft }]}>Clear</Text>
+                    </Pressable>
+                  )}
+                </View>
               </Animated.View>
             )}
             <Text style={styles.label}>Job / occupation</Text>
@@ -356,6 +386,9 @@ const styles = StyleSheet.create({
   reservePlus: { width: 56, height: 56, borderRadius: RADIUS.md, alignItems: 'center', justifyContent: 'center', backgroundColor: M.primarySoft },
   reserveImg: { width: 56, height: 56 },
   reserveSet: { ...TYPE.body, fontWeight: '800', color: M.success },
+  noteRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  noteChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: M.bgSoft, borderWidth: 1, borderColor: M.border, paddingHorizontal: 12, paddingVertical: 7, borderRadius: RADIUS.pill },
+  noteChipText: { ...TYPE.caption, fontWeight: '800', color: M.primary },
   skipNote: { ...TYPE.caption, color: M.textMuted, marginTop: 16, textAlign: 'center' },
   bfWrap: { height: 170, alignItems: 'center', justifyContent: 'center' },
   heroCard: {

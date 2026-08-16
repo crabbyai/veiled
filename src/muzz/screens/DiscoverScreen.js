@@ -52,7 +52,7 @@ export default function DiscoverScreen({ navigation }) {
     me, feedback, matches, butterflyAuto, filters, superLikes, boostUntil,
     likePerson, passPerson, undoSwipe, likesRemaining, useInstantChat, activateBoost, update,
     needsAnswer, people, loadingPeople, peopleError, refreshPeople, demoMode,
-    pendingMatch, clearPendingMatch,
+    pendingMatch, clearPendingMatch, sendRose, roses,
   } = muzz;
 
   // A match the server confirmed after the fact — she liked you while
@@ -108,20 +108,20 @@ export default function DiscoverScreen({ navigation }) {
   const activeNow = useMemo(() => people.filter((p) => p.online).length, [people]);
   const surging = activeNow >= 4;
 
-  const sendSuperLike = () => {
+  // The standout action from the deck is a Rose — so it spends a Rose,
+  // through the same path as Roses everywhere else.
+  const sendDeckRose = () => {
     if (!superTarget) return;
-    if (!me.gold && superLikes <= 0) { setSuperTarget(null); navigation.navigate('MuzzGold'); return; }
+    if (!me.gold && (roses || 0) <= 0) { setSuperTarget(null); navigation.navigate('MuzzGold'); return; }
     const t = superTarget;
-    // Her question gates a Super Like too — and is checked before the
-    // Super Like is spent.
-    if (needsAnswer(t.id)) { setSuperTarget(null); setAnswering({ person: t, kind: 'super' }); return; }
-    // Record the cost so Rewind can refund the Super Like.
-    if (!me.gold) update((s) => ({ ...s, superLikes: Math.max(0, s.superLikes - 1), spent: { ...(s.spent || {}), [t.id]: 'super' } }));
-    const matched = likePerson(t.id, { comment: superNote.trim() || null, contentType: 'profile', contentRef: 'profile' });
+    // Her question gates a Rose too, and is checked before it is spent.
+    if (needsAnswer(t.id)) { setSuperTarget(null); setAnswering({ person: t, kind: 'rose' }); return; }
+    const { ok, matched } = sendRose(t.id, { comment: superNote.trim() || null, contentType: 'profile', contentRef: 'profile' });
     setSuperTarget(null);
     setSuperNote('');
+    if (!ok) return;
     H.success();
-    if (matched) navigation.navigate('MuzzMatchReveal', { personId: t.id, score: 99, superLike: true });
+    if (matched) navigation.navigate('MuzzMatchReveal', { personId: t.id, score: 99, rose: true });
   };
 
   const doBoost = () => {
@@ -167,12 +167,12 @@ export default function DiscoverScreen({ navigation }) {
     setAnswering(null);
     if (!pending) return;
     const { person, kind } = pending;
-    if (kind === 'super') {
-      if (!me.gold) update((s) => ({ ...s, superLikes: Math.max(0, s.superLikes - 1), spent: { ...(s.spent || {}), [person.id]: 'super' } }));
-      const matched = likePerson(person.id, { comment: superNote.trim() || null, contentType: 'profile', contentRef: 'profile', answer: text });
+    if (kind === 'rose') {
+      const { ok, matched } = sendRose(person.id, { comment: superNote.trim() || null, contentType: 'profile', contentRef: 'profile', answer: text });
       setSuperNote('');
+      if (!ok) return;
       H.success();
-      if (matched) navigation.navigate('MuzzMatchReveal', { personId: person.id, score: 99, superLike: true });
+      if (matched) navigation.navigate('MuzzMatchReveal', { personId: person.id, score: 99, rose: true });
       return;
     }
     const entry = stack.find((m) => m.person.id === person.id);
@@ -317,6 +317,9 @@ export default function DiscoverScreen({ navigation }) {
           the same deck shrunk down, a Standouts strip, prayer times —
           pushed the card into the bottom third. Those live behind the
           header buttons now. */}
+      {/* Next salah — small, and worth keeping in view. */}
+      <PrayerBar />
+
       {boostActive && (
         <Animated.View entering={FadeInUp} style={styles.boostBanner}>
           <Ionicons name="flash" size={14} color="#fff" />
@@ -402,8 +405,8 @@ export default function DiscoverScreen({ navigation }) {
             <Pressable accessibilityRole="button" accessibilityLabel="Pass" onPress={() => swipe(-1)} style={({ pressed }) => [styles.actBtn, styles.passBtn, pressed && styles.pressed]}>
               <Ionicons name="close" size={30} color="#B9B6C3" />
             </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Super like" onPress={() => { H.press(); setSuperTarget(top.person); }} style={({ pressed }) => [styles.actBtn, styles.superBtn, pressed && styles.pressed]}>
-              <Ionicons name="star" size={22} color={M.textOnPrimary} />
+            <Pressable accessibilityRole="button" accessibilityLabel="Send a Rose" onPress={() => { H.press(); setSuperTarget(top.person); }} style={({ pressed }) => [styles.actBtn, styles.roseBtn, pressed && styles.pressed]}>
+              <Ionicons name="rose" size={24} color="#fff" />
             </Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel="Instant chat" onPress={instant} style={({ pressed }) => [styles.actBtn, styles.instantBtn, pressed && styles.pressed]}>
               <Ionicons name="flash" size={22} color={M.textOnPrimary} />
@@ -413,7 +416,9 @@ export default function DiscoverScreen({ navigation }) {
             </Pressable>
           </View>
           <Text style={styles.likesLeft}>
-            {me.gold ? 'Unlimited likes · Gold' : `${remaining} likes · ${superLikes} super likes left`}
+            {me.gold
+              ? 'Unlimited likes · Gold'
+              : `${remaining} ${remaining === 1 ? 'like' : 'likes'} · ${roses || 0} ${(roses || 0) === 1 ? 'rose' : 'roses'} left`}
           </Text>
         </View>
       )}
@@ -422,15 +427,15 @@ export default function DiscoverScreen({ navigation }) {
       <Modal visible={!!superTarget} transparent animationType="fade" onRequestClose={() => setSuperTarget(null)}>
         <Pressable style={styles.sheetBg} onPress={() => setSuperTarget(null)}>
           <Animated.View entering={FadeInUp} style={[styles.sheet, { paddingBottom: insets.bottom + 18 }]}>
-            <View style={styles.superIcon}><Ionicons name="star" size={28} color="#fff" /></View>
-            <Text style={styles.sheetTitle}>Super Like {superTarget?.name}</Text>
-            <Text style={styles.sheetSub}>Stand out from the crowd — Super Likes are 3x more likely to match. Add a note to say why.</Text>
+            <View style={[styles.superIcon, { backgroundColor: M.rose }]}><Ionicons name="rose" size={28} color="#fff" /></View>
+            <Text style={styles.sheetTitle}>Send {superTarget?.name} a Rose</Text>
+            <Text style={styles.sheetSub}>A Rose reaches her first and says you mean it. Add a note if you'd like.</Text>
             <TextInput
               value={superNote} onChangeText={setSuperNote}
               placeholder={`Hey ${superTarget?.name || ''}, your profile caught my eye because…`}
               placeholderTextColor={M.textMuted} multiline style={styles.sheetInput}
             />
-            <GButton label="Send Super Like" icon="star" gradient={[M.blue, '#2C6FD6']} onPress={sendSuperLike} style={{ alignSelf: 'stretch' }} />
+            <GButton label="Send a Rose" icon="rose" gradient={[M.rose, M.roseDeep]} onPress={sendDeckRose} style={{ alignSelf: 'stretch' }} />
             <Pressable onPress={() => setSuperTarget(null)} style={{ marginTop: 12 }}><Text style={styles.sheetCancel}>Maybe later</Text></Pressable>
           </Animated.View>
         </Pressable>
@@ -498,6 +503,16 @@ function Card({ m, photoIdx = 0 }) {
         <Ionicons name="sparkles" size={11} color="#fff" />
         <Text style={styles.aiBadgeText}>{m.score}%</Text>
       </View>
+      {/* Her note, in her words. Only shows if she wrote one. */}
+      {p.cardNote ? (
+        <View style={styles.noteWrap} pointerEvents="none">
+          <View style={styles.noteBubble}>
+            <Text style={styles.noteText}>{p.cardNote}</Text>
+          </View>
+          <View style={styles.noteTail} />
+        </View>
+      ) : null}
+
       <View style={styles.cardInfo}>
         <View style={styles.nameRow}>
           <Text style={styles.cardName}>{p.name}, {p.age}</Text>
@@ -609,7 +624,11 @@ const styles = StyleSheet.create({
   pressed: { transform: [{ scale: 0.88 }] },
   rewindBtn: { width: 46, height: 46, borderRadius: 23, backgroundColor: M.bgElevated, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.75)' },
   passBtn: { width: 58, height: 58, borderRadius: 29, backgroundColor: M.bgElevated, borderWidth: 1, borderColor: M.border },
-  superBtn: { width: 50, height: 50, borderRadius: 25, backgroundColor: M.blue, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', ...SHADOW.card },
+  roseBtn: { width: 50, height: 50, borderRadius: 25, backgroundColor: M.rose, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', ...SHADOW.card },
+  noteWrap: { position: 'absolute', left: 18, right: 40, bottom: 252, alignItems: 'flex-start' },
+  noteBubble: { backgroundColor: 'rgba(255,255,255,0.94)', borderRadius: 20, borderBottomLeftRadius: 6, paddingHorizontal: 16, paddingVertical: 11, maxWidth: '100%', ...SHADOW.card },
+  noteText: { color: '#141018', fontSize: 15.5, fontWeight: '700', lineHeight: 21 },
+  noteTail: { width: 12, height: 12, marginLeft: 6, marginTop: -5, backgroundColor: 'rgba(255,255,255,0.94)', transform: [{ rotate: '45deg' }] },
   instantBtn: { width: 50, height: 50, borderRadius: 25, backgroundColor: M.gold, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', ...SHADOW.card },
   likeBtn: { width: 64, height: 64, borderRadius: 32, backgroundColor: M.primary, borderWidth: 2.5, borderColor: 'rgba(255,255,255,0.95)', ...SHADOW.primary },
   likesLeft: { ...TYPE.caption, color: '#FFFFFF', textAlign: 'center', marginTop: 8, fontWeight: '700', textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 4 },
