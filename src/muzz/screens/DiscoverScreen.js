@@ -291,6 +291,9 @@ export default function DiscoverScreen({ navigation }) {
             <Ionicons name="sparkles" size={15} color={M.butterfly} />
             <Text style={styles.aiBtnText}>AI picks</Text>
           </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Standouts" onPress={() => { H.tap(); navigation.navigate('MuzzStandouts'); }} style={styles.iconBtn}>
+            <Ionicons name="rose-outline" size={23} color={M.rose} />
+          </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel="Boost my profile" onPress={() => { H.tap(); setShowBoost(true); }} style={styles.iconBtn}>
             <Ionicons name={boostActive ? 'flash' : 'flash-outline'} size={23} color={boostActive ? M.primary : M.text} />
           </Pressable>
@@ -309,68 +312,17 @@ export default function DiscoverScreen({ navigation }) {
         </View>
       )}
 
-      {/* Stories / moments rail */}
-      <Stories people={onlinePeople} me={me} />
-
-      {/* Swipe Surge — live activity spike */}
-      {surging && (
-        <Animated.View entering={FadeInUp} style={styles.surge}>
-          <View style={styles.surgeDot} />
-          <Text style={styles.surgeText}>Swipe Surge · {activeNow} sisters active now — great time to swipe</Text>
-        </Animated.View>
-      )}
-
-      {/* Top Picks rail */}
-      {topPicks.length > 0 && (
-        <View style={styles.picksWrap}>
-          <View style={styles.picksHead}>
-            <Ionicons name="star" size={14} color={M.gold} />
-            <Text style={styles.picksTitle}>Top Picks for you</Text>
-            {!me.gold && <Text style={styles.picksGold}>GOLD</Text>}
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: SPACE.lg, gap: 10 }}>
-            {topPicks.map((p, i) => {
-              const locked = !me.gold && i >= freePicks;
-              return (
-                <Pressable
-                  key={p.id}
-                  onPress={() => { H.tap(); locked ? navigation.navigate('MuzzGold') : navigation.navigate('MuzzProfileDetail', { personId: p.id }); }}
-                  style={styles.pick}
-                >
-                  <PhotoTile seed={p.id} name={p.name} style={StyleSheet.absoluteFill} />
-                  {locked && <BlurView intensity={38} tint="dark" style={StyleSheet.absoluteFill} />}
-                  <LinearGradient colors={['transparent', 'rgba(15,15,16,0.82)']} style={StyleSheet.absoluteFill} />
-                  {locked ? (
-                    <View style={styles.pickLock}><Ionicons name="lock-closed" size={16} color="#fff" /></View>
-                  ) : (
-                    <Text style={styles.pickName} numberOfLines={1}>{p.name}</Text>
-                  )}
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-          <Pressable onPress={() => { H.tap(); navigation.navigate('MuzzStandouts'); }} style={styles.standoutsBtn}>
-            <Ionicons name="rose" size={15} color={M.rose} />
-            <Text style={styles.standoutsText}>Standouts — send a Rose to this week's most compatible</Text>
-            <Ionicons name="chevron-forward" size={16} color={M.textMuted} />
-          </Pressable>
-        </View>
-      )}
-
-      {/* Next salah + countdown */}
-      <PrayerBar />
-
-      {boostActive ? (
+      {/* The deck is the screen. Everything that used to sit here —
+          a stories rail, a surge banner, a Top Picks row that was just
+          the same deck shrunk down, a Standouts strip, prayer times —
+          pushed the card into the bottom third. Those live behind the
+          header buttons now. */}
+      {boostActive && (
         <Animated.View entering={FadeInUp} style={styles.boostBanner}>
           <Ionicons name="flash" size={14} color="#fff" />
           <Text style={styles.boostText}>You're boosted — top of the deck for {boostLeft} min</Text>
         </Animated.View>
-      ) : butterflyAuto && top ? (
-        <View style={styles.autoChip}>
-          <Ionicons name="sparkles" size={12} color={M.butterfly} />
-          <Text style={styles.autoChipText}>Sorted by your matchmaker — top pick {top.score}% compatible</Text>
-        </View>
-      ) : null}
+      )}
 
       {/* Card stack */}
       <View style={styles.deck}>
@@ -438,30 +390,32 @@ export default function DiscoverScreen({ navigation }) {
         )}
       </View>
 
-      {/* Muzz-style circular action buttons: rewind · pass · super · instant · like */}
+      {/* Actions float over the bottom of the card, with the likes
+          counter tucked under them, so the photo keeps the whole
+          screen instead of sharing it with a toolbar. */}
       {top && (
-        <View style={styles.actions}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Rewind last swipe" onPress={rewind} style={({ pressed }) => [styles.actBtn, styles.rewindBtn, !lastSwiped && { opacity: 0.4 }, pressed && styles.pressed]}>
-            <Ionicons name="arrow-undo" size={20} color={M.gold} />
-          </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Pass" onPress={() => swipe(-1)} style={({ pressed }) => [styles.actBtn, styles.passBtn, pressed && styles.pressed]}>
-            <Ionicons name="close" size={30} color="#B9B6C3" />
-          </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Super like" onPress={() => { H.press(); setSuperTarget(top.person); }} style={({ pressed }) => [styles.actBtn, styles.superBtn, pressed && styles.pressed]}>
-            <Ionicons name="star" size={22} color={M.textOnPrimary} />
-          </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Instant chat" onPress={instant} style={({ pressed }) => [styles.actBtn, styles.instantBtn, pressed && styles.pressed]}>
-            <Ionicons name="flash" size={22} color={M.textOnPrimary} />
-          </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Like" onPress={() => swipe(1)} style={({ pressed }) => [styles.actBtn, styles.likeBtn, pressed && styles.pressed]}>
-            <Ionicons name="heart" size={30} color={M.textOnPrimary} />
-          </Pressable>
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 8) }]} pointerEvents="box-none">
+          <View style={styles.actions}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Rewind last swipe" onPress={rewind} style={({ pressed }) => [styles.actBtn, styles.rewindBtn, !lastSwiped && { opacity: 0.4 }, pressed && styles.pressed]}>
+              <Ionicons name="arrow-undo" size={20} color={M.gold} />
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Pass" onPress={() => swipe(-1)} style={({ pressed }) => [styles.actBtn, styles.passBtn, pressed && styles.pressed]}>
+              <Ionicons name="close" size={30} color="#B9B6C3" />
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Super like" onPress={() => { H.press(); setSuperTarget(top.person); }} style={({ pressed }) => [styles.actBtn, styles.superBtn, pressed && styles.pressed]}>
+              <Ionicons name="star" size={22} color={M.textOnPrimary} />
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Instant chat" onPress={instant} style={({ pressed }) => [styles.actBtn, styles.instantBtn, pressed && styles.pressed]}>
+              <Ionicons name="flash" size={22} color={M.textOnPrimary} />
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="Like" onPress={() => swipe(1)} style={({ pressed }) => [styles.actBtn, styles.likeBtn, pressed && styles.pressed]}>
+              <Ionicons name="heart" size={30} color={M.textOnPrimary} />
+            </Pressable>
+          </View>
+          <Text style={styles.likesLeft}>
+            {me.gold ? 'Unlimited likes · Gold' : `${remaining} likes · ${superLikes} super likes left`}
+          </Text>
         </View>
-      )}
-      {top && (
-        <Text style={styles.likesLeft}>
-          {me.gold ? 'Unlimited likes · Gold' : `${remaining} likes · ${superLikes} super likes left`}
-        </Text>
       )}
 
       {/* Super Like note sheet */}
@@ -599,7 +553,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.pill, backgroundColor: M.butterflySoft, marginBottom: 6,
   },
   autoChipText: { color: M.butterfly, fontWeight: '700', fontSize: 11.5 },
-  deck: { flex: 1, marginHorizontal: SPACE.lg, marginBottom: 6 },
+  deck: { flex: 1, marginHorizontal: SPACE.md, marginTop: 4, marginBottom: 4 },
   cardWrap: { ...StyleSheet.absoluteFillObject },
   card: { flex: 1, ...SHADOW.card },
   pager: {
@@ -635,7 +589,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(17,17,17,0.92)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: RADIUS.pill,
   },
   aiBadgeText: { color: '#fff', fontWeight: '900', fontSize: 13 },
-  cardInfo: { position: 'absolute', left: 18, right: 18, bottom: 18 },
+  // Clears the floating action row, which now sits over the card.
+  cardInfo: { position: 'absolute', left: 18, right: 18, bottom: 104 },
   nameRow: { flexDirection: 'row', alignItems: 'center' },
   cardName: { color: '#fff', fontSize: 30, fontWeight: '900', letterSpacing: -0.5 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 5 },
@@ -648,18 +603,16 @@ const styles = StyleSheet.create({
   tagText: { color: '#fff', fontWeight: '700', fontSize: 12 },
   qRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10 },
   qRowText: { color: 'rgba(255,255,255,0.92)', fontWeight: '700', fontSize: 12 },
-  actions: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14,
-    paddingTop: 10, paddingBottom: 2,
-  },
+  footer: { position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center' },
+  actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14 },
   actBtn: { alignItems: 'center', justifyContent: 'center', ...SHADOW.soft },
   pressed: { transform: [{ scale: 0.88 }] },
-  rewindBtn: { width: 46, height: 46, borderRadius: 23, backgroundColor: M.bgElevated, borderWidth: 1, borderColor: M.border },
+  rewindBtn: { width: 46, height: 46, borderRadius: 23, backgroundColor: M.bgElevated, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.75)' },
   passBtn: { width: 58, height: 58, borderRadius: 29, backgroundColor: M.bgElevated, borderWidth: 1, borderColor: M.border },
-  superBtn: { width: 50, height: 50, borderRadius: 25, backgroundColor: M.blue, ...SHADOW.card },
-  instantBtn: { width: 50, height: 50, borderRadius: 25, backgroundColor: M.gold, ...SHADOW.card },
-  likeBtn: { width: 64, height: 64, borderRadius: 32, backgroundColor: M.primary, ...SHADOW.primary },
-  likesLeft: { ...TYPE.caption, color: M.textMuted, textAlign: 'center', marginTop: 6, marginBottom: 8 },
+  superBtn: { width: 50, height: 50, borderRadius: 25, backgroundColor: M.blue, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', ...SHADOW.card },
+  instantBtn: { width: 50, height: 50, borderRadius: 25, backgroundColor: M.gold, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', ...SHADOW.card },
+  likeBtn: { width: 64, height: 64, borderRadius: 32, backgroundColor: M.primary, borderWidth: 2.5, borderColor: 'rgba(255,255,255,0.95)', ...SHADOW.primary },
+  likesLeft: { ...TYPE.caption, color: '#FFFFFF', textAlign: 'center', marginTop: 8, fontWeight: '700', textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 4 },
   boostBanner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     alignSelf: 'center', paddingHorizontal: 14, paddingVertical: 6, borderRadius: RADIUS.pill,

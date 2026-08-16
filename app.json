@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Veiled: Hijabi Marriage",
+    "name": "Veiled",
     "slug": "veiled",
     "version": "1.0.0",
     "runtimeVersion": {
@@ -133,7 +133,7 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "name": "Veiled — Hijabi Marriage App",
+      "name": "Veiled",
       "shortName": "Veiled",
       "themeColor": "#111111",
       "backgroundColor": "#FFFFFF"

@@ -108,6 +108,8 @@ export function MuzzProvider({ children }) {
   const [hydrated, setHydrated] = useState(false);
   const [loadingPeople, setLoadingPeople] = useState(HAS_BACKEND);
   const [peopleError, setPeopleError] = useState(null);
+  const [loadingPosts, setLoadingPosts] = useState(HAS_BACKEND);
+  const [postsError, setPostsError] = useState(null);
   // null = still checking for a stored session. Only meaningful when a
   // backend is configured; without one there is nothing to sign in to.
   const [authed, setAuthed] = useState(HAS_BACKEND ? null : true);
@@ -636,16 +638,90 @@ export function MuzzProvider({ children }) {
     api.mirror(() => api.report(personId, { reason, detail }));
   }, [update]);
 
-  const togglePostLike = useCallback((postId) => {
-    update((s) => {
-      const cur = s.postLikes[postId];
-      return { ...s, postLikes: { ...s.postLikes, [postId]: cur ? 0 : 1 } };
-    });
+  // ── Social (community feed) ────────────────────────────────────────
+  // Load the feed from the server. Posts are written by members, so
+  // without a backend there is no feed — not a seeded one.
+  const refreshPosts = useCallback(async () => {
+    if (!HAS_BACKEND) return;
+    setLoadingPosts(true);
+    try {
+      if (!(await api.isAvailable())) { setPostsError('offline'); return; }
+      const { posts } = await api.getPosts();
+      if (Array.isArray(posts)) {
+        update((s) => ({
+          ...s,
+          posts,
+          // The server knows what I've liked; trust it over local state.
+          postLikes: posts.reduce((acc, p) => (p.liked ? { ...acc, [p.id]: 1 } : acc), {}),
+        }));
+        setPostsError(null);
+      }
+    } catch {
+      setPostsError('offline');
+    } finally {
+      setLoadingPosts(false);
+    }
   }, [update]);
 
-  const addPost = useCallback((post) => {
-    update((s) => ({ ...s, posts: [post, ...s.posts] }));
-    api.mirror(() => api.createPost(post.text, post.tag, post.id));
+  // Like/unlike, and keep the count honest by moving it with the toggle
+  // rather than rendering `likes + (liked ? 1 : 0)` over a stale count.
+  const togglePostLike = useCallback((postId) => {
+    let nowLiked = false;
+    update((s) => {
+      nowLiked = !s.postLikes[postId];
+      return {
+        ...s,
+        postLikes: { ...s.postLikes, [postId]: nowLiked ? 1 : 0 },
+        posts: s.posts.map((p) => (p.id === postId
+          ? { ...p, likes: Math.max(0, (p.likes || 0) + (nowLiked ? 1 : -1)), liked: nowLiked }
+          : p)),
+      };
+    });
+    api.mirror(() => api.likePost(postId));
+  }, [update]);
+
+  // Publish a post. Resolves { ok, error } — the composer waits on it
+  // rather than closing and hoping, which is what made posting look
+  // like it had hung.
+  const addPost = useCallback(async ({ text, tag, imageUrl = null }) => {
+    const body = String(text || '').trim();
+    if (!body) return { ok: false, error: 'Write something first.' };
+    if (!HAS_BACKEND) return { ok: false, error: "You're offline. Posts need a connection." };
+    try {
+      if (!(await api.isAvailable())) return { ok: false, error: "Can't reach Veiled. Check your connection." };
+      await api.createPost(body, tag || 'Life', imageUrl);
+      // Re-read the feed so the post carries the server's id and
+      // timestamp — a locally invented id would double up on refresh.
+      await refreshPosts();
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: (e && e.message) || 'Could not post. Please try again.' };
+    }
+  }, [refreshPosts]);
+
+  // Comments live on the server too.
+  const loadComments = useCallback(async (postId) => {
+    if (!HAS_BACKEND) return [];
+    try {
+      const { comments } = await api.getComments(postId);
+      return Array.isArray(comments) ? comments : [];
+    } catch { return []; }
+  }, []);
+
+  const addComment = useCallback(async (postId, body) => {
+    const text = String(body || '').trim();
+    if (!text) return { ok: false };
+    if (!HAS_BACKEND) return { ok: false, error: "You're offline." };
+    try {
+      await api.addComment(postId, text);
+      update((s) => ({
+        ...s,
+        posts: s.posts.map((p) => (p.id === postId ? { ...p, comments: (p.comments || 0) + 1 } : p)),
+      }));
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: (e && e.message) || 'Could not send that comment.' };
+    }
   }, [update]);
 
   // Log out: drop the session token and everything cached on the device.
@@ -687,8 +763,9 @@ export function MuzzProvider({ children }) {
     unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead,
     setCompatQuestion, needsAnswer, refreshLikes, clearPendingMatch,
     people: REGISTRY, refreshPeople, loadingPeople, peopleError, demoMode: DEMO_MODE, hasBackend: HAS_BACKEND,
+    refreshPosts, loadingPosts, postsError, loadComments, addComment,
     authed, signIn, signUp,
-  }), [state, hydrated, loadingPeople, peopleError, refreshPeople, authed, signIn, signUp, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, deleteAccount, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson, unmatchPerson, pauseProfile, sendRose, recordWeMet, toggleMute, unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead, setCompatQuestion, needsAnswer, refreshLikes, clearPendingMatch]);
+  }), [state, hydrated, loadingPeople, peopleError, refreshPeople, authed, signIn, signUp, refreshPosts, loadingPosts, postsError, loadComments, addComment, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, deleteAccount, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson, unmatchPerson, pauseProfile, sendRose, recordWeMet, toggleMute, unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead, setCompatQuestion, needsAnswer, refreshLikes, clearPendingMatch]);
 
   return <MuzzContext.Provider value={value}>{children}</MuzzContext.Provider>;
 }

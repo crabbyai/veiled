@@ -268,10 +268,6 @@ export const SAMPLE_POSTS = [
   },
 ];
 
-export const COMMENT_SEED = [
-  { id: 'c1', name: 'Layla', text: 'This is stunning masha’Allah 😍', ts: Date.now() - hr * 0.5 },
-  { id: 'c2', name: 'Hana', text: 'Okay now I want to go!', ts: Date.now() - hr * 0.3 },
-];
 
 // ── Default "me" profile ────────────────────────────────────────────
 export const DEFAULT_ME = {
