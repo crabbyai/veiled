@@ -30,11 +30,11 @@ export function PhotoTile({ seed = '', name = '', style, rounded = RADIUS.lg, gr
             start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={StyleSheet.absoluteFill}
           />
           {pattern && !veiled && <IslamicPattern color="#FFFFFF" opacity={0.06} tile={54} />}
-          {/* No photo yet: the mark stands in, kept faint and small so
-              it reads as a placeholder rather than as her picture. */}
+          {/* No photo yet: the mark fills the frame, held back enough
+              that the name and details stay readable over it. */}
           {figure && !veiled ? (
             <View style={styles.figureWrap}>
-              <VeiledMark size={110} opacity={0.28} />
+              <VeiledMark fill opacity={0.5} />
             </View>
           ) : silhouette ? (
             <View style={styles.silhouette}>
@@ -156,7 +156,7 @@ export function Chip({ label, icon, active, onPress, color = M.primary }) {
 const styles = StyleSheet.create({
   center: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
   silhouette: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'flex-end', overflow: 'hidden' },
-  figureWrap: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  figureWrap: { position: 'absolute', left: '4%', right: '4%', top: '6%', bottom: '6%' },
   initial: { color: 'rgba(255,255,255,0.92)', fontWeight: '800', fontSize: 22 },
   dot: {
     position: 'absolute', right: -1, bottom: -1, backgroundColor: M.online,

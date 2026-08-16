@@ -11,9 +11,14 @@ import { Image, View, StyleSheet } from 'react-native';
 const MARK = require('../../../assets/art/logo-mark.png');
 const RATIO = 386 / 261; // the artwork's aspect
 
-export function VeiledMark({ size = 64, style, opacity = 1 }) {
+// `fill` ignores `size` and lets the mark take the whole parent — used
+// where it's the subject of the frame rather than a badge in it.
+export function VeiledMark({ size = 64, style, opacity = 1, fill = false }) {
+  const frame = fill
+    ? [StyleSheet.absoluteFill, { opacity }]
+    : [{ height: size, width: size * RATIO, opacity }];
   return (
-    <View style={[{ height: size, width: size * RATIO, opacity }, styles.wrap, style]}>
+    <View style={[frame, styles.wrap, style]} pointerEvents="none">
       <Image source={MARK} style={styles.img} resizeMode="contain" accessible={false} />
     </View>
   );
