@@ -1,28 +1,51 @@
 import React, { useEffect, useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
-import Svg, { Path, Circle, G } from 'react-native-svg';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS, Easing } from 'react-native-reanimated';
+import Svg, { Path, G } from 'react-native-svg';
+import Animated, {
+  useSharedValue, useAnimatedStyle, useAnimatedProps, withTiming, runOnJS, Easing,
+} from 'react-native-reanimated';
 import { M } from '../theme';
 
-// A Rose, drawn and animated, for the swipe-up on the deck.
+// A Rose, drawn line by line, for the swipe-up on the deck.
 //
 // Two variants, because the card underneath is two different things:
 //   RoseGrow  — she's veiled, so the card is mostly empty beside her.
-//               A stem climbs up that empty space and opens into a rose
-//               level with her face.
-//   PetalFall — her photo is showing, and a plant drawn over a face
-//               covers the very thing you swiped for. Petals drift down
-//               across the card instead, leaving her visible.
+//               A rose draws itself into that space, stem first, and
+//               fills with colour once the outline closes.
+//   PetalFall — her photo is showing, and a whole flower drawn over a
+//               face covers the very thing you swiped for. The head
+//               draws small in the corner and scatters into petals.
 //
-// Both run off a single 0→1 clock so there is exactly one completion
-// callback, and the caller can count on `onDone` firing once.
+// Every stroke is a real path revealed along its own length, so it
+// reads as a hand drawing rather than a shape popping in. Both run off
+// a single 0→1 clock, so `onDone` fires exactly once.
 
-const ROSE_OUTER = M.roseDeep;
-const ROSE_MID = M.rose;
-const ROSE_CORE = '#B8324A';
-const ROSE_HI = 'rgba(255,255,255,0.2)';
-const STEM = '#4E7C59';
-const STEM_DARK = '#385C41';
+const RED = M.rose;
+const GREEN = '#4E7C59';
+
+// ── The artwork ─────────────────────────────────────────────────────
+// Drawn at 140×330: a scalloped flower head over a leaning stem with
+// two leaves. `LEN` is each path's measured length, which is what the
+// dash offset animates over — a wrong number here makes a stroke
+// appear part-drawn, so they are measured, not guessed.
+const P = {
+  stem: 'M66 322 C 69 268, 73 214, 70 136',
+  leafL: 'M70 250 C 48 246, 32 230, 29 210 C 51 208, 66 224, 70 250 Z',
+  leafLv: 'M69 248 C 57 239, 45 229, 33 216',
+  leafR: 'M71 204 C 93 200, 107 184, 110 164 C 88 162, 73 178, 71 204 Z',
+  leafRv: 'M72 202 C 84 193, 96 183, 106 170',
+  // The petal silhouette, and the single unbroken spiral inside it —
+  // one stroke wrapping from the outside in, which is what makes it a
+  // rose and not a daisy.
+  cup: 'M70 16 C 92 8, 116 22, 118 46 C 134 60, 130 88, 110 100 C 106 122, 82 132, 64 122 C 42 128, 22 112, 22 90 C 6 76, 10 50, 30 40 C 36 20, 54 10, 70 16 Z',
+  furl: 'M92 92 C 74 104, 50 96, 44 78 C 38 58, 52 38, 74 36 C 92 35, 104 48, 102 64 C 100 79, 86 88, 74 84 C 63 80, 60 68, 66 60 C 71 53, 82 54, 84 62',
+};
+const LEN = { stem: 187, leafL: 126, leafLv: 49, leafR: 123, leafRv: 47, cup: 363, furl: 254 };
+
+const PETAL = 'M13 1 C 5 4, 2 11, 5 16 C 8 20, 18 20, 21 16 C 24 11, 21 4, 13 1 Z';
+
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+const AnimatedG = Animated.createAnimatedComponent(G);
 
 // Sub-progress: where `v` sits between `a` and `b`, clamped.
 function seg(v, a, b) {
@@ -35,11 +58,10 @@ function easeOut(p) {
   'worklet';
   return 1 - Math.pow(1 - p, 3);
 }
-// Overshoots past 1 and settles — the pop a bud makes when it opens.
-function pop(p) {
+// Slow at both ends — how a hand actually moves along a stroke.
+function easeInOut(p) {
   'worklet';
-  const q = 1 - p;
-  return 1 + 2.2 * q * q * q - 3.1 * q * q * q * q;
+  return p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
 }
 
 // Deterministic noise, so a petal's path is stable across re-renders.
@@ -48,95 +70,35 @@ const noise = (i, salt) => {
   return x - Math.floor(x);
 };
 
-// ── The flower head ─────────────────────────────────────────────────
-// Drawn at 100×100 and scaled by the caller: two rings of cupped,
-// notched petals under a furled bud. The furl is what makes it read as
-// a rose rather than a daisy, so it is drawn large and light against
-// the darker petals.
-//
-// `part` splits it so the rings and the bud can open on their own
-// timings — 'all' for a static rose.
-const OUTER_PETAL = 'M50 54 C 24 46, 18 18, 43 7 C 46 12, 54 12, 57 7 C 82 18, 76 46, 50 54 Z';
-const INNER_PETAL = 'M50 52 C 33 46, 29 27, 50 19 C 71 27, 67 46, 50 52 Z';
-
-function RoseHead({ size, part = 'all' }) {
+// One stroke, revealed along its length between `from` and `to`.
+function Stroke({ t, path, len, from, to, color, width = 3.2 }) {
+  const animatedProps = useAnimatedProps(() => ({
+    strokeDashoffset: len * (1 - easeInOut(seg(t.value, from, to))),
+  }));
   return (
-    <Svg width={size} height={size} viewBox="0 0 100 100">
-      {part !== 'bud' && (
-        <G>
-          {[18, 90, 162, 234, 306].map((a) => (
-            <Path key={`o${a}`} d={OUTER_PETAL} fill={ROSE_OUTER} transform={`rotate(${a} 50 50)`} />
-          ))}
-          {[54, 126, 198, 270, 342].map((a) => (
-            <Path key={`i${a}`} d={INNER_PETAL} fill={ROSE_MID} transform={`rotate(${a} 50 50)`} />
-          ))}
-        </G>
-      )}
-      {part !== 'petals' && (
-        <G>
-          <Circle cx="50" cy="47" r="18" fill={ROSE_MID} />
-          <Path d="M50 31 A16 16 0 1 1 35 52" stroke={ROSE_CORE} strokeWidth="4.2" fill="none" strokeLinecap="round" />
-          <Path d="M56 37 A10.5 10.5 0 1 1 43 51" stroke={ROSE_CORE} strokeWidth="3.6" fill="none" strokeLinecap="round" />
-          <Path d="M52 43 A5 5 0 1 1 47 51" stroke={ROSE_CORE} strokeWidth="3" fill="none" strokeLinecap="round" />
-        </G>
-      )}
-    </Svg>
+    <AnimatedPath
+      d={path}
+      stroke={color}
+      strokeWidth={width}
+      fill="none"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeDasharray={len}
+      animatedProps={animatedProps}
+    />
   );
 }
 
-function Leaf({ flip }) {
-  return (
-    <Svg width={38} height={22} viewBox="0 0 38 22" style={flip ? { transform: [{ scaleX: -1 }] } : null}>
-      <Path d="M1 20 C 6 3, 26 -3, 37 3 C 29 19, 12 24, 1 20 Z" fill={STEM} />
-      <Path d="M1 20 C 13 15, 27 9, 37 3" stroke={STEM_DARK} strokeWidth="1.4" fill="none" strokeLinecap="round" />
-    </Svg>
-  );
+// The colour, washed in behind the outline once it has closed.
+function Wash({ t, from, to, children }) {
+  const animatedProps = useAnimatedProps(() => ({ opacity: seg(t.value, from, to) }));
+  return <AnimatedG animatedProps={animatedProps}>{children}</AnimatedG>;
 }
 
-// A leaf that unfurls from the stem at `at` (0–1 up the stem).
-function GrowingLeaf({ t, at, flip, start }) {
-  const style = useAnimatedStyle(() => {
-    const p = easeOut(seg(t.value, start, start + 0.16));
-    const fade = 1 - seg(t.value, 0.84, 1);
-    return {
-      opacity: p * fade,
-      transform: [
-        { translateX: flip ? 14 * p : -14 * p },
-        { rotate: `${(flip ? -1 : 1) * (34 - 34 * p)}deg` },
-        { scale: 0.4 + 0.6 * p },
-      ],
-    };
-  });
-  return (
-    <Animated.View style={[styles.leaf, { bottom: `${at * 100}%` }, flip ? styles.leafRight : styles.leafLeft, style]}>
-      <Leaf flip={flip} />
-    </Animated.View>
-  );
-}
+const GROW_MS = 2000;
 
-// A mote of pollen lifting off the open flower.
-function Mote({ t, i, start }) {
-  const r = useMemo(() => ({
-    x: (noise(i, 3) - 0.5) * 62,
-    rise: 44 + noise(i, 7) * 46,
-    size: 3 + noise(i, 11) * 3.5,
-    delay: start + noise(i, 13) * 0.12,
-  }), [i, start]);
-  const style = useAnimatedStyle(() => {
-    const p = seg(t.value, r.delay, r.delay + 0.34);
-    return {
-      opacity: p === 0 ? 0 : (p < 0.25 ? p / 0.25 : 1 - (p - 0.25) / 0.75),
-      transform: [{ translateX: r.x * p }, { translateY: -r.rise * easeOut(p) }, { scale: 0.6 + p * 0.6 }],
-    };
-  });
-  return <Animated.View style={[styles.mote, { width: r.size, height: r.size, borderRadius: r.size / 2 }, style]} />;
-}
-
-const GROW_MS = 1750;
-const STEM_H = 148;
-
-// The veiled variant: a rose grows up the empty side of the card.
-export function RoseGrow({ style, size = 84, onDone }) {
+// The veiled variant: a rose draws itself up the empty side of the card.
+export function RoseGrow({ style, onDone }) {
   const t = useSharedValue(0);
   useEffect(() => {
     t.value = withTiming(1, { duration: GROW_MS, easing: Easing.linear }, (finished) => {
@@ -144,76 +106,72 @@ export function RoseGrow({ style, size = 84, onDone }) {
     });
   }, []);
 
-  const fadeStyle = useAnimatedStyle(() => ({ opacity: 1 - seg(t.value, 0.84, 1) }));
-
+  const fadeStyle = useAnimatedStyle(() => ({ opacity: 1 - seg(t.value, 0.88, 1) }));
+  // A breath of movement once it's drawn, so it doesn't sit dead still.
   const swayStyle = useAnimatedStyle(() => {
-    const s = seg(t.value, 0.42, 1);
-    return { transform: [{ rotate: `${Math.sin(s * Math.PI * 2.2) * 2.4}deg` }] };
-  });
-
-  const stemStyle = useAnimatedStyle(() => {
-    const g = easeOut(seg(t.value, 0, 0.36));
-    return { transform: [{ translateY: (STEM_H / 2) * (1 - g) }, { scaleY: g }] };
-  });
-
-  const headStyle = useAnimatedStyle(() => {
-    const p = seg(t.value, 0.3, 0.62);
-    return { opacity: p === 0 ? 0 : 1, transform: [{ scale: p === 0 ? 0 : pop(p) }, { rotate: `${-24 + 24 * easeOut(p)}deg` }] };
-  });
-
-  const coreStyle = useAnimatedStyle(() => {
-    const p = easeOut(seg(t.value, 0.46, 0.74));
-    return { opacity: p, transform: [{ scale: 0.55 + 0.45 * p }] };
+    const s = seg(t.value, 0.6, 1);
+    return { transform: [{ rotate: `${Math.sin(s * Math.PI * 2) * 1.6}deg` }] };
   });
 
   return (
     <Animated.View style={[styles.growWrap, style, fadeStyle]} pointerEvents="none">
-      <Animated.View style={[styles.plant, swayStyle]}>
-        <Animated.View style={[styles.stem, { height: STEM_H }, stemStyle]} />
-        <GrowingLeaf t={t} at={0.28} start={0.2} flip={false} />
-        <GrowingLeaf t={t} at={0.52} start={0.3} flip />
-        <Animated.View style={[styles.head, { width: size, height: size, marginBottom: STEM_H - size * 0.42 }, headStyle]}>
-          {/* The rings of petals open first, the furled bud after. */}
-          <RoseHead size={size} part="petals" />
-          <Animated.View style={[StyleSheet.absoluteFill, styles.center, coreStyle]}>
-            <RoseHead size={size} part="bud" />
-          </Animated.View>
-          <View style={styles.motes} pointerEvents="none">
-            {[0, 1, 2, 3, 4, 5, 6].map((i) => <Mote key={i} t={t} i={i} start={0.5} />)}
-          </View>
-        </Animated.View>
+      <Animated.View style={[StyleSheet.absoluteFill, swayStyle]}>
+        <Svg width="100%" height="100%" viewBox="0 0 140 330" preserveAspectRatio="xMidYMax meet">
+          {/* Colour arrives last, under the lines that were drawn first */}
+          <Wash t={t} from={0.62} to={0.84}>
+            <Path d={P.leafL} fill={GREEN} opacity={0.3} />
+            <Path d={P.leafR} fill={GREEN} opacity={0.3} />
+            <Path d={P.cup} fill={RED} opacity={0.22} />
+          </Wash>
+          <Stroke t={t} path={P.stem} len={LEN.stem} from={0} to={0.3} color={GREEN} />
+          <Stroke t={t} path={P.leafR} len={LEN.leafR} from={0.18} to={0.34} color={GREEN} />
+          <Stroke t={t} path={P.leafRv} len={LEN.leafRv} from={0.28} to={0.38} color={GREEN} width={2.4} />
+          <Stroke t={t} path={P.leafL} len={LEN.leafL} from={0.24} to={0.4} color={GREEN} />
+          <Stroke t={t} path={P.leafLv} len={LEN.leafLv} from={0.34} to={0.44} color={GREEN} width={2.4} />
+          <Stroke t={t} path={P.cup} len={LEN.cup} from={0.34} to={0.6} color={RED} />
+          <Stroke t={t} path={P.furl} len={LEN.furl} from={0.54} to={0.82} color={RED} />
+        </Svg>
       </Animated.View>
     </Animated.View>
   );
 }
 
 // ── Petal fall ──────────────────────────────────────────────────────
-const FALL_MS = 1850;
+const FALL_MS = 2000;
 const PETAL_COUNT = 16;
 
+// Every petal leaves the flower head and fans out on its way down, so
+// the fall reads as the rose coming apart rather than weather.
 function FallingPetal({ t, i, w, h }) {
-  const r = useMemo(() => ({
-    x: 12 + noise(i, 1) * (w - 44),
-    delay: noise(i, 2) * 0.34,
-    dur: 0.44 + noise(i, 4) * 0.3,
-    sway: 16 + noise(i, 5) * 30,
-    waves: 1.4 + noise(i, 6) * 2.2,
-    phase: noise(i, 8) * Math.PI * 2,
-    spin: (noise(i, 9) < 0.5 ? -1 : 1) * (140 + noise(i, 10) * 260),
-    rot0: noise(i, 12) * 360,
-    scale: 0.62 + noise(i, 14) * 0.75,
-    tone: noise(i, 15),
-  }), [i, w, h]);
+  const r = useMemo(() => {
+    const fromX = w - 68;      // where the drawn head sits
+    const fromY = h * 0.1;
+    return {
+      fromX, fromY,
+      toX: 8 + noise(i, 1) * (w - 48),
+      delay: 0.26 + noise(i, 2) * 0.28,
+      dur: 0.4 + noise(i, 4) * 0.28,
+      sway: 12 + noise(i, 5) * 26,
+      waves: 1.4 + noise(i, 6) * 2.2,
+      phase: noise(i, 8) * Math.PI * 2,
+      spin: (noise(i, 9) < 0.5 ? -1 : 1) * (140 + noise(i, 10) * 260),
+      rot0: noise(i, 12) * 360,
+      scale: 0.66 + noise(i, 14) * 0.7,
+    };
+  }, [i, w, h]);
 
   const style = useAnimatedStyle(() => {
     const p = seg(t.value, r.delay, r.delay + r.dur);
     if (p <= 0 || p >= 1) return { opacity: 0 };
     const fade = p < 0.14 ? p / 0.14 : p > 0.82 ? (1 - p) / 0.18 : 1;
+    // Drift sideways early, then fall away — a petal loses its sideways
+    // momentum before it loses its height.
+    const spread = easeOut(p);
     return {
       opacity: fade,
       transform: [
-        { translateX: r.x + Math.sin(p * Math.PI * r.waves + r.phase) * r.sway },
-        { translateY: -50 + p * (h + 100) },
+        { translateX: r.fromX + (r.toX - r.fromX) * spread + Math.sin(p * Math.PI * r.waves + r.phase) * r.sway },
+        { translateY: r.fromY + p * (h - r.fromY + 70) },
         { rotate: `${r.rot0 + p * r.spin}deg` },
         { scale: r.scale },
       ],
@@ -222,19 +180,17 @@ function FallingPetal({ t, i, w, h }) {
 
   return (
     <Animated.View style={[styles.petal, style]}>
-      <Svg width={24} height={18} viewBox="0 0 24 18">
-        <Path
-          d="M12 0 C 4 3, 1 10, 4 15 C 7 19, 17 19, 20 15 C 23 10, 20 3, 12 0 Z"
-          fill={r.tone > 0.55 ? ROSE_MID : r.tone > 0.25 ? ROSE_OUTER : ROSE_CORE}
-        />
-        <Path d="M12 1.5 C 9 6, 8 11, 9 17" stroke={ROSE_HI} strokeWidth="0.9" fill="none" />
-        <Path d="M12 1.5 C 15 6, 16 11, 15 17" stroke={ROSE_HI} strokeWidth="0.9" fill="none" />
+      <Svg width={32} height={25} viewBox="0 0 26 20">
+        <Path d={PETAL} fill={RED} opacity={0.34} />
+        <Path d={PETAL} fill="none" stroke={RED} strokeWidth={1.9} strokeLinejoin="round" />
+        <Path d="M13 3 C 10 8, 9.5 13, 10.5 18" fill="none" stroke={RED} strokeWidth={1.2} opacity={0.6} />
+        <Path d="M13 3 C 16 8, 16.5 13, 15.5 18" fill="none" stroke={RED} strokeWidth={1.2} opacity={0.6} />
       </Svg>
     </Animated.View>
   );
 }
 
-// The photo variant: a rose flares at her shoulder and scatters.
+// The photo variant: the head draws in the corner, then comes apart.
 export function PetalFall({ style, width: w = 320, height: h = 560, onDone }) {
   const t = useSharedValue(0);
   useEffect(() => {
@@ -243,26 +199,28 @@ export function PetalFall({ style, width: w = 320, height: h = 560, onDone }) {
     });
   }, []);
 
-  const burstStyle = useAnimatedStyle(() => {
-    const p = seg(t.value, 0, 0.3);
-    const out = seg(t.value, 0.24, 0.46);
-    if (p === 0) return { opacity: 0 };
-    return { opacity: (p < 0.5 ? p / 0.5 : 1) * (1 - out), transform: [{ scale: 0.3 + pop(p) * 0.85 }, { rotate: `${-30 + 30 * easeOut(p)}deg` }] };
-  });
-
-  const glowStyle = useAnimatedStyle(() => {
-    const p = seg(t.value, 0.04, 0.34);
-    return { opacity: p * (1 - p) * 1.6, transform: [{ scale: 0.6 + p * 1.5 }] };
+  // It draws, holds for a beat, then lets go and lifts away as the
+  // petals it shed drift down past her.
+  const headStyle = useAnimatedStyle(() => {
+    const go = seg(t.value, 0.36, 0.62);
+    return {
+      opacity: 1 - go,
+      transform: [{ scale: 1 + go * 0.5 }, { translateY: -go * 26 }, { rotate: `${go * 14}deg` }],
+    };
   });
 
   return (
     <View style={[styles.fallWrap, style]} pointerEvents="none">
-      {/* The rose flares near the top corner, not over the middle: on
-          this variant her photo is showing, and that is the one thing
-          the animation must not cover. */}
-      <Animated.View style={[styles.burst, styles.glow, glowStyle]} />
-      <Animated.View style={[styles.burst, burstStyle]}>
-        <RoseHead size={76} />
+      {/* The head only — a whole stem drawn across her face is exactly
+          what this variant exists to avoid. */}
+      <Animated.View style={[styles.head, headStyle]}>
+        <Svg width={104} height={104} viewBox="0 0 140 140">
+          <Wash t={t} from={0.24} to={0.4}>
+            <Path d={P.cup} fill={RED} opacity={0.22} />
+          </Wash>
+          <Stroke t={t} path={P.cup} len={LEN.cup} from={0} to={0.22} color={RED} />
+          <Stroke t={t} path={P.furl} len={LEN.furl} from={0.16} to={0.42} color={RED} />
+        </Svg>
       </Animated.View>
       {[...Array(PETAL_COUNT)].map((_, i) => <FallingPetal key={i} t={t} i={i} w={w} h={h} />)}
     </View>
@@ -271,18 +229,8 @@ export function PetalFall({ style, width: w = 320, height: h = 560, onDone }) {
 
 const styles = StyleSheet.create({
   growWrap: { alignItems: 'center', justifyContent: 'flex-end' },
-  plant: { alignItems: 'center', justifyContent: 'flex-end' },
-  stem: { width: 5, borderRadius: 3, backgroundColor: STEM },
-  leaf: { position: 'absolute' },
-  leafLeft: { right: '50%', marginRight: 1 },
-  leafRight: { left: '50%', marginLeft: 1 },
-  head: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
-  center: { alignItems: 'center', justifyContent: 'center' },
-  motes: { ...StyleSheet.absoluteFillObject },
-  mote: { position: 'absolute', top: '42%', left: '46%', backgroundColor: 'rgba(255,214,224,0.9)' },
   fallWrap: { ...StyleSheet.absoluteFillObject, overflow: 'hidden' },
-  burst: { position: 'absolute', top: '9%', right: 20, alignItems: 'center', justifyContent: 'center' },
-  glow: { width: 150, height: 150, borderRadius: 75, marginTop: -38, marginRight: -38, backgroundColor: ROSE_MID },
+  head: { position: 'absolute', top: '8%', right: 16 },
   petal: { position: 'absolute', top: 0, left: 0 },
 });
 

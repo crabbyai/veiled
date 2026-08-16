@@ -455,7 +455,7 @@ export default function DiscoverScreen({ navigation }) {
         {bloom ? (
           <View style={StyleSheet.absoluteFill} pointerEvents="none">
             {bloom.faceless ? (
-              <RoseGrow style={styles.bloomBeside} size={88} onDone={finishRose} />
+              <RoseGrow style={styles.bloomBeside} onDone={finishRose} />
             ) : (
               <PetalFall width={deckSize.w} height={deckSize.h} onDone={finishRose} />
             )}
@@ -698,7 +698,10 @@ const styles = StyleSheet.create({
   rewindBtn: { width: 46, height: 46, borderRadius: 23, backgroundColor: M.bgElevated, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.75)' },
   passBtn: { width: 58, height: 58, borderRadius: 29, backgroundColor: M.bgElevated, borderWidth: 1, borderColor: M.border },
   roseBtn: { width: 50, height: 50, borderRadius: 25, backgroundColor: M.rose, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', ...SHADOW.card },
-  noteWrap: { position: 'absolute', left: 16, right: 16, top: 78, alignItems: 'center' },
+  // A share of the card's height, not a fixed offset: her head sits at
+  // the same fraction down the card whatever the screen, so the tail
+  // meets it on a small phone and a large one alike.
+  noteWrap: { position: 'absolute', left: 16, right: 16, top: '26%', alignItems: 'center' },
   noteBubble: { backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 22, paddingHorizontal: 18, paddingVertical: 12, maxWidth: '92%', ...SHADOW.card },
   noteText: { color: '#141018', fontSize: 15.5, fontWeight: '700', lineHeight: 21, textAlign: 'center' },
   noteTail: { width: 14, height: 14, marginTop: -7, backgroundColor: 'rgba(255,255,255,0.95)', transform: [{ rotate: '45deg' }] },
@@ -745,6 +748,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.pill, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', ...SHADOW.card,
   },
   roseStampText: { color: '#fff', fontSize: 17, fontWeight: '900', letterSpacing: 1.5 },
-  // The empty side of a veiled card, level with where her face sits.
-  bloomBeside: { position: 'absolute', right: 14, top: '12%', height: '52%', width: 130 },
+  // The empty side of a veiled card. The drawing anchors to the bottom
+  // of this box, which puts the flower head level with her face.
+  bloomBeside: { position: 'absolute', right: 10, top: '22%', height: '60%', width: 132 },
 });
