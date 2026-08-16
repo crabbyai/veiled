@@ -14,6 +14,7 @@ import { PhotoTile, Verified } from '../components/ui';
 import { pickAndUpload } from '../photos';
 import * as realtime from '../realtime';
 import { SIMULATED_FEATURES } from '../config';
+import { UnveilPrompt, UnveilRequestRow } from '../components/Unveil';
 import * as H from '../haptics';
 
 const REACTIONS = ['❤️', '😂', '😍', '👍', '🔥', '🤲'];
@@ -24,7 +25,7 @@ export default function ChatScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
   const { personId } = route.params;
   const muzz = useMuzz();
-  const { me, chats, sendMessage, update, reactions, reactToMessage, reportPerson, unmatchPerson, chaperones, setChaperone, isUnveiled, unveilFor, weMet, recordWeMet, muted, toggleMute } = muzz;
+  const { me, chats, sendMessage, update, reactions, reactToMessage, reportPerson, unmatchPerson, chaperones, setChaperone, isUnveiled, unveilFor, weMet, recordWeMet, muted, toggleMute, veilStateFor, askToUnveil } = muzz;
   const isMuted = !!(muted && muted[personId]);
   const person = getPerson(personId);
   const messages = chats[personId] || [];
@@ -45,20 +46,56 @@ export default function ChatScreen({ route, navigation }) {
   const [reactionFor, setReactionFor] = useState(null);
   const [recording, setRecording] = useState(false);
   const [stickerOpen, setStickerOpen] = useState(false);
+  // The Veil: where this pair stands, and whether to raise it with her.
+  const [veil, setVeil] = useState(null);
+  const [unveilOpen, setUnveilOpen] = useState(false);
+  const [unveiling, setUnveiling] = useState(false);
+  const [asking, setAsking] = useState(false);
+  // Declining is respected for this visit — she is not asked twice in
+  // the same sitting.
+  const [dismissedPrompt, setDismissedPrompt] = useState(false);
 
-  // The Veil: ask her to unveil (she reveals after a beat), or — if I'm
-  // the one wearing the veil — unveil my photos for her.
+  const iAmVeiled = !!me.photoVeiled && me.gender === 'Woman';
+
+  const loadVeil = useCallback(async () => {
+    const v = await veilStateFor(personId);
+    setVeil(v);
+    return v;
+  }, [personId, veilStateFor]);
+
+  useEffect(() => { loadVeil(); }, [personId, messages.length]);
+
+  // Prompt her when he has asked, or when the conversation has had time
+  // to breathe. Never reveals anything by itself.
+  useEffect(() => {
+    if (!veil || !iAmVeiled || dismissedPrompt) return;
+    if (veil.iUnveiled) return;
+    if (veil.theyAskedMe || veil.ripe) setUnveilOpen(true);
+  }, [veil, iAmVeiled, dismissedPrompt]);
+
+  const doUnveil = async () => {
+    setUnveiling(true);
+    unveilFor(personId);
+    sendMessage(personId, 'unveil:done', 'me');
+    setUnveiling(false);
+    setUnveilOpen(false);
+    await loadVeil();
+  };
+
+  const doAsk = async () => {
+    setAsking(true);
+    const res = await askToUnveil(personId);
+    setAsking(false);
+    if (res && res.ok) { H.success(); await loadVeil(); }
+    else { H.warn(); Alert.alert('Could not send', (res && res.error) || 'Please try again.'); }
+  };
+
+  // The Veil: if I'm the one wearing it, this opens my own decision.
+  // Otherwise it asks her — and leaves it entirely with her.
   const askUnveil = () => {
     H.press();
-    if (me.photoVeiled) {
-      unveilFor(personId);
-      sendMessage(personId, 'unveil:done', 'me');
-      H.success();
-      return;
-    }
-    // Ask, and leave it with her. Unveiling is hers to do.
-    sendMessage(personId, `I'd love to get to know you properly — no rush on photos 🤍`, 'me');
-    H.success();
+    if (iAmVeiled) { setDismissedPrompt(false); setUnveilOpen(true); return; }
+    doAsk();
   };
 
   const confirmWali = () => {
@@ -203,20 +240,26 @@ export default function ChatScreen({ route, navigation }) {
         </Text>
       </Pressable>
 
-      {/* The Veil — unveil prompt (until photos are unveiled between you) */}
-      {veiledNow && (
+      {/* The Veil. Hers to lift: he may ask once the conversation has
+          had time to breathe, and she is prompted — never overridden. */}
+      {iAmVeiled && !(veil && veil.iUnveiled) && (
         <Animated.View entering={FadeIn} style={styles.unveilCard}>
           <View style={styles.unveilIcon}><Ionicons name="eye-off" size={18} color={M.textOnPrimary} /></View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.unveilTitle}>{me.photoVeiled ? 'Your photos are veiled' : `${person.name}'s photos are veiled`}</Text>
+            <Text style={styles.unveilTitle}>Your photo is veiled</Text>
             <Text style={styles.unveilSub}>
-              {me.photoVeiled ? 'Unveil them for her whenever you feel ready.' : `She'll unveil them for you when she's ready — or you can gently ask.`}
+              {veil && veil.theyAskedMe
+                ? `${person.name} has asked — unveil only if you're comfortable.`
+                : 'Unveil the photo you set aside whenever you feel ready.'}
             </Text>
           </View>
           <Pressable onPress={askUnveil} style={styles.unveilBtn}>
-            <Text style={styles.unveilBtnText}>{me.photoVeiled ? 'Unveil' : 'Ask'}</Text>
+            <Text style={styles.unveilBtnText}>Unveil</Text>
           </Pressable>
         </Animated.View>
+      )}
+      {!iAmVeiled && veiledNow && (
+        <UnveilRequestRow state={veil} name={person.name} onAsk={doAsk} asking={asking} />
       )}
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={0}>
@@ -381,6 +424,16 @@ export default function ChatScreen({ route, navigation }) {
           </Animated.View>
         </Pressable>
       </Modal>
+
+      {/* The decision to unveil — always hers, always a tap */}
+      <UnveilPrompt
+        visible={unveilOpen}
+        name={person.name}
+        becauseHeAsked={!!(veil && veil.theyAskedMe)}
+        onUnveil={doUnveil}
+        onDismiss={() => { setUnveilOpen(false); setDismissedPrompt(true); }}
+        busy={unveiling}
+      />
     </View>
   );
 }

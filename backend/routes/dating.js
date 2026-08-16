@@ -100,6 +100,14 @@ const parseProfile = (row, viewerId = null) => {
     gold: !!row.is_gold,
     online: !!row.online || isOnline(row.user_id),
     photos: veiledFromViewer ? [] : photosFor(row.user_id).map((p) => p.url),
+    // Her reserved photo goes to exactly two kinds of viewer: herself,
+    // and someone she has unveiled for. Note hasUnveiledFor() treats a
+    // missing viewer as "allowed", which is the wrong default for this
+    // one field, so an absent viewer is refused explicitly.
+    unveiledPhoto: (viewerId && (viewerId === row.user_id || hasUnveiledFor(row.user_id, viewerId)))
+      ? (row.unveiled_photo || null)
+      : null,
+    hasUnveiledPhoto: !!row.unveiled_photo,
   };
 };
 
@@ -280,14 +288,28 @@ router.put('/profile', authenticate, (req, res) => {
     if (p.gender === 'Woman' && !['Hijab', 'Niqab'].includes(p.veil)) {
       return res.status(400).json({ error: 'Sisters on Veiled wear hijab or niqab — veil must be "Hijab" or "Niqab"' });
     }
+    // The Veil only means something if there is something behind it: a
+    // sister sets aside one unveiled photo when she creates her profile.
+    // It is never shown to anyone until she says so, match by match.
+    p.unveiledPhoto = p.unveiledPhoto == null ? null : String(p.unveiledPhoto).slice(0, 500) || null;
+    if (p.gender === 'Woman') {
+      const existing = db.prepare('SELECT unveiled_photo FROM dating_profiles WHERE user_id = ?').get(req.userId);
+      if (!p.unveiledPhoto && !(existing && existing.unveiled_photo)) {
+        return res.status(422).json({
+          error: 'Add one unveiled photo. It stays private until you choose to reveal it to a match.',
+          unveiledPhotoRequired: true,
+        });
+      }
+      if (!p.unveiledPhoto) p.unveiledPhoto = existing.unveiled_photo;
+    }
     db.prepare(`
       INSERT INTO dating_profiles
         (user_id, name, age, gender, city, distance, job, bio, height, intention,
          veil, photo_veiled,
          sect, prayer_level, ethnicity, halal_diet, interests, "values", languages,
          prompts, friend_takes, wali_enabled, photo_privacy, selfie_verified, is_gold,
-         compat_question, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         compat_question, unveiled_photo, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(user_id) DO UPDATE SET
         name=excluded.name, age=excluded.age, gender=excluded.gender,
         city=excluded.city, distance=excluded.distance, job=excluded.job,
@@ -301,6 +323,7 @@ router.put('/profile', authenticate, (req, res) => {
         wali_enabled=excluded.wali_enabled, photo_privacy=excluded.photo_privacy,
         selfie_verified=excluded.selfie_verified, is_gold=excluded.is_gold,
         compat_question=excluded.compat_question,
+        unveiled_photo=excluded.unveiled_photo,
         updated_at=excluded.updated_at
     `).run(
       req.userId, p.name, p.age, p.gender, p.city || '', p.distance || 0,
@@ -312,7 +335,7 @@ router.put('/profile', authenticate, (req, res) => {
       JSON.stringify(p.languages || ['English']), JSON.stringify(p.prompts || []),
       JSON.stringify(p.friendTakes || []),
       p.waliEnabled ? 1 : 0, p.photoPrivacy ? 1 : 0,
-      p.selfieVerified ? 1 : 0, p.gold ? 1 : 0, p.compatQuestion, Date.now()
+      p.selfieVerified ? 1 : 0, p.gold ? 1 : 0, p.compatQuestion, p.unveiledPhoto, Date.now()
     );
     res.json({ profile: getProfile(req.userId) });
   } catch (err) {
@@ -788,6 +811,78 @@ router.get('/matches', authenticate, (req, res) => {
 // POST /api/dating/matches/:id/unveil — unveil my photos for this match.
 // The signature Veiled action: she stays veiled to everyone else, but
 // chooses to lift the veil for this one person. Emits a live event.
+// The Veil, in three parts:
+//   GET  /matches/:id/veil       — where this pair stands
+//   POST /matches/:id/unveil-ask — he asks her to unveil
+//   POST /matches/:id/unveil     — she agrees (existing, below)
+//
+// She is never unveiled by a timer. Time and conversation only decide
+// when it is reasonable to *ask* her; the reveal itself is always her
+// tapping yes.
+const UNVEIL_AFTER_MS = 24 * 3600000;   // a day since matching
+const UNVEIL_AFTER_MSGS = 12;           // or a conversation worth having
+
+const veilState = (m, userId) => {
+  const iAmA = m.user_a === userId;
+  const mine = iAmA ? m.unveiled_a : m.unveiled_b;
+  const theirs = iAmA ? m.unveiled_b : m.unveiled_a;
+  const askedByThem = iAmA ? m.unveil_asked_b : m.unveil_asked_a;
+  const askedByMe = iAmA ? m.unveil_asked_a : m.unveil_asked_b;
+  const msgs = db.prepare('SELECT COUNT(*) AS n FROM dating_messages WHERE match_id = ?').get(m.id).n;
+  const age = Date.now() - (m.created_at || Date.now());
+  return {
+    matchId: m.id,
+    iUnveiled: !!mine,
+    theyUnveiled: !!theirs,
+    theyAskedMe: !!askedByThem,
+    iAsked: !!askedByMe,
+    messages: msgs,
+    // Enough has happened that it's fair to raise the question.
+    ripe: msgs >= UNVEIL_AFTER_MSGS || age >= UNVEIL_AFTER_MS,
+  };
+};
+
+// GET /api/dating/matches/:id/veil
+router.get('/matches/:id/veil', authenticate, (req, res) => {
+  try {
+    const m = db.prepare('SELECT * FROM dating_matches WHERE id = ?').get(req.params.id);
+    if (!m || (m.user_a !== req.userId && m.user_b !== req.userId)) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+    res.json(veilState(m, req.userId));
+  } catch (err) {
+    console.error('Veil state error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/dating/matches/:id/unveil-ask — ask her to unveil. Recorded
+// once: a request she hasn't answered cannot be sent again and again.
+router.post('/matches/:id/unveil-ask', authenticate, (req, res) => {
+  try {
+    const m = db.prepare('SELECT * FROM dating_matches WHERE id = ?').get(req.params.id);
+    if (!m || (m.user_a !== req.userId && m.user_b !== req.userId)) {
+      return res.status(404).json({ error: 'Match not found' });
+    }
+    const iAmA = m.user_a === req.userId;
+    const col = iAmA ? 'unveil_asked_a' : 'unveil_asked_b';
+    if (iAmA ? m.unveil_asked_a : m.unveil_asked_b) {
+      return res.json({ ok: true, alreadyAsked: true });
+    }
+    db.prepare(`UPDATE dating_matches SET ${col} = 1 WHERE id = ?`).run(m.id);
+    const otherId = iAmA ? m.user_b : m.user_a;
+    const meProfile = getProfile(req.userId, otherId);
+    emitToUser(otherId, 'unveil:ask', { matchId: m.id, from: req.userId });
+    if (!isOnline(otherId) && meProfile) {
+      sendPush(otherId, 'A request to unveil', `${meProfile.name} asked if you'd like to unveil your photo — it's entirely your choice`, { matchId: m.id });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Unveil ask error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 router.post('/matches/:id/unveil', authenticate, (req, res) => {
   try {
     const m = db.prepare('SELECT * FROM dating_matches WHERE id = ?').get(req.params.id);

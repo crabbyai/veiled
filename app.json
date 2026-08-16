@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Veiled",
+    "name": "Veiled: Love",
     "slug": "veiled",
     "version": "1.0.0",
     "runtimeVersion": {
@@ -133,7 +133,7 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "name": "Veiled",
+      "name": "Veiled: Love",
       "shortName": "Veiled",
       "themeColor": "#111111",
       "backgroundColor": "#FFFFFF"

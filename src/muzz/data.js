@@ -284,6 +284,9 @@ export const DEFAULT_ME = {
   // Compatibility Question: one question anyone who wants to like me has
   // to answer first. null = not set.
   compatQuestion: null,
+  // The Veil: the one unveiled photo a sister sets aside. It is shown to
+  // nobody until she unveils it for a specific match.
+  unveiledPhoto: null,
   waliEnabled: false,
   photoPrivacy: false,
   selfieVerified: false,

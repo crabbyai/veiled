@@ -8,7 +8,9 @@ import Animated, { FadeIn, FadeInRight, FadeInDown } from 'react-native-reanimat
 import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE, isDark } from '../theme';
 import { INTERESTS, VALUES, INTENTIONS, VEILS, SECTS, PRAYER_LEVELS, HALAL_DIET } from '../data';
 import { useMuzz } from '../store';
-import { GButton, Chip } from '../components/ui';
+import { GButton, Chip, PhotoTile } from '../components/ui';
+import { pickAndUpload } from '../photos';
+import { mediaUrl as apiMediaUrl } from '../api';
 import Butterfly from '../components/Butterfly';
 import { startVerification } from '../integrations/verify';
 import * as H from '../haptics';
@@ -29,6 +31,7 @@ export default function OnboardingScreen() {
   const [gender, setGender] = useState('Man');
   const [veil, setVeil] = useState(null);
   const [photoVeiled, setPhotoVeiled] = useState(true);
+  const [unveiledPhoto, setUnveiledPhoto] = useState(null);
   const [job, setJob] = useState('');
   const [intention, setIntention] = useState('Ready for nikah');
   const [interests, setInterests] = useState([]);
@@ -59,7 +62,12 @@ export default function OnboardingScreen() {
   const ageOk = ageNum >= MIN_AGE && ageNum <= 99;
 
   const canNext = () => {
-    if (step === STEP.you) return name.trim().length > 1 && ageOk && (gender !== 'Woman' || !!veil);
+    // A sister's profile needs her veil style and the one photo she
+    // sets aside — the server refuses it without them.
+    if (step === STEP.you) {
+      return name.trim().length > 1 && ageOk
+        && (gender !== 'Woman' || (!!veil && !!unveiledPhoto));
+    }
     if (step === STEP.interests) return interests.length >= 3;
     if (step === STEP.values) return values.length >= 2;
     // Verification is optional: it needs a camera and a third-party
@@ -85,6 +93,7 @@ export default function OnboardingScreen() {
     else completeOnboarding({
       name: name.trim(), age: Number(age) || 27, gender, job: job.trim(),
       veil: gender === 'Woman' ? veil : null,
+      unveiledPhoto: gender === 'Woman' ? unveiledPhoto : null,
       photoVeiled: gender === 'Woman' ? photoVeiled : false,
       intention, interests, values, bio: bio.trim(),
       sect, prayerLevel, halalDiet, waliEnabled: wali, selfieVerified: false,
@@ -162,6 +171,38 @@ export default function OnboardingScreen() {
                     <Text style={styles.helper2}>Photos stay frosted until you unveil them for a match. You stay in control.</Text>
                   </View>
                   <Ionicons name={photoVeiled ? 'eye-off' : 'eye'} size={24} color={photoVeiled ? M.primary : M.textMuted} />
+                </Pressable>
+
+                {/* The photo behind the veil. Required, and shown to
+                    nobody until she unveils it for someone. */}
+                <Text style={styles.label}>The photo behind your veil</Text>
+                <Text style={styles.helper2}>
+                  One unveiled photo, set aside. Nobody sees it — not in Discover, not on your profile — until you choose to unveil it for a particular match, one at a time.
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Add your unveiled photo"
+                  onPress={async () => { H.tap(); const uri = await pickAndUpload(); if (uri) { setUnveiledPhoto(uri); H.success(); } }}
+                  style={[styles.reserveBox, unveiledPhoto && styles.reserveBoxSet]}
+                >
+                  {unveiledPhoto ? (
+                    <>
+                      <PhotoTile uri={apiMediaUrl(unveiledPhoto)} seed="unveiled" rounded={RADIUS.md} style={styles.reserveImg} />
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={styles.reserveSet}>Photo set aside</Text>
+                        <Text style={styles.helper2}>Tap to change it.</Text>
+                      </View>
+                      <Ionicons name="lock-closed" size={20} color={M.success} />
+                    </>
+                  ) : (
+                    <>
+                      <View style={styles.reservePlus}><Ionicons name="add" size={26} color={M.primary} /></View>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={styles.bigOptText}>Add your photo</Text>
+                        <Text style={styles.helper2}>Required — kept private until you say otherwise.</Text>
+                      </View>
+                    </>
+                  )}
                 </Pressable>
               </Animated.View>
             )}
@@ -310,6 +351,11 @@ const styles = StyleSheet.create({
   progressSeg: { flex: 1, height: 4, borderRadius: 2 },
   scroll: { padding: SPACE.xl, paddingBottom: 30, flexGrow: 1 },
   welcome: { alignItems: 'center', paddingTop: 10 },
+  reserveBox: { flexDirection: 'row', alignItems: 'center', marginTop: 10, padding: 12, borderRadius: RADIUS.lg, borderWidth: 1.5, borderColor: M.border, borderStyle: 'dashed', backgroundColor: M.bgSoft },
+  reserveBoxSet: { borderStyle: 'solid', borderColor: M.success },
+  reservePlus: { width: 56, height: 56, borderRadius: RADIUS.md, alignItems: 'center', justifyContent: 'center', backgroundColor: M.primarySoft },
+  reserveImg: { width: 56, height: 56 },
+  reserveSet: { ...TYPE.body, fontWeight: '800', color: M.success },
   skipNote: { ...TYPE.caption, color: M.textMuted, marginTop: 16, textAlign: 'center' },
   bfWrap: { height: 170, alignItems: 'center', justifyContent: 'center' },
   heroCard: {

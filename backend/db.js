@@ -242,5 +242,12 @@ ensure('dating_swipes', 'compat_answer', 'compat_answer TEXT');
 ensure('dating_swipes', 'compat_question', 'compat_question TEXT');
 ensure('dating_matches', 'unveiled_a', 'unveiled_a INTEGER DEFAULT 0');
 ensure('dating_matches', 'unveiled_b', 'unveiled_b INTEGER DEFAULT 0');
+// The Veil: he can ask her to unveil, and she is prompted once the
+// conversation has had time to breathe. Both are recorded so the ask
+// can't be repeated endlessly and the prompt only appears once.
+ensure('dating_matches', 'unveil_asked_a', 'unveil_asked_a INTEGER DEFAULT 0');
+ensure('dating_matches', 'unveil_asked_b', 'unveil_asked_b INTEGER DEFAULT 0');
+// Her reserved unveiled photo — the one shown when she says yes.
+ensure('dating_profiles', 'unveiled_photo', 'unveiled_photo TEXT');
 
 module.exports = db;

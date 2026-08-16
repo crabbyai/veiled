@@ -550,6 +550,31 @@ export function MuzzProvider({ children }) {
     });
   }, [update]);
 
+  // ── The Veil ───────────────────────────────────────────────────────
+  // Where a match stands: has she unveiled, has he asked, has enough
+  // happened for it to be fair to ask her. Returns null offline.
+  const veilStateFor = useCallback(async (personId) => {
+    if (!HAS_BACKEND) return null;
+    try {
+      const { matches: sm } = await api.matches();
+      const m = sm.find((x) => api.toLocalId(x.person.id) === personId);
+      if (!m) return null;
+      return await api.veilState(m.matchId);
+    } catch { return null; }
+  }, []);
+
+  // He asks; she decides. This only ever raises the question.
+  const askToUnveil = useCallback(async (personId) => {
+    if (!HAS_BACKEND) return { ok: false };
+    try {
+      const { matches: sm } = await api.matches();
+      const m = sm.find((x) => api.toLocalId(x.person.id) === personId);
+      if (!m) return { ok: false };
+      await api.askUnveil(m.matchId);
+      return { ok: true };
+    } catch (e) { return { ok: false, error: (e && e.message) || 'Could not send that request.' }; }
+  }, []);
+
   // The Veil, per match: unveil photos between me and this person. Mirrors
   // to the backend's /matches/:id/unveil when connected.
   const unveilFor = useCallback((personId) => {
@@ -760,12 +785,12 @@ export function MuzzProvider({ children }) {
     likesRemaining, useInstantChat,
     addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson,
     unmatchPerson, pauseProfile, sendRose, recordWeMet, toggleMute,
-    unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead,
+    unveilFor, isUnveiled, veilStateFor, askToUnveil, setChaperone, toggleRsvp, markProfileRead,
     setCompatQuestion, needsAnswer, refreshLikes, clearPendingMatch,
     people: REGISTRY, refreshPeople, loadingPeople, peopleError, demoMode: DEMO_MODE, hasBackend: HAS_BACKEND,
     refreshPosts, loadingPosts, postsError, loadComments, addComment,
     authed, signIn, signUp,
-  }), [state, hydrated, loadingPeople, peopleError, refreshPeople, authed, signIn, signUp, refreshPosts, loadingPosts, postsError, loadComments, addComment, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, deleteAccount, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson, unmatchPerson, pauseProfile, sendRose, recordWeMet, toggleMute, unveilFor, isUnveiled, setChaperone, toggleRsvp, markProfileRead, setCompatQuestion, needsAnswer, refreshLikes, clearPendingMatch]);
+  }), [state, hydrated, loadingPeople, peopleError, refreshPeople, authed, signIn, signUp, refreshPosts, loadingPosts, postsError, loadComments, addComment, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, deleteAccount, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson, unmatchPerson, pauseProfile, sendRose, recordWeMet, toggleMute, unveilFor, isUnveiled, veilStateFor, askToUnveil, setChaperone, toggleRsvp, markProfileRead, setCompatQuestion, needsAnswer, refreshLikes, clearPendingMatch]);
 
   return <MuzzContext.Provider value={value}>{children}</MuzzContext.Provider>;
 }

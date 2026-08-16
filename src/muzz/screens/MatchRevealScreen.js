@@ -75,14 +75,31 @@ export default function MatchRevealScreen({ route, navigation }) {
   );
 }
 
+// Hearts drift down the left and right margins only. Scattered across
+// the full width they landed on top of "It's a Match!" and the names,
+// which is the one thing on this screen that has to stay readable.
+const HEART_MARGIN = Math.max(56, width * 0.16);
+
 function Hearts() {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      {[...Array(10)].map((_, i) => (
-        <Animated.View key={i} entering={FadeIn.delay(i * 90)} style={{ position: 'absolute', top: 80 + (i * 53) % 500, left: (i * 71) % width, opacity: 0.25 }}>
-          <Ionicons name="heart" size={14 + (i % 4) * 8} color="#fff" />
-        </Animated.View>
-      ))}
+      {[...Array(12)].map((_, i) => {
+        const onLeft = i % 2 === 0;
+        const inset = 8 + ((i * 29) % Math.max(1, HEART_MARGIN - 30));
+        return (
+          <Animated.View
+            key={i}
+            entering={FadeIn.delay(i * 80)}
+            style={[
+              styles.heart,
+              onLeft ? { left: inset } : { right: inset },
+              { top: 70 + ((i * 137) % 660) },
+            ]}
+          >
+            <Ionicons name="heart" size={12 + (i % 4) * 6} color="#fff" />
+          </Animated.View>
+        );
+      })}
     </View>
   );
 }
@@ -90,7 +107,8 @@ function Hearts() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   close: { position: 'absolute', top: 56, right: 20, zIndex: 10, width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SPACE.xxl },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SPACE.xxl, zIndex: 2 },
+  heart: { position: 'absolute', opacity: 0.22, zIndex: 0 },
   title: { fontSize: 44, fontWeight: '900', color: '#fff', marginTop: 6, letterSpacing: -1 },
   sub: { ...TYPE.body, color: 'rgba(255,255,255,0.95)', textAlign: 'center', marginTop: 8, fontSize: 16, fontWeight: '600' },
   photos: { flexDirection: 'row', alignItems: 'center', marginTop: 34 },

@@ -141,6 +141,9 @@ export const getMessages = (matchId, { before, limit } = {}) => {
   return request(`/dating/matches/${matchId}/messages${qs.length ? `?${qs.join('&')}` : ''}`);
 };
 export const unveil = (matchId) => request(`/dating/matches/${matchId}/unveil`, { method: 'POST' });
+// The Veil: where this pair stands, and his request that she unveil.
+export const veilState = (matchId) => request(`/dating/matches/${matchId}/veil`);
+export const askUnveil = (matchId) => request(`/dating/matches/${matchId}/unveil-ask`, { method: 'POST' });
 export const unmatch = (matchId) => request(`/dating/matches/${matchId}/unmatch`, { method: 'POST' });
 export const sendMessage = (matchId, body) =>
   request(`/dating/matches/${matchId}/messages`, { method: 'POST', body: { body } });
