@@ -98,6 +98,19 @@ export const VEIL_NOTES = [
 // A suggestion to start her off with — she can shuffle or replace it.
 export const randomVeilNote = () => VEIL_NOTES[Math.floor(Math.random() * VEIL_NOTES.length)];
 
+// The line shown on a card. Hers if she wrote one; otherwise one of the
+// set, picked from her id so it's different profile to profile and the
+// same every time you see her — a line that changed on each render
+// would read as noise.
+export const veilNoteFor = (id, custom) => {
+  const own = (custom || '').trim();
+  if (own) return own;
+  let h = 0;
+  const k = String(id || '');
+  for (let i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) >>> 0;
+  return VEIL_NOTES[h % VEIL_NOTES.length];
+};
+
 // ── Written sample profiles (development only) ───────────────────────
 // These people are invented. They exist to build and demo the UI
 // against, and they are only ever loaded when EXPO_PUBLIC_DEMO_MODE=1

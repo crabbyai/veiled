@@ -12,6 +12,7 @@ import Animated, {
 import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE, gradVariantFor } from '../theme';
 import { useMuzz, getPerson } from '../store';
 import { rankMatches } from '../butterfly';
+import { veilNoteFor } from '../data';
 import { SIMULATED_FEATURES } from '../config';
 import { PhotoTile, Verified, GButton, VeilBadge } from '../components/ui';
 import { AnswerSheet } from '../components/CompatQuestion';
@@ -471,6 +472,7 @@ export default function DiscoverScreen({ navigation }) {
 function Card({ m, photoIdx = 0 }) {
   const p = m.person;
   const photoCount = p.photos?.length || 3;
+  const faceless = !!p.photoVeiled || !(p.photos && p.photos[photoIdx]);
   return (
     <PhotoTile
       seed={p.id} name={p.name} rounded={RADIUS.xl} style={styles.card}
@@ -503,11 +505,13 @@ function Card({ m, photoIdx = 0 }) {
         <Ionicons name="sparkles" size={11} color="#fff" />
         <Text style={styles.aiBadgeText}>{m.score}%</Text>
       </View>
-      {/* Her note, in her words. Only shows if she wrote one. */}
-      {p.cardNote ? (
+      {/* A line on the cards with no photo showing — hers if she wrote
+          one, otherwise one of the set, chosen from her id. Sits above
+          her head, tail pointing down at her. */}
+      {faceless ? (
         <View style={styles.noteWrap} pointerEvents="none">
           <View style={styles.noteBubble}>
-            <Text style={styles.noteText}>{p.cardNote}</Text>
+            <Text style={styles.noteText}>{veilNoteFor(p.id, p.cardNote)}</Text>
           </View>
           <View style={styles.noteTail} />
         </View>
@@ -625,10 +629,10 @@ const styles = StyleSheet.create({
   rewindBtn: { width: 46, height: 46, borderRadius: 23, backgroundColor: M.bgElevated, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.75)' },
   passBtn: { width: 58, height: 58, borderRadius: 29, backgroundColor: M.bgElevated, borderWidth: 1, borderColor: M.border },
   roseBtn: { width: 50, height: 50, borderRadius: 25, backgroundColor: M.rose, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', ...SHADOW.card },
-  noteWrap: { position: 'absolute', left: 18, right: 40, bottom: 252, alignItems: 'flex-start' },
-  noteBubble: { backgroundColor: 'rgba(255,255,255,0.94)', borderRadius: 20, borderBottomLeftRadius: 6, paddingHorizontal: 16, paddingVertical: 11, maxWidth: '100%', ...SHADOW.card },
-  noteText: { color: '#141018', fontSize: 15.5, fontWeight: '700', lineHeight: 21 },
-  noteTail: { width: 12, height: 12, marginLeft: 6, marginTop: -5, backgroundColor: 'rgba(255,255,255,0.94)', transform: [{ rotate: '45deg' }] },
+  noteWrap: { position: 'absolute', left: 16, right: 16, top: 78, alignItems: 'center' },
+  noteBubble: { backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 22, paddingHorizontal: 18, paddingVertical: 12, maxWidth: '92%', ...SHADOW.card },
+  noteText: { color: '#141018', fontSize: 15.5, fontWeight: '700', lineHeight: 21, textAlign: 'center' },
+  noteTail: { width: 14, height: 14, marginTop: -7, backgroundColor: 'rgba(255,255,255,0.95)', transform: [{ rotate: '45deg' }] },
   instantBtn: { width: 50, height: 50, borderRadius: 25, backgroundColor: M.gold, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', ...SHADOW.card },
   likeBtn: { width: 64, height: 64, borderRadius: 32, backgroundColor: M.primary, borderWidth: 2.5, borderColor: 'rgba(255,255,255,0.95)', ...SHADOW.primary },
   likesLeft: { ...TYPE.caption, color: '#FFFFFF', textAlign: 'center', marginTop: 8, fontWeight: '700', textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 4 },
