@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { M, RADIUS, SPACE, TYPE } from '../theme';
 import { useMuzz } from '../store';
-import { VeilGlyph } from '../components/Butterfly';
+import { VeiledMark } from '../components/VeiledMark';
 import * as H from '../haptics';
 
 const PRIVACY_URL = 'https://crabbyai.github.io/veiled-support/privacy.html';
@@ -53,7 +53,7 @@ export default function AuthScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View entering={FadeInDown} style={styles.head}>
-          <VeilGlyph color={M.text} size={64} />
+          <VeiledMark size={92} />
           <Text style={styles.title}>{creating ? 'Create your account' : 'Welcome back'}</Text>
           <Text style={styles.sub}>
             {creating

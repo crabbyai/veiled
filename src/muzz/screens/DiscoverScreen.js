@@ -16,7 +16,7 @@ import { SIMULATED_FEATURES } from '../config';
 import { PhotoTile, Verified, GButton, VeilBadge } from '../components/ui';
 import { AnswerSheet } from '../components/CompatQuestion';
 import Stories from '../components/Stories';
-import Butterfly from '../components/Butterfly';
+import { VeiledMark } from '../components/VeiledMark';
 import PrayerBar from '../components/PrayerBar';
 import * as H from '../haptics';
 
@@ -328,7 +328,7 @@ export default function DiscoverScreen({ navigation }) {
       <View style={styles.deck}>
         {!top ? (
           <Animated.View entering={FadeIn} style={styles.empty}>
-            <Butterfly size={120} />
+            <VeiledMark size={130} />
             {/* Say which of these it actually is. "You're all caught up"
                 over an empty deck that failed to load is a lie. */}
             {loadingPeople ? (

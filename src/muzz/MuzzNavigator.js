@@ -7,7 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { VeilGlyph } from './components/Butterfly';
+import { VeiledMark } from './components/VeiledMark';
 import { M } from './theme';
 import { MuzzProvider, useMuzz } from './store';
 import * as H from './haptics';
@@ -36,9 +36,10 @@ import VoiceMatchScreen from './screens/VoiceMatchScreen';
 
 const Stack = createNativeStackNavigator();
 
-// ── Mini veiled-silhouette glyph for the tab bar ─────────────────────
+// The mark in the tab bar. It's artwork, not a line icon, so the
+// active/inactive state is carried by opacity rather than tint.
 function ButterflyGlyph({ color = '#fff', size = 26 }) {
-  return <VeilGlyph color={color} size={size} />;
+  return <VeiledMark size={size} opacity={color === M.primary ? 1 : 0.45} />;
 }
 
 // Muzz-style flat tab bar: 5 even tabs, pink active state, no center FAB.
@@ -110,7 +111,7 @@ function Root() {
   if (!hydrated || authed === null) {
     return (
       <View style={{ flex: 1, backgroundColor: M.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <VeilGlyph color={M.text} size={72} />
+        <VeiledMark size={84} />
       </View>
     );
   }

@@ -8,7 +8,7 @@ import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE, gradVariantFor, isDark } from '..
 import { useMuzz } from '../store';
 import { rankMatches } from '../butterfly';
 import { PhotoTile, VeilBadge, Verified, GButton } from '../components/ui';
-import Butterfly from '../components/Butterfly';
+import { VeiledMark } from '../components/VeiledMark';
 import * as H from '../haptics';
 
 const { width } = Dimensions.get('window');
@@ -120,7 +120,7 @@ export default function VoiceMatchScreen({ navigation }) {
             {convo.map((m) => (
               m.from === 'ai' ? (
                 <Animated.View key={m.id} entering={FadeInDown.duration(220)} style={styles.aiRow}>
-                  <View style={styles.aiAvatar}><Butterfly size={40} idle={false} /></View>
+                  <View style={styles.aiAvatar}><VeiledMark size={40} /></View>
                   <View style={styles.aiBubble}>
                     <View style={styles.speakRow}>
                       <Ionicons name="volume-medium" size={13} color={M.textSoft} />
@@ -145,7 +145,7 @@ export default function VoiceMatchScreen({ navigation }) {
             ))}
             {phase === 'thinking' && (
               <Animated.View entering={FadeIn} style={styles.aiRow}>
-                <View style={styles.aiAvatar}><Butterfly size={40} idle={false} /></View>
+                <View style={styles.aiAvatar}><VeiledMark size={40} /></View>
                 <View style={[styles.aiBubble, { flexDirection: 'row', gap: 4, paddingVertical: 16 }]}>
                   {[0, 1, 2].map((i) => <View key={i} style={styles.dot} />)}
                 </View>

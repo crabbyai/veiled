@@ -12,7 +12,7 @@ import * as api from '../api';
 import { INTERESTS, VALUES } from '../data';
 import { PhotoTile, Verified, Chip, GButton, OButton } from '../components/ui';
 import { QuestionEditor } from '../components/CompatQuestion';
-import Butterfly from '../components/Butterfly';
+import { VeiledMark } from '../components/VeiledMark';
 import { pickAndUpload } from '../photos';
 import * as H from '../haptics';
 
@@ -177,7 +177,7 @@ export default function ProfileScreen({ navigation }) {
 
         {/* Butterfly card */}
         <Animated.View entering={FadeInDown} style={styles.bfCard}>
-          <View style={styles.bfMini}><Butterfly size={66} /></View>
+          <View style={styles.bfMini}><VeiledMark size={66} /></View>
           <View style={{ flex: 1 }}>
             <Text style={styles.bfTitle}>Your Matchmaker</Text>
             <Text style={styles.bfSub}>Trained on {me.interests?.length || 0} interests · {me.values?.length || 0} values</Text>

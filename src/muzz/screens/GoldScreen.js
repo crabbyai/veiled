@@ -7,7 +7,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE } from '../theme';
 import { useMuzz } from '../store';
 import { GButton } from '../components/ui';
-import Butterfly from '../components/Butterfly';
+import { VeiledMark } from '../components/VeiledMark';
 import { IslamicPattern } from '../components/Pattern';
 import * as purchases from '../integrations/purchases';
 import * as H from '../haptics';
@@ -88,7 +88,7 @@ export default function GoldScreen({ navigation }) {
 
       <ScrollView contentContainerStyle={{ paddingBottom: 30, paddingTop: insets.top + 30 }} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
-          <Butterfly size={110} colorA="#F0F0F2" colorB="#B4B4B8" />
+          <VeiledMark size={110} />
           <LinearGradient colors={GRAD.gold} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.goldTag}>
             <Ionicons name="diamond" size={16} color="#fff" />
             <Text style={styles.goldTagText}>VEILED GOLD</Text>

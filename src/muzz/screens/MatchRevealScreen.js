@@ -6,7 +6,7 @@ import Animated, { FadeIn, ZoomIn, FadeInDown } from 'react-native-reanimated';
 import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE } from '../theme';
 import { useMuzz, getPerson } from '../store';
 import { PhotoTile, Avatar, GButton } from '../components/ui';
-import Butterfly from '../components/Butterfly';
+import { VeiledMark } from '../components/VeiledMark';
 import * as H from '../haptics';
 
 const { width } = Dimensions.get('window');
@@ -35,7 +35,7 @@ export default function MatchRevealScreen({ route, navigation }) {
       </Pressable>
 
       <View style={styles.center}>
-        <Animated.View entering={FadeInDown}><Butterfly size={90} colorA="#fff" colorB="#C8C8CC" /></Animated.View>
+        <Animated.View entering={FadeInDown}><VeiledMark size={96} /></Animated.View>
         <Animated.Text entering={ZoomIn.springify()} style={styles.title}>It's a Match!</Animated.Text>
         <Animated.Text entering={FadeIn.delay(200)} style={styles.sub}>
           Your matchmaker was right — you and {person.name} are a {score}% match

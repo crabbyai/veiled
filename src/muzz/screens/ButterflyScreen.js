@@ -13,7 +13,7 @@ import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE } from '../theme';
 import { useMuzz } from '../store';
 import { dailyPick, rankMatches, compatLabel, butterflyLine } from '../butterfly';
 import { GButton, PhotoTile, Verified, Avatar, Chip } from '../components/ui';
-import Butterfly from '../components/Butterfly';
+import { VeiledMark } from '../components/VeiledMark';
 import * as H from '../haptics';
 
 const { width } = Dimensions.get('window');
@@ -114,7 +114,7 @@ export default function ButterflyScreen({ navigation }) {
         {phase === 'idle' && (
           <Animated.View entering={FadeIn} style={styles.stage}>
             <FloatBackdrop />
-            <Butterfly size={150} />
+            <VeiledMark size={150} />
             <Text style={styles.stageTitle}>
               {queueCount > 0 ? `${queueCount} matches waiting` : 'All caught up'}
             </Text>
@@ -163,7 +163,7 @@ export default function ButterflyScreen({ navigation }) {
         {phase === 'reveal' && pick && (
           <Animated.View entering={FadeIn} style={{ paddingHorizontal: SPACE.xl }}>
             <Animated.View entering={FadeInDown} style={styles.bfSpeech}>
-              <Butterfly size={56} />
+              <VeiledMark size={56} />
               <Text style={styles.speechText}>"{butterflyLine(pick.score)}"</Text>
             </Animated.View>
 
@@ -295,7 +295,7 @@ function SearchingFlight() {
   }));
   return (
     <View style={{ height: 160, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' }}>
-      <Animated.View style={st}><Butterfly size={120} /></Animated.View>
+      <Animated.View style={st}><VeiledMark size={120} /></Animated.View>
     </View>
   );
 }

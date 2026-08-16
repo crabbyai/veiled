@@ -11,7 +11,7 @@ import { useMuzz } from '../store';
 import { GButton, Chip, PhotoTile } from '../components/ui';
 import { pickAndUpload } from '../photos';
 import { mediaUrl as apiMediaUrl } from '../api';
-import Butterfly from '../components/Butterfly';
+import { VeiledMark } from '../components/VeiledMark';
 import { startVerification } from '../integrations/verify';
 import * as H from '../haptics';
 
@@ -309,7 +309,7 @@ export default function OnboardingScreen() {
 
         {step === STEP.done && (
           <Animated.View entering={FadeIn} style={styles.welcome}>
-            <View style={styles.bfWrap}><Butterfly size={160} /></View>
+            <View style={styles.bfWrap}><VeiledMark size={150} /></View>
             <Text style={styles.welcomeTitle}>Your matchmaker is ready</Text>
             <Text style={styles.welcomeSub}>
               {name ? `Nice to meet you, ${name}. ` : ''}I've learned {interests.length} interests and {values.length} values. From now on, I'll bring your best matches straight to you — no swiping required.
