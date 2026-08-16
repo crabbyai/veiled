@@ -18,6 +18,7 @@ import { PhotoTile, Verified, GButton, VeilBadge } from '../components/ui';
 import { AnswerSheet } from '../components/CompatQuestion';
 import Stories from '../components/Stories';
 import { VeiledMark } from '../components/VeiledMark';
+import { RoseGrow, PetalFall } from '../components/RoseBloom';
 import PrayerBar from '../components/PrayerBar';
 import * as H from '../haptics';
 
@@ -42,6 +43,10 @@ const matchesFilters = (p, f) => {
 
 const { width, height } = Dimensions.get('window');
 const CARD_W = width - SPACE.lg * 2;
+
+// Whether the card is showing her face or standing in for it. The rose
+// animation and the card note both key off this.
+const isFaceless = (p, idx = 0) => !!p.photoVeiled || !(p.photos && p.photos[idx]);
 
 // Muzz-style discovery: a full-screen card stack with circular action
 // buttons. The AI butterfly pre-sorts the deck by compatibility, so the
@@ -73,6 +78,10 @@ export default function DiscoverScreen({ navigation }) {
   const [answering, setAnswering] = useState(null);
   const [showBoost, setShowBoost] = useState(false);
   const [now, setNow] = useState(Date.now());
+  // A Rose in flight: the animation plays over her card, and the Rose is
+  // only sent when it finishes — so she's still on screen to receive it.
+  const [bloom, setBloom] = useState(null);
+  const [deckSize, setDeckSize] = useState({ w: CARD_W, h: height * 0.7 });
 
   const boostActive = boostUntil > now;
   useEffect(() => {
@@ -110,19 +119,39 @@ export default function DiscoverScreen({ navigation }) {
   const surging = activeNow >= 4;
 
   // The standout action from the deck is a Rose — so it spends a Rose,
-  // through the same path as Roses everywhere else.
+  // through the same path as Roses everywhere else. Every Rose, however
+  // it was sent, runs the gates here and then blooms on her card.
+  const beginRose = useCallback((person, { comment = null, answer = null } = {}) => {
+    if (!person || bloom) return;
+    if (!me.gold && (roses || 0) <= 0) { H.warn(); navigation.navigate('MuzzGold'); return; }
+    // Her question gates a Rose too, and is checked before it is spent.
+    if (!answer && needsAnswer(person.id)) { H.tap(); setAnswering({ person, kind: 'rose', comment }); return; }
+    H.press();
+    setBloom({ person, comment, answer, faceless: isFaceless(person, person.id === top?.person?.id ? photoIdx : 0) });
+  }, [bloom, me.gold, roses, needsAnswer, navigation, top, photoIdx]);
+
+  // The bloom finished — send it for real and let the deck move on.
+  const finishRose = useCallback(() => {
+    const b = bloom;
+    setBloom(null);
+    if (!b) return;
+    const { ok, matched } = sendRose(b.person.id, {
+      comment: b.comment || null, contentType: 'profile', contentRef: 'profile', answer: b.answer,
+    });
+    if (!ok) return;
+    setLastSwiped(b.person.id);
+    setPhotoIdx(0);
+    H.success();
+    if (matched) navigation.navigate('MuzzMatchReveal', { personId: b.person.id, score: 99, rose: true });
+  }, [bloom, sendRose, navigation]);
+
   const sendDeckRose = () => {
     if (!superTarget) return;
-    if (!me.gold && (roses || 0) <= 0) { setSuperTarget(null); navigation.navigate('MuzzGold'); return; }
     const t = superTarget;
-    // Her question gates a Rose too, and is checked before it is spent.
-    if (needsAnswer(t.id)) { setSuperTarget(null); setAnswering({ person: t, kind: 'rose' }); return; }
-    const { ok, matched } = sendRose(t.id, { comment: superNote.trim() || null, contentType: 'profile', contentRef: 'profile' });
+    const note = superNote.trim() || null;
     setSuperTarget(null);
     setSuperNote('');
-    if (!ok) return;
-    H.success();
-    if (matched) navigation.navigate('MuzzMatchReveal', { personId: t.id, score: 99, rose: true });
+    beginRose(t, { comment: note });
   };
 
   const doBoost = () => {
@@ -169,25 +198,33 @@ export default function DiscoverScreen({ navigation }) {
     if (!pending) return;
     const { person, kind } = pending;
     if (kind === 'rose') {
-      const { ok, matched } = sendRose(person.id, { comment: superNote.trim() || null, contentType: 'profile', contentRef: 'profile', answer: text });
-      setSuperNote('');
-      if (!ok) return;
-      H.success();
-      if (matched) navigation.navigate('MuzzMatchReveal', { personId: person.id, score: 99, rose: true });
+      beginRose(person, { comment: pending.comment || null, answer: text });
       return;
     }
     const entry = stack.find((m) => m.person.id === person.id);
     commit(1, person.id, entry ? entry.score : 90, text);
-  }, [answering, me.gold, superNote, stack, commit, likePerson, navigation, update]);
+  }, [answering, stack, commit, beginRose]);
 
   // Called when a drag ends: decide fling vs spring-back, with the
   // like-limit gate applied before committing a right swipe.
-  const finishDrag = useCallback((translationX, velocityX) => {
+  const finishDrag = useCallback((translationX, velocityX, translationY, velocityY) => {
+    const springBack = () => {
+      tx.value = withSpring(0, { damping: 16, stiffness: 160 });
+      ty.value = withSpring(0, { damping: 16, stiffness: 160 });
+    };
+    // Up is a Rose. The card springs back rather than flying off, so she
+    // is still there for the rose to open beside.
+    if (bloom) { springBack(); return; }
+    const flungUp = translationY < -height * 0.14 || velocityY < -1000;
+    if (top && flungUp && Math.abs(translationY) > Math.abs(translationX)) {
+      springBack();
+      beginRose(top.person);
+      return;
+    }
     const shouldFling = Math.abs(translationX) > width * 0.28 || Math.abs(velocityX) > 900;
     const dir = translationX > 0 ? 1 : -1;
     if (!shouldFling || !top) {
-      tx.value = withSpring(0, { damping: 16, stiffness: 160 });
-      ty.value = withSpring(0, { damping: 16, stiffness: 160 });
+      springBack();
       return;
     }
     if (dir > 0 && likesRemaining() <= 0) {
@@ -204,17 +241,21 @@ export default function DiscoverScreen({ navigation }) {
     tx.value = withTiming(dir * width * 1.4, { duration: 240, easing: Easing.in(Easing.quad) }, () => {
       runOnJS(commit)(dir, id, score);
     });
-  }, [top, likesRemaining, commit, navigation, askFirst]);
+  }, [top, likesRemaining, commit, navigation, askFirst, beginRose, bloom]);
 
+  // Both axes are live: sideways is like/pass, up is a Rose. A drag that
+  // is mostly vertical follows your finger properly instead of being
+  // damped, so the up-swipe feels like one.
   const pan = Gesture.Pan()
     .activeOffsetX([-14, 14])
-    .failOffsetY([-18, 18])
+    .activeOffsetY([-16, 24])
     .onUpdate((e) => {
-      tx.value = e.translationX;
-      ty.value = e.translationY * 0.12;
+      const upward = e.translationY < 0 && Math.abs(e.translationY) > Math.abs(e.translationX);
+      tx.value = upward ? e.translationX * 0.3 : e.translationX;
+      ty.value = upward ? e.translationY : e.translationY * 0.12;
     })
     .onEnd((e) => {
-      runOnJS(finishDrag)(e.translationX, e.velocityX);
+      runOnJS(finishDrag)(e.translationX, e.velocityX, e.translationY, e.velocityY);
     });
 
   const rewind = () => {
@@ -230,7 +271,7 @@ export default function DiscoverScreen({ navigation }) {
   };
 
   const swipe = (dir) => {
-    if (!top) return;
+    if (!top || bloom) return;
     if (dir > 0 && likesRemaining() <= 0) {
       H.warn();
       navigation.navigate('MuzzGold');
@@ -272,6 +313,10 @@ export default function DiscoverScreen({ navigation }) {
   }));
   const nopeStampStyle = useAnimatedStyle(() => ({
     opacity: interpolate(tx.value, [-width * 0.18, 0], [1, 0], 'clamp'),
+  }));
+  // Tells you what the up-swipe is about to do before you let go.
+  const roseStampStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(ty.value, [-height * 0.13, -24], [1, 0], 'clamp'),
   }));
 
   const remaining = likesRemaining();
@@ -329,7 +374,13 @@ export default function DiscoverScreen({ navigation }) {
       )}
 
       {/* Card stack */}
-      <View style={styles.deck}>
+      <View
+        style={styles.deck}
+        onLayout={(e) => {
+          const { width: w, height: h } = e.nativeEvent.layout;
+          setDeckSize((s) => (s.w === w && s.h === h ? s : { w, h }));
+        }}
+      >
         {!top ? (
           <Animated.View entering={FadeIn} style={styles.empty}>
             <VeiledMark size={130} />
@@ -388,10 +439,27 @@ export default function DiscoverScreen({ navigation }) {
                 <Animated.View style={[styles.stamp, styles.nopeStamp, nopeStampStyle]} pointerEvents="none">
                   <Text style={[styles.stampText, { color: '#9A9AA0' }]}>NOPE</Text>
                 </Animated.View>
+                <Animated.View style={[styles.roseStamp, roseStampStyle]} pointerEvents="none">
+                  <Ionicons name="rose" size={20} color="#fff" />
+                  <Text style={styles.roseStampText}>ROSE</Text>
+                </Animated.View>
               </Animated.View>
             </GestureDetector>
           </>
         )}
+
+        {/* The Rose, opening on her card. Veiled cards get the whole
+            plant beside her; a card showing her face gets petals, so
+            nothing is drawn over it. */}
+        {bloom ? (
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            {bloom.faceless ? (
+              <RoseGrow style={styles.bloomBeside} size={88} onDone={finishRose} />
+            ) : (
+              <PetalFall width={deckSize.w} height={deckSize.h} onDone={finishRose} />
+            )}
+          </View>
+        ) : null}
       </View>
 
       {/* Actions float over the bottom of the card, with the likes
@@ -472,7 +540,7 @@ export default function DiscoverScreen({ navigation }) {
 function Card({ m, photoIdx = 0 }) {
   const p = m.person;
   const photoCount = p.photos?.length || 3;
-  const faceless = !!p.photoVeiled || !(p.photos && p.photos[photoIdx]);
+  const faceless = isFaceless(p, photoIdx);
   return (
     <PhotoTile
       seed={p.id} name={p.name} rounded={RADIUS.xl} style={styles.card}
@@ -669,4 +737,13 @@ const styles = StyleSheet.create({
   likeStamp: { left: 22, borderColor: '#111111', transform: [{ rotate: '-14deg' }] },
   nopeStamp: { right: 22, borderColor: '#9A9AA0', transform: [{ rotate: '14deg' }] },
   stampText: { fontSize: 32, fontWeight: '900', letterSpacing: 2 },
+  roseStamp: {
+    position: 'absolute', top: '44%', alignSelf: 'center',
+    flexDirection: 'row', alignItems: 'center', gap: 7,
+    backgroundColor: M.rose, paddingHorizontal: 16, paddingVertical: 9,
+    borderRadius: RADIUS.pill, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)', ...SHADOW.card,
+  },
+  roseStampText: { color: '#fff', fontSize: 17, fontWeight: '900', letterSpacing: 1.5 },
+  // The empty side of a veiled card, level with where her face sits.
+  bloomBeside: { position: 'absolute', right: 14, top: '12%', height: '52%', width: 130 },
 });

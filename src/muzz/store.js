@@ -79,6 +79,23 @@ const initialState = {
   pendingMatch: null,     // a confirmed match the UI hasn't announced yet
   instantChatDay: '',
   instantChatsUsed: 0,
+  // Compliments: an opener that goes straight to her chat, before a
+  // match. One a day is free; more are earned (see dhikr) or bought.
+  compliments: 0,
+  // The tasbih. `sitting` is the run you're on right now — it ends when
+  // you put the phone down, and the gifts are for keeping it going.
+  dhikr: {
+    total: 0,          // every dhikr ever counted here
+    day: '',           // toDateString of dayCount
+    dayCount: 0,
+    sitting: 0,        // count in the current unbroken sitting
+    sittingStart: 0,
+    lastTs: 0,
+    claimed: [],       // milestones already rewarded in this sitting
+    streak: 0,         // consecutive days with any dhikr
+    lastDay: '',
+    gift: null,        // an earned gift waiting to be chosen
+  },
 };
 
 // How long start-up work gets before the app gives up waiting on it.
@@ -100,8 +117,23 @@ function mergeSaved(defaults, saved) {
     ...saved,
     me: { ...DEFAULT_ME, ...(saved.me || {}) },
     filters: { ...defaults.filters, ...(saved.filters || {}) },
+    dhikr: { ...defaults.dhikr, ...(saved.dhikr || {}) },
   };
 }
+
+// ── The tasbih ──────────────────────────────────────────────────────
+// A sitting is an unbroken run of dhikr. Put the phone down for longer
+// than this and the next one starts fresh — the gifts are for keeping
+// it going, not for a hundred taps spread over a week.
+export const SITTING_GAP_MS = 5 * 60000;
+export const DHIKR_MILESTONES = [100, 300, 700];
+// Jumu'ah is the day for it, so the milestones come sooner.
+export const JUMUAH_MILESTONES = [66, 200, 500];
+// Device-local Friday. The Islamic day turns at Maghrib, but a rule
+// people can predict beats a rule that is technically righter, and the
+// screen says plainly which day it means.
+export const isJumuah = (d = new Date()) => d.getDay() === 5;
+export const milestonesFor = (d = new Date()) => (isJumuah(d) ? JUMUAH_MILESTONES : DHIKR_MILESTONES);
 
 export function MuzzProvider({ children }) {
   const [state, setState] = useState(initialState);
@@ -439,16 +471,20 @@ export function MuzzProvider({ children }) {
     return Math.max(0, FREE_LIKES_PER_WINDOW - state.likesInWindow);
   }, [state.me.gold, state.likeWindowStart, state.likesInWindow]);
 
-  // Instant Chat: skip matching, open a chat directly. 1 free per day.
+  // Instant Chat: skip matching, open a chat directly. 1 free per day,
+  // and any Compliments you've earned after that.
   const useInstantChat = useCallback((personId) => {
     const today = new Date().toDateString();
     let allowed = false;
     update((s) => {
       const used = s.instantChatDay === today ? s.instantChatsUsed : 0;
-      allowed = s.me.gold || used < FREE_INSTANT_CHATS_PER_DAY;
+      const free = s.me.gold || used < FREE_INSTANT_CHATS_PER_DAY;
+      const credit = !free && (s.compliments || 0) > 0;
+      allowed = free || credit;
       if (!allowed) return s;
       return {
         ...s,
+        compliments: credit ? s.compliments - 1 : s.compliments,
         instantChatDay: today,
         instantChatsUsed: used + 1,
         matches: s.matches.includes(personId) ? s.matches : [...s.matches, personId],
@@ -614,6 +650,74 @@ export function MuzzProvider({ children }) {
       else delete chaperones[personId];
       return { ...s, chaperones };
     });
+  }, [update]);
+
+  // ── Dhikr ──────────────────────────────────────────────────────────
+  // Count one (or a few). Returns the milestone this tap reached, if it
+  // reached one, so the screen can celebrate at the right moment.
+  const addDhikr = useCallback((n = 1) => {
+    const now = Date.now();
+    const today = new Date().toDateString();
+    let earned = null;
+    update((s) => {
+      const d = s.dhikr || initialState.dhikr;
+      const broke = !d.lastTs || now - d.lastTs > SITTING_GAP_MS;
+      const sitting = (broke ? 0 : d.sitting || 0) + n;
+      const claimed = broke ? [] : (d.claimed || []);
+      const marks = milestonesFor();
+      const hit = marks.find((m) => sitting >= m && !claimed.includes(m));
+      if (hit) earned = hit;
+      // A day's streak counts a day you turned up, not a target you hit.
+      const yesterday = new Date(Date.now() - 86400000).toDateString();
+      const streak = d.lastDay === today ? (d.streak || 1)
+        : d.lastDay === yesterday ? (d.streak || 0) + 1
+          : 1;
+      return {
+        ...s,
+        dhikr: {
+          ...d,
+          total: (d.total || 0) + n,
+          day: today,
+          dayCount: (d.day === today ? d.dayCount || 0 : 0) + n,
+          sitting,
+          sittingStart: broke ? now : d.sittingStart || now,
+          lastTs: now,
+          claimed: hit ? [...claimed, hit] : claimed,
+          streak,
+          lastDay: today,
+          // Only one gift waits at a time — claim it before the next.
+          gift: hit && !d.gift ? { at: hit, jumuah: isJumuah(), ts: now } : d.gift,
+        },
+      };
+    });
+    return earned;
+  }, [update]);
+
+  // Start the count again from zero. Only the sitting resets; the day's
+  // total, the streak and the lifetime count are yours.
+  const resetDhikr = useCallback(() => {
+    update((s) => ({
+      ...s,
+      dhikr: { ...(s.dhikr || initialState.dhikr), sitting: 0, sittingStart: Date.now(), lastTs: Date.now(), claimed: [] },
+    }));
+  }, [update]);
+
+  // Take the earned gift as a Rose, a Compliment or a Boost.
+  const claimDhikrGift = useCallback((kind) => {
+    let ok = false;
+    update((s) => {
+      const d = s.dhikr || initialState.dhikr;
+      if (!d.gift) return s;
+      ok = true;
+      return {
+        ...s,
+        roses: kind === 'rose' ? (s.roses || 0) + 1 : s.roses,
+        boosts: kind === 'boost' ? (s.boosts || 0) + 1 : s.boosts,
+        compliments: kind === 'compliment' ? (s.compliments || 0) + 1 : s.compliments,
+        dhikr: { ...d, gift: null },
+      };
+    });
+    return ok;
   }, [update]);
 
   const activateBoost = useCallback(() => {
@@ -787,10 +891,11 @@ export function MuzzProvider({ children }) {
     unmatchPerson, pauseProfile, sendRose, recordWeMet, toggleMute,
     unveilFor, isUnveiled, veilStateFor, askToUnveil, setChaperone, toggleRsvp, markProfileRead,
     setCompatQuestion, needsAnswer, refreshLikes, clearPendingMatch,
+    addDhikr, resetDhikr, claimDhikrGift,
     people: REGISTRY, refreshPeople, loadingPeople, peopleError, demoMode: DEMO_MODE, hasBackend: HAS_BACKEND,
     refreshPosts, loadingPosts, postsError, loadComments, addComment,
     authed, signIn, signUp,
-  }), [state, hydrated, loadingPeople, peopleError, refreshPeople, authed, signIn, signUp, refreshPosts, loadingPosts, postsError, loadComments, addComment, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, deleteAccount, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson, unmatchPerson, pauseProfile, sendRose, recordWeMet, toggleMute, unveilFor, isUnveiled, veilStateFor, askToUnveil, setChaperone, toggleRsvp, markProfileRead, setCompatQuestion, needsAnswer, refreshLikes, clearPendingMatch]);
+  }), [state, hydrated, loadingPeople, peopleError, refreshPeople, authed, signIn, signUp, refreshPosts, loadingPosts, postsError, loadComments, addComment, setMe, completeOnboarding, likePerson, passPerson, undoSwipe, markSeen, sendMessage, togglePostLike, addPost, update, resetAll, deleteAccount, likesRemaining, useInstantChat, addPhoto, removePhoto, setFilters, reactToMessage, activateBoost, blockPerson, reportPerson, unmatchPerson, pauseProfile, sendRose, recordWeMet, toggleMute, unveilFor, isUnveiled, veilStateFor, askToUnveil, setChaperone, toggleRsvp, markProfileRead, setCompatQuestion, needsAnswer, refreshLikes, clearPendingMatch, addDhikr, resetDhikr, claimDhikrGift]);
 
   return <MuzzContext.Provider value={value}>{children}</MuzzContext.Provider>;
 }
