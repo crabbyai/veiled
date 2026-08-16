@@ -4,7 +4,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, {  } from 'react-native-reanimated';
+import { enterRow } from '../motion';
 import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE } from '../theme';
 import { useMuzz, getPerson } from '../store';
 import { scoreMatch } from '../butterfly';
@@ -65,7 +66,7 @@ export default function MatchesScreen({ navigation }) {
               {matchPeople.map((p, i) => {
                 const last = (muzz.chats[p.id] || []).slice(-1)[0];
                 return (
-                  <Animated.View key={p.id} entering={FadeInDown.delay(i * 50)}>
+                  <Animated.View key={p.id} entering={enterRow(i)}>
                     <Pressable onPress={() => { H.tap(); navigation.navigate('MuzzChat', { personId: p.id }); }} style={styles.matchRow}>
                       <PhotoTile seed={p.id} name={p.name} rounded={30} style={{ width: 60, height: 60 }} />
                       <View style={{ flex: 1, marginLeft: 12 }}>
@@ -95,7 +96,7 @@ export default function MatchesScreen({ navigation }) {
           <View style={styles.answers}>
             <Text style={styles.answersTitle}>Answered your question</Text>
             {answers.map((a, i) => (
-              <Animated.View key={a.personId} entering={FadeInDown.delay(i * 50)} style={styles.answerCard}>
+              <Animated.View key={a.personId} entering={enterRow(i)} style={styles.answerCard}>
                 {a.question ? <Text style={styles.answerQ}>{a.question}</Text> : null}
                 <Text style={styles.answerText}>{a.text}</Text>
                 <View style={styles.answerFoot}>
@@ -164,7 +165,7 @@ export default function MatchesScreen({ navigation }) {
               {likedYouPeople.map((p, i) => {
                 const locked = !me.gold;
                 return (
-                  <Animated.View key={p.id} entering={FadeInDown.delay(i * 40)}>
+                  <Animated.View key={p.id} entering={enterRow(i)}>
                     <Pressable onPress={() => {
                       H.press();
                       if (locked) { navigation.navigate('MuzzGold'); return; }

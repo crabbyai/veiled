@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions, Alert, Linki
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, {  } from 'react-native-reanimated';
+import { enterRow } from '../motion';
 import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE } from '../theme';
 import { useMuzz } from '../store';
 import { GButton } from '../components/ui';
@@ -99,7 +100,7 @@ export default function GoldScreen({ navigation }) {
 
         <View style={styles.perks}>
           {PERKS.map(([ic, t, d], i) => (
-            <Animated.View key={t} entering={FadeInDown.delay(i * 50)} style={styles.perk}>
+            <Animated.View key={t} entering={enterRow(i)} style={styles.perk}>
               <LinearGradient colors={GRAD.gold} style={styles.perkIcon}><Ionicons name={ic} size={18} color="#fff" /></LinearGradient>
               <View style={{ flex: 1 }}>
                 <Text style={styles.perkTitle}>{t}</Text>

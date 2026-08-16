@@ -5,7 +5,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, {  } from 'react-native-reanimated';
+import { enterRow } from '../motion';
 import { M, RADIUS, SPACE, TYPE } from '../theme';
 import { useMuzz } from '../store';
 import { PhotoTile, Verified, Avatar } from '../components/ui';
@@ -92,7 +93,7 @@ export default function PostScreen({ route, navigation }) {
           ) : comments.length === 0 ? (
             <Text style={styles.noComments}>No comments yet — say something kind.</Text>
           ) : comments.map((c, i) => (
-            <Animated.View key={c.id} entering={FadeInDown.delay(i * 30)} style={styles.comment}>
+            <Animated.View key={c.id} entering={enterRow(i)} style={styles.comment}>
               <Avatar name={c.name} seed={c.name} size={36} />
               <View style={styles.commentBubble}>
                 <Text style={styles.commentName}>{c.name}</Text>

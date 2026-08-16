@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions } from 'react
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, {  } from 'react-native-reanimated';
+import { enterRow } from '../motion';
 import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE } from '../theme';
 import { useMuzz } from '../store';
 import { rankMatches } from '../butterfly';
@@ -44,7 +45,7 @@ export default function ExploreScreen({ navigation }) {
 
       <ScrollView contentContainerStyle={styles.grid} showsVerticalScrollIndicator={false}>
         {ranked.map((m, i) => (
-          <Animated.View key={m.person.id} entering={FadeInDown.delay((i % 8) * 40)}>
+          <Animated.View key={m.person.id} entering={enterRow(i)}>
             <Pressable onPress={() => { H.tap(); navigation.navigate('MuzzProfileDetail', { personId: m.person.id }); }}>
               <PhotoTile seed={m.person.id} name={m.person.name} style={styles.tile}>
                 <LinearGradient colors={['transparent', 'rgba(0,0,0,0.05)', 'rgba(20,16,26,0.82)']} style={StyleSheet.absoluteFill} />

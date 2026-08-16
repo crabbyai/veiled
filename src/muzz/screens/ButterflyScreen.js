@@ -9,6 +9,7 @@ import Animated, {
   FadeIn, FadeInDown, FadeOut, ZoomIn, useSharedValue, useAnimatedStyle,
   withRepeat, withTiming, Easing, interpolate,
 } from 'react-native-reanimated';
+import { enterRow, enterAfter } from '../motion';
 import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE } from '../theme';
 import { useMuzz } from '../store';
 import { dailyPick, rankMatches, compatLabel, butterflyLine } from '../butterfly';
@@ -198,7 +199,7 @@ export default function ButterflyScreen({ navigation }) {
                   <Text style={styles.reasonsTitle}>Why I picked them</Text>
                 </View>
                 {pick.reasons.slice(0, 3).map((r, i) => (
-                  <Animated.View key={i} entering={FadeInDown.delay(120 * i)} style={styles.reasonRow}>
+                  <Animated.View key={i} entering={enterRow(i)} style={styles.reasonRow}>
                     <Ionicons name="checkmark-circle" size={16} color={M.success} />
                     <Text style={styles.reasonText}>{r}</Text>
                   </Animated.View>
@@ -240,7 +241,7 @@ export default function ButterflyScreen({ navigation }) {
 
         {/* "Coming up" preview row */}
         {phase === 'idle' && queueCount > 1 && (
-          <Animated.View entering={FadeInDown.delay(150)} style={styles.upNext}>
+          <Animated.View entering={enterAfter(150)} style={styles.upNext}>
             <Text style={styles.upNextTitle}>Next in line</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: SPACE.xl, gap: 12 }}>
               {ranked.filter((m) => !seen.includes(m.person.id)).slice(1, 7).map((m) => (

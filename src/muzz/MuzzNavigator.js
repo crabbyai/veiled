@@ -5,7 +5,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import Animated, { FadeIn, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import { SPRING, usePressScale } from './motion';
 
 import { VeiledMark } from './components/VeiledMark';
 import { M } from './theme';
@@ -52,27 +53,56 @@ const TABS = [
   { key: 'Profile', icon: 'person', label: 'Profile' },
 ];
 
+// A tab that lifts and settles when it becomes the active one, so the
+// switch is something you see happen rather than a repaint.
+function Tab({ tab, isActive, onPress, badge }) {
+  const on = useSharedValue(isActive ? 1 : 0);
+  const press = usePressScale(0.9);
+  React.useEffect(() => {
+    on.value = withSpring(isActive ? 1 : 0, SPRING);
+  }, [isActive]);
+
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + on.value * 0.12 }, { translateY: -on.value * 2 }],
+  }));
+  const labelStyle = useAnimatedStyle(() => ({ opacity: 0.55 + on.value * 0.45 }));
+  const color = isActive ? M.primary : M.textMuted;
+
+  return (
+    <Pressable
+      onPress={() => { H.tap(); onPress(); }}
+      onPressIn={press.onPressIn}
+      onPressOut={press.onPressOut}
+      style={styles.tab}
+    >
+      <Animated.View style={press.style}>
+        <Animated.View style={iconStyle}>
+          {tab.icon === 'glyph' ? (
+            <ButterflyGlyph color={color} size={25} />
+          ) : (
+            <Ionicons name={isActive ? tab.icon : `${tab.icon}-outline`} size={25} color={color} />
+          )}
+          {badge > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{badge > 9 ? '9+' : badge}</Text></View>}
+        </Animated.View>
+        <Animated.Text style={[styles.tabLabel, { color }, labelStyle]}>{tab.label}</Animated.Text>
+      </Animated.View>
+    </Pressable>
+  );
+}
+
 function TabBar({ active, onChange, badges }) {
   const insets = useSafeAreaInsets();
   return (
     <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-      {TABS.map((t) => {
-        const isActive = active === t.key;
-        const color = isActive ? M.primary : M.textMuted;
-        return (
-          <Pressable key={t.key} onPress={() => { H.tap(); onChange(t.key); }} style={styles.tab}>
-            <View>
-              {t.icon === 'glyph' ? (
-                <ButterflyGlyph color={color} size={25} />
-              ) : (
-                <Ionicons name={isActive ? t.icon : `${t.icon}-outline`} size={25} color={color} />
-              )}
-              {badges[t.key] > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{badges[t.key] > 9 ? '9+' : badges[t.key]}</Text></View>}
-            </View>
-            <Text style={[styles.tabLabel, { color }]}>{t.label}</Text>
-          </Pressable>
-        );
-      })}
+      {TABS.map((t) => (
+        <Tab
+          key={t.key}
+          tab={t}
+          isActive={active === t.key}
+          badge={badges[t.key] || 0}
+          onPress={() => onChange(t.key)}
+        />
+      ))}
     </View>
   );
 }
@@ -166,8 +196,8 @@ const styles = StyleSheet.create({
     paddingTop: 8, alignItems: 'flex-start',
     ...Platform.select({ web: { boxShadow: '0 -2px 16px rgba(0,0,0,0.05)' } }),
   },
-  tab: { flex: 1, alignItems: 'center', gap: 3 },
-  tabLabel: { fontSize: 10.5, fontWeight: '700' },
+  tab: { flex: 1, alignItems: 'center' },
+  tabLabel: { fontSize: 10.5, fontWeight: '700', marginTop: 3, textAlign: 'center' },
   badge: { position: 'absolute', top: -5, right: -9, minWidth: 17, height: 17, borderRadius: 9, backgroundColor: M.primary, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4, borderWidth: 1.5, borderColor: M.bg },
   badgeText: { color: '#fff', fontWeight: '800', fontSize: 9.5 },
 });

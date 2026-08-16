@@ -19,6 +19,7 @@ import { AnswerSheet } from '../components/CompatQuestion';
 import Stories from '../components/Stories';
 import { VeiledMark } from '../components/VeiledMark';
 import { RoseGrow, PetalFall, RoseMark } from '../components/RoseBloom';
+import { Bounce, enterSheet } from '../motion';
 import PrayerBar from '../components/PrayerBar';
 import * as H from '../haptics';
 
@@ -474,21 +475,21 @@ export default function DiscoverScreen({ navigation }) {
       {top && (
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 8) }]} pointerEvents="box-none">
           <View style={styles.actions}>
-            <Pressable accessibilityRole="button" accessibilityLabel="Rewind last swipe" onPress={rewind} style={({ pressed }) => [styles.actBtn, styles.rewindBtn, !lastSwiped && { opacity: 0.4 }, pressed && styles.pressed]}>
+            <Bounce accessibilityRole="button" accessibilityLabel="Rewind last swipe" onPress={rewind} haptic={false} scale={0.86} style={[styles.actBtn, styles.rewindBtn, !lastSwiped && { opacity: 0.4 }]}>
               <Ionicons name="arrow-undo" size={20} color={M.gold} />
-            </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Pass" onPress={() => swipe(-1)} style={({ pressed }) => [styles.actBtn, styles.passBtn, pressed && styles.pressed]}>
+            </Bounce>
+            <Bounce accessibilityRole="button" accessibilityLabel="Pass" onPress={() => swipe(-1)} haptic={false} scale={0.86} style={[styles.actBtn, styles.passBtn]}>
               <Ionicons name="close" size={30} color="#B9B6C3" />
-            </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Send a Rose" onPress={() => { H.press(); setSuperTarget(top.person); }} style={({ pressed }) => [styles.actBtn, styles.roseBtn, pressed && styles.pressed]}>
+            </Bounce>
+            <Bounce accessibilityRole="button" accessibilityLabel="Send a Rose" onPress={() => setSuperTarget(top.person)} haptic="press" scale={0.84} style={[styles.actBtn, styles.roseBtn]}>
               <Ionicons name="rose" size={24} color="#fff" />
-            </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Instant chat" onPress={instant} style={({ pressed }) => [styles.actBtn, styles.instantBtn, pressed && styles.pressed]}>
+            </Bounce>
+            <Bounce accessibilityRole="button" accessibilityLabel="Instant chat" onPress={instant} haptic={false} scale={0.84} style={[styles.actBtn, styles.instantBtn]}>
               <Ionicons name="flash" size={22} color={M.textOnPrimary} />
-            </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Like" onPress={() => swipe(1)} style={({ pressed }) => [styles.actBtn, styles.likeBtn, pressed && styles.pressed]}>
+            </Bounce>
+            <Bounce accessibilityRole="button" accessibilityLabel="Like" onPress={() => swipe(1)} haptic={false} scale={0.86} style={[styles.actBtn, styles.likeBtn]}>
               <Ionicons name="heart" size={30} color={M.textOnPrimary} />
-            </Pressable>
+            </Bounce>
           </View>
           <Text style={styles.likesLeft}>
             {me.gold
@@ -501,7 +502,7 @@ export default function DiscoverScreen({ navigation }) {
       {/* Super Like note sheet */}
       <Modal visible={!!superTarget} transparent animationType="fade" onRequestClose={() => setSuperTarget(null)}>
         <Pressable style={styles.sheetBg} onPress={() => setSuperTarget(null)}>
-          <Animated.View entering={FadeInUp} style={[styles.sheet, { paddingBottom: insets.bottom + 18 }]}>
+          <Animated.View entering={enterSheet()} style={[styles.sheet, { paddingBottom: insets.bottom + 18 }]}>
             <RoseMark size={92} />
             <Text style={styles.sheetTitle}>Send {superTarget?.name} a Rose</Text>
             <Text style={styles.sheetSub}>A Rose reaches her first and says you mean it. Add a note if you'd like.</Text>
@@ -519,7 +520,7 @@ export default function DiscoverScreen({ navigation }) {
       {/* Boost sheet */}
       <Modal visible={showBoost} transparent animationType="fade" onRequestClose={() => setShowBoost(false)}>
         <Pressable style={styles.sheetBg} onPress={() => setShowBoost(false)}>
-          <Animated.View entering={FadeInUp} style={[styles.sheet, { paddingBottom: insets.bottom + 18 }]}>
+          <Animated.View entering={enterSheet()} style={[styles.sheet, { paddingBottom: insets.bottom + 18 }]}>
             <View style={[styles.superIcon, { backgroundColor: M.primary }]}><Ionicons name="flash" size={28} color="#fff" /></View>
             <Text style={styles.sheetTitle}>{boostActive ? `Boosted for ${boostLeft} more min` : 'Boost your profile'}</Text>
             <Text style={styles.sheetSub}>Be one of the top profiles in your area for 30 minutes and get seen by up to 10x more people.</Text>

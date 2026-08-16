@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInUp, FadeInDown, ZoomIn } from 'react-native-reanimated';
+import { enterSheet } from '../motion';
 import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE } from '../theme';
 import { useMuzz, getPerson } from '../store';
 import { scoreMatch } from '../butterfly';
@@ -388,7 +389,7 @@ export default function ChatScreen({ route, navigation }) {
       {/* Safety menu */}
       <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
         <Pressable style={styles.menuBg} onPress={() => setMenuOpen(false)}>
-          <Animated.View entering={FadeInUp} style={[styles.menu, { paddingBottom: insets.bottom + 14 }]}>
+          <Animated.View entering={enterSheet()} style={[styles.menu, { paddingBottom: insets.bottom + 14 }]}>
             <View style={styles.menuHandle} />
             <MenuRow icon="person-outline" label="View profile" onPress={() => { setMenuOpen(false); navigation.navigate('MuzzProfileDetail', { personId }); }} />
             <MenuRow icon="shield-checkmark-outline" label={wali ? `Remove wali (${wali.name})` : 'Invite a wali'} onPress={() => { setMenuOpen(false); if (wali) setChaperone(personId, null); else setWaliModal(true); }} />
@@ -403,7 +404,7 @@ export default function ChatScreen({ route, navigation }) {
       {/* Wali invite */}
       <Modal visible={waliModal} transparent animationType="fade" onRequestClose={() => setWaliModal(false)}>
         <Pressable style={styles.menuBg} onPress={() => setWaliModal(false)}>
-          <Animated.View entering={FadeInUp} style={[styles.waliSheet, { paddingBottom: insets.bottom + 18 }]}>
+          <Animated.View entering={enterSheet()} style={[styles.waliSheet, { paddingBottom: insets.bottom + 18 }]}>
             <View style={styles.waliIcon}><Ionicons name="shield-checkmark" size={26} color={M.textOnPrimary} /></View>
             <Text style={styles.waliTitle}>Invite a wali</Text>
             <Text style={styles.waliSub}>

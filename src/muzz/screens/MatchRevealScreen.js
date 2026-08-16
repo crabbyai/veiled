@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, Dimensions, TextInput } from 'react-
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, ZoomIn, FadeInDown } from 'react-native-reanimated';
+import { enterRow, enterAfter } from '../motion';
 import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE } from '../theme';
 import { useMuzz, getPerson } from '../store';
 import { PhotoTile, Avatar, GButton } from '../components/ui';
@@ -53,7 +54,7 @@ export default function MatchRevealScreen({ route, navigation }) {
           <PhotoTile seed={person.id} name={person.name} rounded={RADIUS.lg} pattern veiled={!!person.photoVeiled} style={[styles.photo, { transform: [{ rotate: '6deg' }], marginLeft: -24 }]} />
         </Animated.View>
 
-        <Animated.View entering={FadeInDown.delay(450)} style={styles.composer}>
+        <Animated.View entering={enterAfter(450)} style={styles.composer}>
           <TextInput
             value={text} onChangeText={setText}
             placeholder={`Say salaam to ${person.name}…`} placeholderTextColor="rgba(255,255,255,0.7)"

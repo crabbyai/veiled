@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, ScrollView, Dimensions, Image } from
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeIn, FadeInUp, FadeInDown, ZoomIn, useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing, interpolate } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInUp, FadeInDown, ZoomIn, useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
 import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE, gradVariantFor, isDark } from '../theme';
 import { useMuzz } from '../store';
 import { rankMatches } from '../butterfly';

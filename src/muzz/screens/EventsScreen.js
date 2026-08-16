@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions } from 'react
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, {  } from 'react-native-reanimated';
+import { enterRow } from '../motion';
 import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE } from '../theme';
 import { useMuzz } from '../store';
 import { IslamicPattern } from '../components/Pattern';
@@ -89,7 +90,7 @@ export default function EventsScreen({ navigation }) {
           const pct = Math.min(100, Math.round((going / e.cap) * 100));
           const attending = !!rsvps[e.id];
           return (
-            <Animated.View key={e.id} entering={FadeInDown.delay((i % 6) * 55)} style={styles.card}>
+            <Animated.View key={e.id} entering={enterRow(i)} style={styles.card}>
               <View style={styles.cardTop}>
                 <View style={styles.dateBlock}>
                   <Text style={styles.dateMon}>{e.dateShort[0]}</Text>

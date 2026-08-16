@@ -6,6 +6,7 @@ import { M, GRAD, RADIUS, SHADOW, gradFor } from '../theme';
 import { mediaUrl } from '../api';
 import { IslamicPattern } from './Pattern';
 import { VeiledMark } from './VeiledMark';
+import { Bounce } from '../motion';
 import * as H from '../haptics';
 
 // ── Photo surface ────────────────────────────────────────────────────
@@ -107,10 +108,7 @@ export function Verified({ size = 16 }) {
 // ── Primary gradient button ──────────────────────────────────────────
 export function GButton({ label, icon, onPress, gradient = GRAD.primary, style, textStyle, disabled, small }) {
   return (
-    <Pressable
-      onPress={() => { if (!disabled) { H.press(); onPress && onPress(); } }}
-      style={({ pressed }) => [{ opacity: disabled ? 0.5 : pressed ? 0.9 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] }, style]}
-    >
+    <Bounce onPress={onPress} disabled={disabled} haptic="press" style={style} scale={0.96}>
       <LinearGradient
         colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
         style={[styles.gbtn, small && { paddingVertical: 11 }, SHADOW.primary]}
@@ -118,20 +116,17 @@ export function GButton({ label, icon, onPress, gradient = GRAD.primary, style, 
         {icon && <Ionicons name={icon} size={18} color={M.textOnPrimary} style={{ marginRight: 8 }} />}
         <Text style={[styles.gbtnText, small && { fontSize: 14 }, textStyle]}>{label}</Text>
       </LinearGradient>
-    </Pressable>
+    </Bounce>
   );
 }
 
 // ── Secondary / outline button ───────────────────────────────────────
 export function OButton({ label, icon, onPress, style, tint = M.text }) {
   return (
-    <Pressable
-      onPress={() => { H.tap(); onPress && onPress(); }}
-      style={({ pressed }) => [styles.obtn, { opacity: pressed ? 0.7 : 1 }, style]}
-    >
+    <Bounce onPress={onPress} style={[styles.obtn, style]} scale={0.96}>
       {icon && <Ionicons name={icon} size={18} color={tint} style={{ marginRight: 8 }} />}
       <Text style={[styles.obtnText, { color: tint }]}>{label}</Text>
-    </Pressable>
+    </Bounce>
   );
 }
 

@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, {  } from 'react-native-reanimated';
+import { enterRow } from '../motion';
 import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE } from '../theme';
 import { useMuzz } from '../store';
 import { rankMatches } from '../butterfly';
@@ -61,7 +62,7 @@ export default function StandoutsScreen({ navigation }) {
           const p = m.person;
           const veiled = !!p.photoVeiled && !isUnveiled(p.id);
           return (
-            <Animated.View key={p.id} entering={FadeInDown.delay(i * 60)} style={styles.card}>
+            <Animated.View key={p.id} entering={enterRow(i)} style={styles.card}>
               <Pressable onPress={() => { H.tap(); navigation.navigate('MuzzProfileDetail', { personId: p.id }); }}>
                 <PhotoTile seed={p.id} name={p.name} veiled={veiled} veilLabel="Veiled" rounded={RADIUS.lg} style={styles.photo} figure={p.veil}>
                   <LinearGradient colors={['transparent', 'rgba(15,15,16,0.85)']} style={styles.photoGrad} />

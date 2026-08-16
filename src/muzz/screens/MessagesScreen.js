@@ -2,7 +2,8 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, {  } from 'react-native-reanimated';
+import { enterRow } from '../motion';
 import { M, RADIUS, SPACE, TYPE } from '../theme';
 import { useMuzz, getPerson } from '../store';
 import { PhotoTile, Verified, Avatar } from '../components/ui';
@@ -67,7 +68,7 @@ export default function MessagesScreen({ navigation }) {
         ) : (
           <View style={{ marginTop: 6 }}>
             {convos.filter((c) => c.last).map(({ p, last, unread }, i) => (
-              <Animated.View key={p.id} entering={FadeInDown.delay(i * 40)}>
+              <Animated.View key={p.id} entering={enterRow(i)}>
                 <Pressable onPress={() => { H.tap(); navigation.navigate('MuzzChat', { personId: p.id }); }} style={styles.row}>
                   <View>
                     <PhotoTile seed={p.id} name={p.name} rounded={29} style={{ width: 58, height: 58 }} />

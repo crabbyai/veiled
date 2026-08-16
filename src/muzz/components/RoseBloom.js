@@ -109,11 +109,22 @@ export function RoseGrow({ style, ink = INK, fill = BLUSH, onDone }) {
     });
   }, []);
 
-  const fadeStyle = useAnimatedStyle(() => ({ opacity: 1 - seg(t.value, 0.88, 1) }));
-  // A breath of movement once it's drawn, so it doesn't sit dead still.
+  // It lifts a little as it goes, rather than switching off.
+  const fadeStyle = useAnimatedStyle(() => {
+    const out = seg(t.value, 0.86, 1);
+    return { opacity: 1 - out, transform: [{ translateY: -out * 20 }] };
+  });
+  // A wobble that decays, the way a stem settles after it's let go —
+  // a sine that keeps the same amplitude reads as a loop, not a breath.
   const swayStyle = useAnimatedStyle(() => {
-    const s = seg(t.value, 0.6, 1);
-    return { transform: [{ rotate: `${Math.sin(s * Math.PI * 2) * 1.6}deg` }] };
+    const s = seg(t.value, 0.5, 1);
+    const settle = (1 - s) * (1 - s);
+    return {
+      transform: [
+        { scale: 0.985 + 0.015 * easeOut(seg(t.value, 0.55, 0.82)) },
+        { rotate: `${Math.sin(s * Math.PI * 3) * 2.6 * settle}deg` },
+      ],
+    };
   });
 
   return (
@@ -166,6 +177,9 @@ function FallingPetal({ t, i, w, h, ink, fill }) {
     // Drift sideways early, then fall away — a petal loses its sideways
     // momentum before it loses its height.
     const spread = easeOut(p);
+    // Petals tumble: they turn edge-on and back as they fall, which is
+    // what stops fifteen of them looking like one sprite repeated.
+    const edge = 0.45 + 0.55 * Math.abs(Math.cos(p * Math.PI * r.waves * 1.6 + r.phase));
     return {
       opacity: fade,
       transform: [
@@ -173,6 +187,7 @@ function FallingPetal({ t, i, w, h, ink, fill }) {
         { translateY: r.fromY + p * (h - r.fromY + 70) },
         { rotate: `${r.rot0 + p * r.spin}deg` },
         { scale: r.scale },
+        { scaleX: edge },
       ],
     };
   });

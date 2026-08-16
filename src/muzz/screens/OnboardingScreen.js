@@ -5,6 +5,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInRight, FadeInDown } from 'react-native-reanimated';
+import { enterRow, enterAfter } from '../motion';
 import { M, GRAD, RADIUS, SPACE, SHADOW, TYPE, isDark } from '../theme';
 import { INTERESTS, VALUES, INTENTIONS, VEILS, SECTS, PRAYER_LEVELS, HALAL_DIET, VEIL_NOTES, randomVeilNote } from '../data';
 import { useMuzz } from '../store';
@@ -344,7 +345,7 @@ export default function OnboardingScreen() {
             <Text style={styles.welcomeSub}>
               {name ? `Nice to meet you, ${name}. ` : ''}I've learned {interests.length} interests and {values.length} values. From now on, I'll bring your best matches straight to you — no swiping required.
             </Text>
-            <Animated.View entering={FadeInDown.delay(300)} style={styles.statRow}>
+            <Animated.View entering={enterAfter(300)} style={styles.statRow}>
               {[['Interests', interests.length], ['Values', values.length], ['Daily picks', '∞']].map(([l, v]) => (
                 <View key={l} style={styles.stat}>
                   <Text style={styles.statVal}>{v}</Text>
