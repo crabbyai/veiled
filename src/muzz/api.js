@@ -145,8 +145,11 @@ export const unveil = (matchId) => request(`/dating/matches/${matchId}/unveil`, 
 export const veilState = (matchId) => request(`/dating/matches/${matchId}/veil`);
 export const askUnveil = (matchId) => request(`/dating/matches/${matchId}/unveil-ask`, { method: 'POST' });
 export const unmatch = (matchId) => request(`/dating/matches/${matchId}/unmatch`, { method: 'POST' });
-export const sendMessage = (matchId, body) =>
-  request(`/dating/matches/${matchId}/messages`, { method: 'POST', body: { body } });
+// `kind` is 'text', 'image' or 'audio'; for the latter two `body` is
+// the path returned by uploadMedia and `meta` carries whatever that
+// kind needs (a voice note's length, a photo's shape).
+export const sendMessage = (matchId, body, kind = 'text', meta = null) =>
+  request(`/dating/matches/${matchId}/messages`, { method: 'POST', body: { body, kind, meta } });
 
 export const superLike = (targetId, note, content) =>
   request('/dating/super-like', { method: 'POST', body: { targetId: toServerId(targetId), note, ...(content || {}) } });
@@ -215,6 +218,29 @@ export const signalReply = (matchId) =>
   request('/dating/signals/reply', { method: 'POST', body: { matchId } });
 
 // Upload a local photo (uri from image picker) as multipart form data.
+// An attachment for a message. Same shape as uploadPhoto, but the
+// endpoint takes audio too and the field is 'file'.
+export async function uploadMedia(uri, { name, type } = {}) {
+  if (!BASE) throw new Error('API not configured');
+  await loadToken();
+  const form = new FormData();
+  const guess = (uri.split('?')[0].split('/').pop()) || 'file';
+  const filename = name || guess;
+  if (uri.startsWith('data:') || uri.startsWith('blob:')) {
+    const blob = await (await fetch(uri)).blob();
+    form.append('file', blob, filename);
+  } else {
+    form.append('file', { uri, name: filename, type: type || 'application/octet-stream' });
+  }
+  const res = await fetch(`${BASE}/api/dating/media`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+  return res.json();
+}
+
 export async function uploadPhoto(uri) {
   if (!BASE) throw new Error('API not configured');
   await loadToken();

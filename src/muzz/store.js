@@ -216,14 +216,14 @@ export function MuzzProvider({ children }) {
   useEffect(() => {
     if (!hydrated || !state.onboarded || authed !== true) return;
     realtime.connect({
-      onMessage: (personId, text) => {
-        const msg = { id: `m${Date.now()}${Math.random().toString(36).slice(2, 6)}`, text, sender: 'them', ts: Date.now(), read: false };
+      onMessage: (personId, text, kind = 'text', meta = null) => {
+        const msg = { id: `m${Date.now()}${Math.random().toString(36).slice(2, 6)}`, text, kind, meta, sender: 'them', ts: Date.now(), read: false };
         setState((s) => {
           const next = { ...s, chats: { ...s.chats, [personId]: [...(s.chats[personId] || []), msg] } };
           AsyncStorage.setItem(KEY, JSON.stringify(next)).catch(() => {});
           return next;
         });
-        localNotify('New message', text.slice(0, 100));
+        localNotify('New message', kind === 'image' ? '📷 Photo' : kind === 'audio' ? '🎤 Voice note' : text.slice(0, 100));
       },
       onMatch: (personId) => {
         setState((s) => {
@@ -573,8 +573,14 @@ export function MuzzProvider({ children }) {
     update((s) => (s.seen.includes(personId) ? s : { ...s, seen: [...s.seen, personId], lastPickTs: Date.now() }));
   }, [update]);
 
-  const sendMessage = useCallback((personId, text, sender = 'me') => {
-    const msg = { id: `m${Date.now()}${Math.random().toString(36).slice(2, 6)}`, text, sender, ts: Date.now(), read: sender === 'me' };
+  // `kind` is 'text', 'image' or 'audio'. For the media kinds `text` is
+  // the uploaded file's path and `meta` carries what that kind needs —
+  // a voice note's length, a photo's shape.
+  const sendMessage = useCallback((personId, text, sender = 'me', { kind = 'text', meta = null } = {}) => {
+    const msg = {
+      id: `m${Date.now()}${Math.random().toString(36).slice(2, 6)}`,
+      text, kind, meta, sender, ts: Date.now(), read: sender === 'me',
+    };
     update((s) => ({
       ...s,
       chats: { ...s.chats, [personId]: [...(s.chats[personId] || []), msg] },
@@ -583,7 +589,7 @@ export function MuzzProvider({ children }) {
       api.mirror(async () => {
         const { matches: serverMatches } = await api.matches();
         const m = serverMatches.find((x) => api.toLocalId(x.person.id) === personId);
-        if (m) await api.sendMessage(m.matchId, text);
+        if (m) await api.sendMessage(m.matchId, text, kind, meta);
       });
     }
     return msg;

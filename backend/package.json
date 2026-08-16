@@ -1,12 +1,12 @@
 {
   "name": "veiled-backend",
   "version": "1.0.0",
-  "description": "Veiled — marriage app API server (auth, matching, chat, social, realtime)",
+  "description": "Veiled \u2014 marriage app API server (auth, matching, chat, social, realtime)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node test/compat-question.test.js && node test/veil.test.js"
+    "test": "node test/compat-question.test.js && node test/veil.test.js && node test/media-messages.test.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

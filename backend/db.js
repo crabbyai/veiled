@@ -252,4 +252,9 @@ ensure('dating_profiles', 'unveiled_photo', 'unveiled_photo TEXT');
 // Her card note — the line shown on her card. Chosen by her.
 ensure('dating_profiles', 'card_note', 'card_note TEXT');
 
+// Messages carry media as well as text now: `kind` says which, and
+// `meta` holds whatever that kind needs — a voice note's length, an
+// image's shape — as JSON, so a new kind doesn't need a new column.
+ensure('dating_messages', 'meta', 'meta TEXT');
+
 module.exports = db;

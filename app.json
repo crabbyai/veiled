@@ -27,6 +27,7 @@
       "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "Veiled uses the camera for selfie verification and adding profile photos.",
+        "NSMicrophoneUsageDescription": "Veiled uses the microphone to record voice notes you choose to send in a conversation.",
         "NSPhotoLibraryUsageDescription": "Veiled accesses your photo library so you can add profile photos.",
         "NSPhotoLibraryAddUsageDescription": "Veiled saves photos to your library only when you choose to.",
         "NSFaceIDUsageDescription": "Veiled uses Face ID to secure access to the app and protect your privacy.",
@@ -97,7 +98,8 @@
         "USE_BIOMETRIC",
         "USE_FINGERPRINT",
         "INTERNET",
-        "ACCESS_NETWORK_STATE"
+        "ACCESS_NETWORK_STATE",
+        "RECORD_AUDIO"
       ],
       "blockedPermissions": [
         "ACCESS_FINE_LOCATION",
@@ -150,6 +152,12 @@
         {
           "photosPermission": "Allow Veiled to access your photos to add them to your profile",
           "cameraPermission": "Allow Veiled to use your camera for selfie verification and profile photos"
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow Veiled to use the microphone so you can record voice notes."
         }
       ],
       [

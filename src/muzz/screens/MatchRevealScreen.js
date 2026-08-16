@@ -33,7 +33,7 @@ export default function MatchRevealScreen({ route, navigation }) {
       <LinearGradient colors={['#2A2A2E', '#161618', '#000000']} style={StyleSheet.absoluteFill} />
       {/* Rose petals rather than a scatter of hearts — a match is
           the app's own occasion, and the rose is what it's made of. */}
-      <PetalRain width={width} height={height} count={16} ink="#FFF1E8" fill="#B3243F" />
+      <PetalRain width={width} height={height} count={16} ink="#FFFFFF" fill="#8A0B1F" />
       <Pressable style={styles.close} onPress={() => navigation.goBack()}>
         <Ionicons name="close" size={26} color="#fff" />
       </Pressable>

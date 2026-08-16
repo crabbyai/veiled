@@ -49,10 +49,10 @@ const CARD_W = width - SPACE.lg * 2;
 // animation and the card note both key off this.
 const isFaceless = (p, idx = 0) => !!p.photoVeiled || !(p.photos && p.photos[idx]);
 
-// The rose is drawn over a photo here, so the line has to be the light
-// one — its usual near-black would vanish into a dark card.
-const DECK_INK = '#FFF1E8';
-const DECK_FILL = '#B3243F';
+// The rose is drawn over a photo here: a white line, and petals in a
+// deep red. The white is what carries the shape against a dark card.
+const DECK_INK = '#FFFFFF';
+const DECK_FILL = '#8A0B1F';
 
 // Muzz-style discovery: a full-screen card stack with circular action
 // buttons. The AI butterfly pre-sorts the deck by compatibility, so the

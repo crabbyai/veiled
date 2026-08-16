@@ -17,12 +17,24 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename: (req, file, cb) => cb(null, `${uuidv4()}${path.extname(file.originalname) || '.jpg'}`),
 });
+const IMAGE_EXT = ['.jpg', '.jpeg', '.png', '.webp'];
+// Voice notes. m4a is what iOS records, webm what the browser does.
+const AUDIO_EXT = ['.m4a', '.mp4', '.aac', '.caf', '.webm', '.ogg', '.wav', '.mp3'];
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const ok = ['.jpg', '.jpeg', '.png', '.webp'].includes(path.extname(file.originalname).toLowerCase());
+    const ok = IMAGE_EXT.includes(path.extname(file.originalname).toLowerCase());
     cb(ok ? null : new Error('Only jpg, png, webp images allowed'), ok);
+  },
+});
+const uploadMedia = multer({
+  storage,
+  limits: { fileSize: 25 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const ok = IMAGE_EXT.includes(ext) || AUDIO_EXT.includes(ext);
+    cb(ok ? null : new Error('Unsupported file type'), ok);
   },
 });
 
@@ -967,12 +979,16 @@ router.get('/matches/:id/messages', authenticate, (req, res) => {
     const before = req.query.before ? toInt(req.query.before) : null;
     const rows = before
       ? db.prepare(
-          'SELECT id, sender_id AS senderId, body, read_at AS readAt, created_at AS ts FROM dating_messages WHERE match_id = ? AND id < ? ORDER BY id DESC LIMIT ?'
+          'SELECT id, sender_id AS senderId, body, kind, meta, read_at AS readAt, created_at AS ts FROM dating_messages WHERE match_id = ? AND id < ? ORDER BY id DESC LIMIT ?'
         ).all(m.id, before, limit)
       : db.prepare(
-          'SELECT id, sender_id AS senderId, body, read_at AS readAt, created_at AS ts FROM dating_messages WHERE match_id = ? ORDER BY id DESC LIMIT ?'
+          'SELECT id, sender_id AS senderId, body, kind, meta, read_at AS readAt, created_at AS ts FROM dating_messages WHERE match_id = ? ORDER BY id DESC LIMIT ?'
         ).all(m.id, limit);
-    const messages = rows.reverse();
+    const messages = rows.reverse().map((r) => ({
+      ...r,
+      kind: r.kind || 'text',
+      meta: r.meta ? (() => { try { return JSON.parse(r.meta); } catch { return null; } })() : null,
+    }));
     res.json({ messages, hasMore: rows.length === limit });
   } catch (err) {
     console.error('Messages error:', err);
@@ -981,14 +997,25 @@ router.get('/matches/:id/messages', authenticate, (req, res) => {
 });
 
 // POST /api/dating/matches/:id/messages { body }
+const MESSAGE_KINDS = ['text', 'image', 'audio'];
+
 router.post('/matches/:id/messages', authenticate, (req, res) => {
   try {
-    const { body } = req.body || {};
+    const { body, kind: rawKind, meta } = req.body || {};
+    const kind = MESSAGE_KINDS.includes(rawKind) ? rawKind : 'text';
     if (!body || !body.trim()) return res.status(400).json({ error: 'Message body required' });
-    const text = body.trim().slice(0, 2000);
+    // For media the body is the uploaded file's path, and it has to be
+    // one of ours — a message body is not a place to accept a URL that
+    // points anywhere the sender likes.
+    const text = kind === 'text' ? body.trim().slice(0, 2000) : body.trim();
+    if (kind !== 'text' && !/^\/uploads\/[A-Za-z0-9._-]+$/.test(text)) {
+      return res.status(400).json({ error: 'Attachment must be an uploaded file' });
+    }
     // Text safety net (extendable via TEXT_BLOCKLIST / provider).
-    const tmod = moderation.checkText(text);
-    if (!tmod.ok) return res.status(422).json({ error: 'Message blocked by our safety filter' });
+    if (kind === 'text') {
+      const tmod = moderation.checkText(text);
+      if (!tmod.ok) return res.status(422).json({ error: 'Message blocked by our safety filter' });
+    }
     const m = db.prepare('SELECT * FROM dating_matches WHERE id = ?').get(req.params.id);
     if (!m || (m.user_a !== req.userId && m.user_b !== req.userId)) {
       return res.status(404).json({ error: 'Match not found' });
@@ -997,10 +1024,11 @@ router.post('/matches/:id/messages', authenticate, (req, res) => {
     if (isBlockedPair(req.userId, otherId)) {
       return res.status(403).json({ error: 'This conversation is no longer available' });
     }
+    const metaJson = meta && typeof meta === 'object' ? JSON.stringify(meta).slice(0, 500) : null;
     const r = db.prepare(
-      'INSERT INTO dating_messages (match_id, sender_id, body) VALUES (?, ?, ?)'
-    ).run(m.id, req.userId, text);
-    const message = { id: r.lastInsertRowid, senderId: req.userId, body: text, ts: Date.now() };
+      'INSERT INTO dating_messages (match_id, sender_id, body, kind, meta) VALUES (?, ?, ?, ?, ?)'
+    ).run(m.id, req.userId, text, kind, metaJson);
+    const message = { id: r.lastInsertRowid, senderId: req.userId, body: text, kind, meta: meta || null, ts: Date.now() };
     // Signals: a genuine reply in a conversation earns credit (deduped
     // per match), rewarding real back-and-forth over drive-by likes.
     recordSignal(req.userId, 'reply', m.id);
@@ -1008,7 +1036,8 @@ router.post('/matches/:id/messages', authenticate, (req, res) => {
     emitToUser(otherId, 'message:new', { matchId: m.id, message });
     if (!isOnline(otherId)) {
       const sender = getProfile(req.userId, otherId);
-      sendPush(otherId, sender ? sender.name : 'New message', text.slice(0, 120), { matchId: m.id });
+      const preview = kind === 'image' ? '📷 Photo' : kind === 'audio' ? '🎤 Voice note' : text.slice(0, 120);
+      sendPush(otherId, sender ? sender.name : 'New message', preview, { matchId: m.id });
     }
     res.status(201).json({ message });
   } catch (err) {
@@ -1110,6 +1139,17 @@ router.post('/social/posts/:id/comments', authenticate, (req, res) => {
 // ── Photos ───────────────────────────────────────────────────────────
 
 // POST /api/dating/photos — multipart "image" → adds a profile photo
+// POST /api/dating/media — an attachment for a message (image or audio)
+router.post('/media', authenticate, uploadMedia.single('file'), (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    res.status(201).json({ url: `/uploads/${req.file.filename}` });
+  } catch (err) {
+    console.error('Media upload error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 router.post('/photos', authenticate, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Image file required' });

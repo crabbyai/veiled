@@ -27,7 +27,7 @@ export async function connect({ onMessage, onMatch } = {}) {
       // Map server match → local person id via the matches list
       const { matches } = await api.matches();
       const m = matches.find((x) => x.matchId === matchId);
-      if (m && onMessage) onMessage(api.toLocalId(m.person.id), message.body);
+      if (m && onMessage) onMessage(api.toLocalId(m.person.id), message.body, message.kind || 'text', message.meta || null);
     } catch {}
   });
 

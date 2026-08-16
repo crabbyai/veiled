@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, TextInput, Pressable, FlatList,
+  View, Text, StyleSheet, TextInput, Pressable, FlatList, ActivityIndicator,
   KeyboardAvoidingView, Platform, ScrollView, Modal, Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -13,6 +13,12 @@ import { useMuzz, getPerson } from '../store';
 import { scoreMatch } from '../butterfly';
 import { PhotoTile, Verified } from '../components/ui';
 import { pickAndUpload } from '../photos';
+import * as api from '../api';
+import { mediaUrl } from '../api';
+import {
+  canRecord, requestPermission, beginSession, endSession,
+  RECORDING_PRESET, fileInfoFor, formatDuration, MAX_MS,
+} from '../voice';
 import * as realtime from '../realtime';
 import { SIMULATED_FEATURES } from '../config';
 import { UnveilPrompt, UnveilRequestRow } from '../components/Unveil';
@@ -46,6 +52,9 @@ export default function ChatScreen({ route, navigation }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [reactionFor, setReactionFor] = useState(null);
   const [recording, setRecording] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [micDenied, setMicDenied] = useState(false);
+  const [viewing, setViewing] = useState(null);   // a photo opened full-screen
   const [stickerOpen, setStickerOpen] = useState(false);
   // The Veil: where this pair stands, and whether to raise it with her.
   const [veil, setVeil] = useState(null);
@@ -157,13 +166,21 @@ export default function ChatScreen({ route, navigation }) {
     setText('');
   };
 
-  // Voice note: hold the mic to "record", release to send a waveform bubble.
-  const sendVoice = () => {
-    setRecording(false);
-    const secs = 3 + Math.floor(Math.random() * 12);
+  // A voice note is a real recording, uploaded and sent with its real
+  // length. Nothing here invents a duration.
+  const sendVoice = useCallback(async (uri, durationMs) => {
+    if (!uri) return;
     H.press();
-    sendMessage(personId, `voice:${secs}`, 'me');
-  };
+    const { name, type } = fileInfoFor(uri);
+    let url = uri;
+    try {
+      if (api.isConfigured() && (await api.isAvailable())) {
+        const res = await api.uploadMedia(uri, { name, type });
+        url = res.url || uri;
+      }
+    } catch { /* keep the local file: it still plays for the sender */ }
+    sendMessage(personId, url, 'me', { kind: 'audio', meta: { durationMs } });
+  }, [personId, sendMessage]);
 
   const sendSticker = (glyph) => {
     H.press();
@@ -172,10 +189,12 @@ export default function ChatScreen({ route, navigation }) {
   };
 
   const sendImage = async () => {
+    setSending(true);
     const uri = await pickAndUpload();
+    setSending(false);
     if (!uri) return;
     H.tap();
-    sendMessage(personId, `image:${uri}`, 'me');
+    sendMessage(personId, uri, 'me', { kind: 'image' });
   };
 
   const onReact = (msg, emoji) => {
@@ -283,7 +302,7 @@ export default function ChatScreen({ route, navigation }) {
           renderItem={({ item }) => (
             item.text === 'unveil:done'
               ? <UnveilEvent name={item.sender === 'me' ? 'You' : person.name} />
-              : <Bubble item={item} reaction={reactions[`${personId}:${item.id}`]} showReceipt={item.id === lastMineId} onLongPress={() => { H.press(); setReactionFor(item); }} />
+              : <Bubble item={item} reaction={reactions[`${personId}:${item.id}`]} onOpenImage={setViewing} showReceipt={item.id === lastMineId} onLongPress={() => { H.press(); setReactionFor(item); }} />
           )}
           ListFooterComponent={typing ? <TypingBubble /> : <View style={{ height: 4 }} />}
         />
@@ -328,17 +347,11 @@ export default function ChatScreen({ route, navigation }) {
 
         {/* Composer */}
         {recording ? (
-          <View style={[styles.composer, styles.recording, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-            <Pressable onPress={() => setRecording(false)} style={styles.plus}><Ionicons name="trash-outline" size={22} color={M.danger} /></Pressable>
-            <View style={styles.recWave}>
-              <View style={styles.recDot} />
-              <Text style={styles.recText}>Recording… release to send</Text>
-              {[...Array(16)].map((_, i) => <View key={i} style={[styles.recBar, { height: 6 + ((i * 7) % 18) }]} />)}
-            </View>
-            <Pressable onPress={sendVoice} style={styles.sendBtn}>
-              <LinearGradient colors={GRAD.primary} style={styles.sendGrad}><Ionicons name="send" size={18} color="#fff" /></LinearGradient>
-            </Pressable>
-          </View>
+          <Recorder
+            insets={insets}
+            onCancel={() => setRecording(false)}
+            onSend={(uri, ms) => { setRecording(false); sendVoice(uri, ms); }}
+          />
         ) : (
           <View>
             {stickerOpen && (
@@ -353,7 +366,11 @@ export default function ChatScreen({ route, navigation }) {
               </Animated.View>
             )}
           <View style={[styles.composer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-            <Pressable style={styles.plus} onPress={sendImage}><Ionicons name="image-outline" size={23} color={M.primary} /></Pressable>
+            <Pressable style={styles.plus} onPress={sendImage} disabled={sending} accessibilityRole="button" accessibilityLabel="Send a photo">
+              {sending
+                ? <ActivityIndicator size="small" color={M.primary} />
+                : <Ionicons name="image-outline" size={23} color={M.primary} />}
+            </Pressable>
             <Pressable style={styles.plus} onPress={() => { H.tap(); setStickerOpen((v) => !v); }}><Ionicons name={stickerOpen ? 'happy' : 'happy-outline'} size={23} color={M.primary} /></Pressable>
             <TextInput
               value={text} onChangeText={onChangeText}
@@ -365,13 +382,47 @@ export default function ChatScreen({ route, navigation }) {
               <Pressable onPress={() => send()} style={styles.sendBtn}>
                 <LinearGradient colors={GRAD.primary} style={styles.sendGrad}><Ionicons name="send" size={18} color="#fff" /></LinearGradient>
               </Pressable>
-            ) : SIMULATED_FEATURES ? (
-              <Pressable style={styles.plus} onPress={() => { H.press(); setRecording(true); }}><Ionicons name="mic-outline" size={24} color={M.primary} /></Pressable>
+            ) : canRecord() ? (
+              <Pressable
+                style={styles.plus}
+                accessibilityRole="button"
+                accessibilityLabel="Record a voice note"
+                onPress={async () => {
+                  H.press();
+                  if (!(await requestPermission())) { setMicDenied(true); return; }
+                  setRecording(true);
+                }}
+              >
+                <Ionicons name="mic-outline" size={24} color={M.primary} />
+              </Pressable>
             ) : null}
           </View>
           </View>
         )}
       </KeyboardAvoidingView>
+
+      {/* A photo, full screen */}
+      <Modal visible={!!viewing} transparent animationType="fade" onRequestClose={() => setViewing(null)}>
+        <Pressable style={styles.viewerBg} onPress={() => setViewing(null)}>
+          <PhotoTile uri={viewing} seed="viewer" rounded={0} style={styles.viewerImage} />
+          <View style={[styles.viewerClose, { top: insets.top + 12 }]}>
+            <Ionicons name="close" size={26} color="#fff" />
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* The microphone was refused — say where to turn it back on */}
+      <Modal visible={micDenied} transparent animationType="fade" onRequestClose={() => setMicDenied(false)}>
+        <Pressable style={styles.menuBg} onPress={() => setMicDenied(false)}>
+          <Animated.View entering={enterSheet()} style={[styles.menu, { paddingBottom: insets.bottom + 18 }]}>
+            <View style={styles.menuHandle} />
+            <Text style={styles.deniedTitle}>Veiled can't reach the microphone</Text>
+            <Text style={styles.deniedSub}>
+              Voice notes need microphone access. You can turn it on in Settings › Veiled › Microphone.
+            </Text>
+          </Animated.View>
+        </Pressable>
+      </Modal>
 
       {/* Reaction picker */}
       <Modal visible={!!reactionFor} transparent animationType="fade" onRequestClose={() => setReactionFor(null)}>
@@ -472,13 +523,20 @@ function VoiceContent({ secs, mine }) {
   );
 }
 
-function Bubble({ item, reaction, onLongPress, showReceipt }) {
+function Bubble({ item, reaction, onLongPress, showReceipt, onOpenImage }) {
   const mine = item.sender === 'me';
-  const isVoice = typeof item.text === 'string' && item.text.startsWith('voice:');
-  const isImage = typeof item.text === 'string' && item.text.startsWith('image:');
-  const isSticker = typeof item.text === 'string' && item.text.startsWith('sticker:');
-  const secs = isVoice ? Number(item.text.split(':')[1]) : 0;
-  const imgUri = isImage ? item.text.slice(6) : null;
+  // `kind` is what the server stores. The `voice:`/`image:` prefixes are
+  // what an older build wrote into the body; they are still read so a
+  // conversation from before this change doesn't come back as gibberish.
+  const legacy = typeof item.text === 'string' ? item.text : '';
+  const isVoice = item.kind === 'audio' || legacy.startsWith('voice:');
+  const isImage = item.kind === 'image' || legacy.startsWith('image:');
+  const isSticker = legacy.startsWith('sticker:');
+  const legacyVoice = legacy.startsWith('voice:');
+  const durationMs = item.meta?.durationMs
+    || (legacyVoice ? Number(legacy.split(':')[1] || 0) * 1000 : 0);
+  const audioUri = isVoice && !legacyVoice ? item.text : null;
+  const imgUri = isImage ? (legacy.startsWith('image:') ? legacy.slice(6) : item.text) : null;
 
   // Stickers render as a large bare glyph — no bubble background.
   if (isSticker) {
@@ -501,16 +559,20 @@ function Bubble({ item, reaction, onLongPress, showReceipt }) {
     <Animated.View entering={mine ? FadeInUp.duration(180) : FadeInDown.duration(180)} style={[styles.bubbleRow, { justifyContent: mine ? 'flex-end' : 'flex-start' }]}>
       <Pressable onLongPress={onLongPress} delayLongPress={250}>
         {isImage ? (
-          <View style={[styles.imageBubble, mine ? { borderBottomRightRadius: 6 } : { borderBottomLeftRadius: 6 }]}>
-            <PhotoTile uri={imgUri} seed={item.id} rounded={18} style={{ width: 200, height: 200 }} silhouette={64} />
-          </View>
+          <Pressable onPress={() => onOpenImage && onOpenImage(imgUri)} style={[styles.imageBubble, mine ? { borderBottomRightRadius: 6 } : { borderBottomLeftRadius: 6 }]}>
+            <PhotoTile uri={imgUri} seed={item.id} rounded={18} style={{ width: 220, height: 220 }} />
+          </Pressable>
         ) : mine ? (
-          <LinearGradient colors={GRAD.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.bubble, styles.mine]}>
-            {isVoice ? <VoiceContent secs={secs} mine /> : <Text style={styles.mineText}>{item.text}</Text>}
+          <LinearGradient colors={GRAD.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.bubble, styles.mine, isVoice && styles.voiceBubble]}>
+            {isVoice
+              ? (audioUri ? <VoicePlayer uri={mediaUrl(audioUri)} durationMs={durationMs} mine /> : <VoiceContent secs={Math.round(durationMs / 1000)} mine />)
+              : <Text style={styles.mineText}>{item.text}</Text>}
           </LinearGradient>
         ) : (
-          <View style={[styles.bubble, styles.theirs]}>
-            {isVoice ? <VoiceContent secs={secs} /> : <Text style={styles.theirsText}>{item.text}</Text>}
+          <View style={[styles.bubble, styles.theirs, isVoice && styles.voiceBubble]}>
+            {isVoice
+              ? (audioUri ? <VoicePlayer uri={mediaUrl(audioUri)} durationMs={durationMs} /> : <VoiceContent secs={Math.round(durationMs / 1000)} />)
+              : <Text style={styles.theirsText}>{item.text}</Text>}
           </View>
         )}
         {reaction ? (
@@ -526,6 +588,157 @@ function Bubble({ item, reaction, onLongPress, showReceipt }) {
         )}
       </Pressable>
     </Animated.View>
+  );
+}
+
+// ── The recorder ────────────────────────────────────────────────────
+// Starts as soon as it mounts, shows the real elapsed time and a live
+// level meter, and stops itself at MAX_MS. Cancel throws the file away.
+function Recorder({ insets, onCancel, onSend }) {
+  const audio = require('expo-audio');
+  const recorder = audio.useAudioRecorder(RECORDING_PRESET());
+  const state = audio.useAudioRecorderState(recorder, 100);
+  const [failed, setFailed] = useState(false);
+  const startedAt = useRef(Date.now());
+  const stopping = useRef(false);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        await beginSession();
+        await recorder.prepareToRecordAsync();
+        if (!alive) return;
+        recorder.record();
+        startedAt.current = Date.now();
+      } catch {
+        if (alive) setFailed(true);
+      }
+    })();
+    return () => {
+      alive = false;
+      // Never leave the microphone open or the session in record mode.
+      try { if (recorder.isRecording) recorder.stop(); } catch {}
+      endSession();
+    };
+  }, []);
+
+  const elapsed = state?.durationMillis ?? (Date.now() - startedAt.current);
+
+  const finish = useCallback(async () => {
+    if (stopping.current) return;
+    stopping.current = true;
+    try {
+      await recorder.stop();
+      const ms = state?.durationMillis || (Date.now() - startedAt.current);
+      const uri = recorder.uri;
+      await endSession();
+      // Under a second is a slip of the thumb, not a message.
+      if (!uri || ms < 800) { onCancel(); return; }
+      onSend(uri, ms);
+    } catch {
+      onCancel();
+    }
+  }, [onSend, onCancel, state]);
+
+  // Stop on its own rather than recording until the upload limit refuses.
+  useEffect(() => { if (elapsed >= MAX_MS) finish(); }, [elapsed >= MAX_MS]);
+
+  const cancel = useCallback(async () => {
+    stopping.current = true;
+    try { await recorder.stop(); } catch {}
+    await endSession();
+    onCancel();
+  }, [onCancel]);
+
+  if (failed) {
+    return (
+      <View style={[styles.composer, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+        <Text style={[styles.recText, { flex: 1 }]}>Couldn't start recording.</Text>
+        <Pressable onPress={onCancel} style={styles.plus}><Ionicons name="close" size={22} color={M.textSoft} /></Pressable>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.composer, styles.recording, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+      <Pressable onPress={cancel} style={styles.plus} accessibilityLabel="Discard recording">
+        <Ionicons name="trash-outline" size={22} color={M.danger} />
+      </Pressable>
+      <View style={styles.recWave}>
+        <View style={styles.recDot} />
+        <Text style={styles.recText}>{formatDuration(elapsed)}</Text>
+        <Meter level={state?.metering} />
+      </View>
+      <Pressable onPress={finish} style={styles.sendBtn} accessibilityLabel="Send voice note">
+        <LinearGradient colors={GRAD.primary} style={styles.sendGrad}><Ionicons name="send" size={18} color="#fff" /></LinearGradient>
+      </Pressable>
+    </View>
+  );
+}
+
+// A live level meter. `metering` is dBFS — quiet is about -60, loud is
+// 0 — so it is mapped onto a bar height rather than shown as a number.
+function Meter({ level }) {
+  const bars = 14;
+  const loud = level == null ? 0.35 : Math.max(0, Math.min(1, (level + 55) / 55));
+  return (
+    <View style={styles.meter}>
+      {[...Array(bars)].map((_, i) => {
+        const falloff = 1 - Math.abs(i - bars / 2) / (bars / 1.4);
+        const h = 4 + loud * 20 * Math.max(0.25, falloff);
+        return <View key={i} style={[styles.recBar, { height: h }]} />;
+      })}
+    </View>
+  );
+}
+
+// ── Voice note playback ─────────────────────────────────────────────
+function VoicePlayer({ uri, durationMs, mine }) {
+  const audio = require('expo-audio');
+  const player = audio.useAudioPlayer(uri ? { uri } : null);
+  const status = audio.useAudioPlayerStatus(player);
+  const tint = mine ? '#fff' : M.text;
+
+  const playing = !!status?.playing;
+  const total = (status?.duration ? status.duration * 1000 : durationMs) || durationMs || 0;
+  const at = (status?.currentTime || 0) * 1000;
+  const through = total > 0 ? Math.min(1, at / total) : 0;
+
+  const toggle = () => {
+    H.tap();
+    if (playing) { player.pause(); return; }
+    // Replay from the start once it has run to the end.
+    if (status?.didJustFinish || (total && at >= total - 120)) player.seekTo(0);
+    player.play();
+  };
+
+  return (
+    <View style={styles.voiceRow}>
+      <Pressable onPress={toggle} hitSlop={8} accessibilityRole="button" accessibilityLabel={playing ? 'Pause' : 'Play voice note'}>
+        <Ionicons name={playing ? 'pause' : 'play'} size={20} color={tint} />
+      </Pressable>
+      <View style={styles.voiceBars}>
+        {[...Array(22)].map((_, i) => {
+          // A stable shape per note, so it looks like a waveform rather
+          // than noise that changes every render.
+          const seed = Math.abs(Math.sin((i + 1) * 12.9898 + (uri || '').length));
+          const played = i / 22 <= through;
+          return (
+            <View
+              key={i}
+              style={[
+                styles.voiceBar,
+                { height: 5 + seed * 15, backgroundColor: played ? tint : (mine ? 'rgba(255,255,255,0.4)' : M.border) },
+              ]}
+            />
+          );
+        })}
+      </View>
+      <Text style={[styles.voiceTime, { color: tint }]}>
+        {formatDuration(playing || at > 0 ? total - at : total)}
+      </Text>
+    </View>
   );
 }
 
@@ -609,6 +822,17 @@ const styles = StyleSheet.create({
   recWave: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: M.primarySoft, borderRadius: 22, paddingHorizontal: 14, paddingVertical: 11 },
   recDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: M.danger, marginRight: 4 },
   recText: { color: M.primary, fontWeight: '700', fontSize: 12, marginRight: 6 },
+  meter: { flexDirection: 'row', alignItems: 'center', gap: 3, flex: 1, justifyContent: 'flex-end' },
+  voiceBubble: { paddingVertical: 10, paddingHorizontal: 12 },
+  voiceRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 190 },
+  voiceBars: { flexDirection: 'row', alignItems: 'center', gap: 2.5, flex: 1 },
+  voiceBar: { width: 2.5, borderRadius: 2 },
+  voiceTime: { fontSize: 12, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  viewerBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.94)', alignItems: 'center', justifyContent: 'center' },
+  viewerImage: { width: '100%', height: '78%' },
+  viewerClose: { position: 'absolute', right: 20 },
+  deniedTitle: { ...TYPE.h3, marginTop: 4 },
+  deniedSub: { ...TYPE.soft, marginTop: 8, lineHeight: 20 },
   recBar: { width: 2.5, borderRadius: 2, backgroundColor: M.primaryLight },
   reactBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.25)', alignItems: 'center', justifyContent: 'center' },
   reactBar: { flexDirection: 'row', backgroundColor: M.bg, borderRadius: RADIUS.pill, padding: 8, gap: 4, ...SHADOW.card },
