@@ -27,7 +27,7 @@ function nextPrayer(now) {
   return { ...PRAYERS[0], idx: 0, tomorrow: true }; // Fajr next day
 }
 
-export default function PrayerBar() {
+export default function PrayerBar({ onPress }) {
   const [now, setNow] = useState(new Date());
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30000);
@@ -43,7 +43,12 @@ export default function PrayerBar() {
   const countdown = hh > 0 ? `${hh}h ${mm}m` : `${mm}m`;
 
   return (
-    <Pressable onPress={H.tap} style={styles.wrap}>
+    <Pressable
+      onPress={() => { H.tap(); if (onPress) onPress(); }}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityLabel={onPress ? 'Prayer times and dhikr counter' : undefined}
+      style={styles.wrap}
+    >
       <View style={styles.iconWrap}>
         <Ionicons name={next.icon} size={17} color={M.textOnPrimary} />
       </View>
@@ -59,6 +64,14 @@ export default function PrayerBar() {
           </View>
         ))}
       </View>
+      {/* The tasbih lives one tap away, since this is already the strip
+          people look at for the deen side of the app. */}
+      {onPress ? (
+        <View style={styles.tasbih}>
+          <Ionicons name="ellipsis-vertical" size={13} color={M.textOnPrimary} />
+          <Text style={styles.tasbihText}>Dhikr</Text>
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -80,4 +93,10 @@ const styles = StyleSheet.create({
   dotActive: { backgroundColor: M.primary, width: 7, height: 7, borderRadius: 3.5 },
   dotLabel: { fontSize: 8.5, fontWeight: '700', color: M.textMuted },
   dotLabelActive: { color: M.primary },
+  tasbih: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: M.primary, borderRadius: RADIUS.pill,
+    paddingLeft: 7, paddingRight: 10, paddingVertical: 5,
+  },
+  tasbihText: { color: M.textOnPrimary, fontWeight: '800', fontSize: 11.5 },
 });

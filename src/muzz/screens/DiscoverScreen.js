@@ -363,8 +363,9 @@ export default function DiscoverScreen({ navigation }) {
           the same deck shrunk down, a Standouts strip, prayer times —
           pushed the card into the bottom third. Those live behind the
           header buttons now. */}
-      {/* Next salah — small, and worth keeping in view. */}
-      <PrayerBar />
+      {/* Next salah — small, and worth keeping in view. Tapping it
+          opens the tasbih. */}
+      <PrayerBar onPress={() => navigation.navigate('MuzzDhikr')} />
 
       {boostActive && (
         <Animated.View entering={FadeInUp} style={styles.boostBanner}>

@@ -219,6 +219,20 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </View>
 
+        {/* The tasbih, and what it's earned */}
+        <Pressable onPress={() => { H.tap(); navigation.navigate('MuzzDhikr'); }} style={styles.takeInvite}>
+          <View style={styles.takeInviteIcon}><Ionicons name="ellipsis-vertical" size={19} color={M.textOnPrimary} /></View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.takeInviteTitle}>Dhikr</Text>
+            <Text style={styles.takeInviteSub}>
+              {(muzz.dhikr?.dayCount || 0) > 0
+                ? `${muzz.dhikr.dayCount} today · ${muzz.dhikr.streak || 1} day streak`
+                : 'A tasbih to keep your count — and a gift for a long sitting.'}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={M.textMuted} />
+        </Pressable>
+
         {/* Friend's Take — let people who love you vouch for you */}
         <View style={styles.takeInvite}>
           <View style={styles.takeInviteIcon}><Ionicons name="people" size={19} color={M.textOnPrimary} /></View>
@@ -265,7 +279,8 @@ export default function ProfileScreen({ navigation }) {
           {[
             ['heart', matches.length, 'Matches'],
             ['rose', me.gold ? '∞' : (muzz.roses || 0), 'Roses'],
-            ['star', me.gold ? '∞' : muzz.superLikes, 'Super likes'],
+            ['chatbubble-ellipses', me.gold ? '∞' : (muzz.compliments || 0), 'Compliments'],
+            ['flash', me.gold ? '∞' : (muzz.boosts || 0), 'Boosts'],
           ].map(([ic, v, l]) => (
             <View key={l} style={styles.stat}>
               <Ionicons name={ic} size={18} color={M.primary} />
