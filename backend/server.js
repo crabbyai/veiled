@@ -36,6 +36,11 @@ app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'no-referrer');
   res.setHeader('X-DNS-Prefetch-Control', 'off');
+  // The API is not a document and never needs these. Note that if the
+  // web build of the app is ever served from this same origin, this line
+  // will disable the camera and microphone for it — video calls would
+  // fail with a bare NotAllowedError and no clue why. Serve the app from
+  // its own origin, or relax this to `self` for that path.
   res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
   if (process.env.NODE_ENV === 'production') {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');

@@ -8,6 +8,7 @@ const { emitToUser, isOnline, onlineCount } = require('../realtime');
 const { saveToken, sendPush } = require('../push');
 const photoStorage = require('../services/storage');
 const moderation = require('../services/moderation');
+const ice = require('../services/ice');
 
 const router = express.Router();
 
@@ -1139,6 +1140,14 @@ router.post('/social/posts/:id/comments', authenticate, (req, res) => {
 // ── Photos ───────────────────────────────────────────────────────────
 
 // POST /api/dating/photos — multipart "image" → adds a profile photo
+// GET /api/dating/ice — how to reach the other device on a call.
+// Fetched when a call starts rather than baked into the app, so TURN
+// credentials are short-lived and tied to the person using them.
+router.get('/ice', authenticate, (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(ice.iceServersFor(req.userId));
+});
+
 // POST /api/dating/media — an attachment for a message (image or audio)
 router.post('/media', authenticate, uploadMedia.single('file'), (req, res) => {
   try {

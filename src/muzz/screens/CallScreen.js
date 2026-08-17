@@ -9,7 +9,7 @@ import { PhotoTile } from '../components/ui';
 import * as realtime from '../realtime';
 import * as api from '../api';
 import {
-  canCall, hasRelay, getLocalStream, createPeer, stopStream,
+  canCall, hasRelay, fetchIce, getLocalStream, createPeer, stopStream,
   switchCamera, setMuted as setStreamMuted, setVideoEnabled, VideoView, newCallId,
 } from '../calls';
 import * as H from '../haptics';
@@ -87,9 +87,15 @@ export default function CallScreen({ route, navigation }) {
       stream.current = local;
       setLocalStream(local);
 
+      // Ask the server how to reach them before negotiating — this is
+      // what carries the TURN credential.
+      const { iceServers } = await fetchIce();
+      if (!alive) { stopStream(local); return; }
+
       const send = (event, payload) => realtime.signal(event, { callId: callId.current, ...payload });
       peer.current = createPeer({
         stream: local,
+        iceServers,
         onRemoteStream: (s) => { if (alive) { setRemoteStream(s); setPhase('active'); } },
         onState: (st) => {
           if (!alive) return;

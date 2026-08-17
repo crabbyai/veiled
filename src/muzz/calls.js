@@ -1,4 +1,6 @@
 import { Platform } from 'react-native';
+import * as api from './api';
+import { createPeerFlow } from './callFlow';
 
 // ─── Calls ──────────────────────────────────────────────────────────
 // WebRTC, wrapped so the rest of the app deals in "start a call" and
@@ -32,22 +34,35 @@ function lib() {
 export const canCall = () => Platform.OS !== 'web' && !!lib();
 
 // STUN lets two devices discover their public address, which is enough
-// for most home networks. It is NOT enough behind a symmetric NAT or
-// stricter mobile carriers — those need a TURN relay, and without one
-// those calls will ring, negotiate, and then connect to silence. Set
-// EXPO_PUBLIC_TURN_URL / _USER / _PASS to a TURN server before relying
-// on calls in the wild.
-const TURN_URL = process.env.EXPO_PUBLIC_TURN_URL || '';
-const TURN_USER = process.env.EXPO_PUBLIC_TURN_USERNAME || '';
-const TURN_PASS = process.env.EXPO_PUBLIC_TURN_PASSWORD || '';
+// on most home networks. It is NOT enough behind symmetric NAT or some
+// mobile carriers — those need a TURN relay.
+//
+// The relay's credentials come from the server when a call starts, not
+// from the bundle: a long-lived TURN password compiled into an app can
+// be lifted out of it and used to relay anyone's traffic on your bill.
+const FALLBACK = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
 
-export const hasRelay = () => !!TURN_URL;
+let cached = null;   // { iceServers, relay, at }
+const CACHE_MS = 5 * 60000;
 
-const iceServers = () => {
-  const servers = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
-  if (TURN_URL) servers.push({ urls: TURN_URL, username: TURN_USER, credential: TURN_PASS });
-  return servers;
-};
+// Fetch how to reach the other device. Falls back to plain STUN if the
+// server can't be reached — a call that might not connect beats no call
+// at all, and `relay` says which it is so the screen can be honest.
+export async function fetchIce() {
+  if (cached && Date.now() - cached.at < CACHE_MS) return cached;
+  try {
+    const res = await api.iceServers();
+    const servers = Array.isArray(res.iceServers) && res.iceServers.length ? res.iceServers : FALLBACK;
+    cached = { iceServers: servers, relay: !!res.relay, at: Date.now() };
+  } catch {
+    cached = { iceServers: FALLBACK, relay: false, at: Date.now() };
+  }
+  return cached;
+}
+
+// What the last fetch said about whether a relay is available. Only
+// meaningful after fetchIce() — before that it is honestly unknown.
+export const hasRelay = () => !!(cached && cached.relay);
 
 // Ask for the camera and microphone and return the local stream.
 // `video` false gives an audio-only call.
@@ -65,51 +80,20 @@ export async function getLocalStream({ video }) {
 // A peer connection wired to a signalling transport. `send` is called
 // with (event, payload) and should put it on the socket; feed what comes
 // back in through the returned handlers.
-export function createPeer({ stream, onRemoteStream, onState, send }) {
+//
+// The sequence itself lives in callFlow.js, which is free of anything
+// platform-specific so it can be run against a real WebRTC stack in a
+// test. This only supplies react-native-webrtc's constructors.
+export function createPeer(opts) {
   const r = lib();
   if (!r) throw new Error('Calling is unavailable in this build');
-
-  const pc = new r.RTCPeerConnection({ iceServers: iceServers() });
-  stream.getTracks().forEach((track) => pc.addTrack(track, stream));
-
-  pc.addEventListener('track', (e) => {
-    if (e.streams && e.streams[0] && onRemoteStream) onRemoteStream(e.streams[0]);
+  return createPeerFlow({
+    RTCPeerConnection: r.RTCPeerConnection,
+    RTCSessionDescription: r.RTCSessionDescription,
+    RTCIceCandidate: r.RTCIceCandidate,
+    ...opts,
+    iceServers: opts.iceServers || FALLBACK,
   });
-  pc.addEventListener('icecandidate', (e) => {
-    if (e.candidate) send('call:ice', { candidate: e.candidate.toJSON ? e.candidate.toJSON() : e.candidate });
-  });
-  pc.addEventListener('connectionstatechange', () => {
-    if (onState) onState(pc.connectionState);
-  });
-
-  return {
-    pc,
-    // The caller offers.
-    async offer() {
-      const desc = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
-      await pc.setLocalDescription(desc);
-      send('call:offer', { sdp: { type: desc.type, sdp: desc.sdp } });
-    },
-    // The callee answers what it was offered.
-    async answerTo(sdp) {
-      await pc.setRemoteDescription(new r.RTCSessionDescription(sdp));
-      const desc = await pc.createAnswer();
-      await pc.setLocalDescription(desc);
-      send('call:answer', { sdp: { type: desc.type, sdp: desc.sdp } });
-    },
-    async acceptAnswer(sdp) {
-      await pc.setRemoteDescription(new r.RTCSessionDescription(sdp));
-    },
-    async addCandidate(candidate) {
-      // Candidates can arrive before the remote description is set;
-      // WebRTC queues them, but a malformed one must not kill the call.
-      try { await pc.addIceCandidate(new r.RTCIceCandidate(candidate)); } catch {}
-    },
-    close() {
-      try { pc.getSenders().forEach((s) => s.track && s.track.stop()); } catch {}
-      try { pc.close(); } catch {}
-    },
-  };
 }
 
 export function stopStream(stream) {

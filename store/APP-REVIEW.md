@@ -359,8 +359,27 @@ two people who are not matched.
   that cannot work.
 * Calling needs two accounts, both signed in and matched, on two
   devices — a call cannot be demonstrated on one device.
-* **TURN is required in production.** STUN alone connects most calls on
-  ordinary home wifi, but symmetric NAT and some mobile carriers need a
-  relay. Set `EXPO_PUBLIC_TURN_URL`, `EXPO_PUBLIC_TURN_USERNAME` and
-  `EXPO_PUBLIC_TURN_PASSWORD` before release, or a share of calls will
-  ring, negotiate and then connect to silence.
+
+### TURN
+
+TURN credentials are issued by the API at call time (`GET /api/dating/ice`),
+not shipped in the app: the username is `<expiry>:<userId>` and the
+password an HMAC of it, coturn's `use-auth-secret` scheme. Nothing
+long-lived is compiled into the binary, so nothing can be lifted out of
+it and used to relay traffic at our expense.
+
+Deploy the relay before release — `backend/turn/` has the coturn config
+and a compose file, and the API needs `TURN_URLS` and `TURN_SECRET`.
+Without it, calls that need a relay ring, negotiate, and connect to
+silence: roughly one in five on real networks.
+
+### What has been tested, and what has not
+
+`backend/test/webrtc-media.test.js` runs two real WebRTC peers through
+the real signalling server, driving the app's own negotiation code
+(`src/muzz/callFlow.js`), and asserts that audio and video bytes actually
+arrive at both ends — not merely that the two sides finished negotiating.
+
+What that does not cover is react-native-webrtc's own behaviour on a
+device: the codebase cannot exercise a native module. Two devices on a
+dev build are still the last check before release.

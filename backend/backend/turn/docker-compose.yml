@@ -1,0 +1,18 @@
+# A TURN relay for Veiled's calls. See README.md in this directory.
+#
+# Host networking is deliberate: coturn hands out the addresses it is
+# listening on, and behind Docker's NAT it would advertise a private
+# address that no phone can reach.
+services:
+  coturn:
+    image: coturn/coturn:4.6
+    container_name: veiled-turn
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - ./turnserver.conf:/etc/coturn/turnserver.conf:ro
+    command: >
+      -c /etc/coturn/turnserver.conf
+      --realm=${TURN_REALM:?set TURN_REALM}
+      --static-auth-secret=${TURN_SECRET:?set TURN_SECRET}
+      --external-ip=${TURN_PUBLIC_IP:?set TURN_PUBLIC_IP}

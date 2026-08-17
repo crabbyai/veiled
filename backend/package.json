@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node test/compat-question.test.js && node test/veil.test.js && node test/media-messages.test.js && node test/calling.test.js"
+    "test": "node test/compat-question.test.js && node test/veil.test.js && node test/media-messages.test.js && node test/calling.test.js && node test/webrtc-media.test.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

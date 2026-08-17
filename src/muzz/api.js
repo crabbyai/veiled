@@ -142,6 +142,10 @@ export const getMessages = (matchId, { before, limit } = {}) => {
 };
 export const unveil = (matchId) => request(`/dating/matches/${matchId}/unveil`, { method: 'POST' });
 // The Veil: where this pair stands, and his request that she unveil.
+// How to reach the other device on a call — STUN, and TURN with a
+// short-lived credential when a relay is configured.
+export const iceServers = () => request('/dating/ice');
+
 export const veilState = (matchId) => request(`/dating/matches/${matchId}/veil`);
 export const askUnveil = (matchId) => request(`/dating/matches/${matchId}/unveil-ask`, { method: 'POST' });
 export const unmatch = (matchId) => request(`/dating/matches/${matchId}/unmatch`, { method: 'POST' });
