@@ -6,7 +6,8 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "preflight": "node scripts/preflight.js"
   },
   "dependencies": {
     "@config-plugins/react-native-webrtc": "^13.0.0",
@@ -20,14 +21,12 @@
     "expo-audio": "~1.1.1",
     "expo-blur": "^15.0.8",
     "expo-build-properties": "~1.0.10",
-    "expo-camera": "^17.0.10",
     "expo-crypto": "^15.0.8",
     "expo-file-system": "^19.0.21",
     "expo-font": "~14.0.12",
     "expo-haptics": "^15.0.8",
     "expo-image-picker": "^17.0.10",
     "expo-linear-gradient": "^15.0.8",
-    "expo-local-authentication": "^17.0.8",
     "expo-media-library": "^18.2.1",
     "expo-notifications": "^0.32.16",
     "expo-secure-store": "^15.0.8",

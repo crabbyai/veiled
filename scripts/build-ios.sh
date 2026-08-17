@@ -59,6 +59,29 @@ if grep -q "in-app-payments" app.json; then
 fi
 ok "no Apple Pay entitlement"
 
+# The single biggest cause of the last rejection: a build with no API in
+# it. The app then has no members to show, and a reviewer opens an empty
+# app. It is invisible at build time and obvious to them, so it is
+# checked here rather than discovered in Resolution Center.
+[ -n "${EXPO_PUBLIC_API_URL:-}" ] || fail "EXPO_PUBLIC_API_URL is not set.
+  A build without it ships with no backend: no members, an empty deck,
+  and a rejection. Set it to your live API before building:
+    export EXPO_PUBLIC_API_URL=https://api.example.com"
+case "$EXPO_PUBLIC_API_URL" in
+  https://*) ok "API: $EXPO_PUBLIC_API_URL" ;;
+  *) fail "EXPO_PUBLIC_API_URL must be https — iOS blocks plain HTTP.
+  Got: $EXPO_PUBLIC_API_URL" ;;
+esac
+
+[ "${EXPO_PUBLIC_DEMO_MODE:-}" != "1" ] || fail "EXPO_PUBLIC_DEMO_MODE=1 is set.
+  That ships written sample profiles as if they were members. Unset it."
+ok "demo mode off"
+
+# Everything Apple rejects for, checked mechanically.
+step "Pre-flight"
+node scripts/preflight.js || fail "Pre-flight found blocking issues (above). Each one is a rejection."
+
+
 step "Installing dependencies"
 npm ci --no-audit --no-fund
 ok "dependencies installed"

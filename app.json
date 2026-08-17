@@ -24,14 +24,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.veiledapp.hijabimarriage",
-      "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "Veiled uses the camera for selfie verification and adding profile photos.",
         "NSMicrophoneUsageDescription": "Veiled uses the microphone to record voice notes you choose to send in a conversation.",
         "NSPhotoLibraryUsageDescription": "Veiled accesses your photo library so you can add profile photos.",
         "NSPhotoLibraryAddUsageDescription": "Veiled saves photos to your library only when you choose to.",
-        "NSFaceIDUsageDescription": "Veiled uses Face ID to secure access to the app and protect your privacy.",
-        "NSLocationWhenInUseUsageDescription": "Veiled uses your location to show how far away matches are. You can turn this off at any time.",
         "ITSAppUsesNonExemptEncryption": false,
         "LSApplicationQueriesSchemes": [
           "itms-apps"
@@ -39,8 +36,7 @@
         "UIBackgroundModes": [
           "fetch",
           "remote-notification",
-          "audio",
-          "voip"
+          "audio"
         ]
       },
       "config": {
@@ -78,7 +74,6 @@
     },
     "android": {
       "package": "com.veiledapp.hijabimarriage",
-      "versionCode": 1,
       "softwareKeyboardLayoutMode": "pan",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -97,14 +92,10 @@
         "READ_MEDIA_IMAGES",
         "VIBRATE",
         "POST_NOTIFICATIONS",
-        "USE_BIOMETRIC",
-        "USE_FINGERPRINT",
         "INTERNET",
         "ACCESS_NETWORK_STATE",
         "RECORD_AUDIO",
-        "MODIFY_AUDIO_SETTINGS",
-        "BLUETOOTH",
-        "FOREGROUND_SERVICE"
+        "MODIFY_AUDIO_SETTINGS"
       ],
       "blockedPermissions": [
         "ACCESS_FINE_LOCATION",
@@ -147,12 +138,6 @@
     },
     "plugins": [
       [
-        "expo-camera",
-        {
-          "cameraPermission": "Allow Veiled to use your camera for selfie verification and profile photos"
-        }
-      ],
-      [
         "expo-image-picker",
         {
           "photosPermission": "Allow Veiled to access your photos to add them to your profile",
@@ -177,12 +162,6 @@
       [
         "expo-secure-store",
         {}
-      ],
-      [
-        "expo-local-authentication",
-        {
-          "faceIDPermission": "Allow Veiled to use Face ID for app lock"
-        }
       ],
       [
         "expo-build-properties",

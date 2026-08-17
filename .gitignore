@@ -30,7 +30,12 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
+# local env files — .env itself included: backend/.env holds JWT_SECRET
+# and TURN_SECRET, and committing it hands out every session token and a
+# free relay.
+.env
+.env.*
+!.env.example
 .env*.local
 
 # typescript
