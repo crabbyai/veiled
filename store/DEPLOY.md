@@ -24,6 +24,31 @@ already had.
 If the API is not up yet, deploy `backend/` first. Nothing below will
 produce a submittable app until it is.
 
+### VoIP pushes — ringing a closed app
+
+A socket only reaches an app that is running. Without this, a call to
+someone who isn't looking at Veiled is simply refused, which is not what
+a phone is supposed to do.
+
+1. Apple Developer → Certificates, Identifiers & Profiles → Keys → new
+   key with **Apple Push Notifications service (APNs)** ticked.
+2. Download the `.p8` **once**, keep it outside the repo.
+3. On the API:
+
+```sh
+APNS_KEY_PATH=/etc/veiled/AuthKey_XXXXXXXXXX.p8
+APNS_KEY_ID=XXXXXXXXXX
+APNS_TEAM_ID=YYYYYYYYYY
+APNS_BUNDLE_ID=com.veiledapp.hijabimarriage
+APNS_ENV=production          # sandbox for TestFlight debug builds
+```
+
+The topic is `<bundle>.voip`, which is a different token from ordinary
+push — the app registers it separately and the server stores it apart.
+
+**Done when:** `cd backend && node test/voip.test.js` passes, and a call
+to a phone with Veiled closed makes it ring.
+
 ---
 
 ## 1. Check the machine
@@ -126,6 +151,11 @@ Walk it, in this order, because each depends on the last:
       note back.
 - [ ] With a **second device and account, matched to the first**: place a
       voice call, then a video call. Both must connect and carry sound.
+- [ ] **Close Veiled entirely on the second device** and call it again.
+      It must ring with the iOS call screen, and answering must open
+      straight into the call. If it does not ring, APNs is misconfigured
+      — check `APNS_ENV` matches the build (sandbox for a debug build).
+- [ ] The call appears afterwards in the iPhone's Recents.
 - [ ] Profile → Settings → delete the account, and confirm it is gone.
 
 Calls cannot be checked on one device. If you only have one, say so
@@ -162,9 +192,23 @@ npx eas submit --platform ios --latest
 > withheld from everyone until she chooses to reveal it to a specific
 > match. It is never revealed automatically.
 
-Create those two accounts **on the production API** before submitting,
-and check they are matched. A reviewer who signs in to an empty app
-rejects it.
+Create those two accounts **on the production API** before submitting:
+
+```sh
+cd backend && node scripts/seed-review-accounts.js
+```
+
+It makes both, matches them, puts a short conversation in the chat, and
+prints the credentials once. Paste them straight into the notes above. A
+reviewer who signs in to an empty app rejects it — that is what happened
+the first time.
+
+**In-app purchases** — if you are selling Gold, the products must exist
+and be *Ready to Submit* in App Store Connect, and RevenueCat needs
+`EXPO_PUBLIC_REVENUECAT_IOS_KEY` in the build. Without that key the app
+shows no prices at all and grants Gold as a launch perk, which is also
+fine to submit — but do not submit a build that shows a price it cannot
+charge.
 
 **App privacy** — declare, matching what the backend stores:
 Contact info (email), User content (photos, messages, voice notes),
@@ -212,6 +256,7 @@ Required:
 | `UPLOAD_DIR` | Same. Photos and voice notes live here. |
 | `ALLOWED_ORIGINS` | Your web origin, if any. |
 | `TURN_URLS`, `TURN_SECRET` | Calls. See `backend/turn/README.md`. |
+| `APNS_KEY_PATH`, `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_BUNDLE_ID` | Ringing a phone whose owner has closed Veiled. See below. |
 
 `npm start`, behind TLS. The app will not talk to plain HTTP.
 

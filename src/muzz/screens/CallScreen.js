@@ -12,6 +12,7 @@ import {
   canCall, hasRelay, fetchIce, getLocalStream, createPeer, stopStream,
   switchCamera, setMuted as setStreamMuted, setVideoEnabled, VideoView, newCallId,
 } from '../calls';
+import * as callkit from '../callkit';
 import * as H from '../haptics';
 
 const { width, height } = Dimensions.get('window');
@@ -57,6 +58,9 @@ export default function CallScreen({ route, navigation }) {
     if (finished.current) return;
     finished.current = true;
     try { realtime.signal('call:end', { callId: callId.current }); } catch {}
+    // The system UI outlives this screen unless it is told, and a call
+    // left open there keeps the phone in a call it isn't in.
+    callkit.reportEnded(callId.current);
     if (peer.current) { peer.current.close(); peer.current = null; }
     if (stream.current) { stopStream(stream.current); stream.current = null; }
     if (reason) setNote(reason);
@@ -117,6 +121,9 @@ export default function CallScreen({ route, navigation }) {
         const serverId = await serverIdFor(personId);
         if (!alive) return;
         if (!serverId) { leave('Could not reach them'); return; }
+        // Tell the system too, so the call shows in Recents and the
+        // audio session is the one a call expects.
+        callkit.reportOutgoing({ callId: callId.current, name: person?.name, video: isVideo });
         const res = await realtime.ring(serverId, { mode: isVideo ? 'video' : 'audio', callId: callId.current });
         if (!alive) return;
         if (!res.ok) {
@@ -155,6 +162,7 @@ export default function CallScreen({ route, navigation }) {
   // The clock only runs while the call is actually up.
   useEffect(() => {
     if (phase !== 'active') return undefined;
+    callkit.reportConnected(callId.current);
     H.success();
     const t = setInterval(() => setSecs((s) => s + 1), 1000);
     return () => clearInterval(t);
@@ -164,6 +172,7 @@ export default function CallScreen({ route, navigation }) {
     const next = !muted;
     setMuted(next);
     setStreamMuted(stream.current, next);
+    callkit.setMuted(callId.current, next);
     H.tap();
   };
   const toggleCam = () => {

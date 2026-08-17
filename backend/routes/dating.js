@@ -9,6 +9,7 @@ const { saveToken, sendPush } = require('../push');
 const photoStorage = require('../services/storage');
 const moderation = require('../services/moderation');
 const ice = require('../services/ice');
+const voip = require('../services/voip');
 
 const router = express.Router();
 
@@ -1140,6 +1141,15 @@ router.post('/social/posts/:id/comments', authenticate, (req, res) => {
 // ── Photos ───────────────────────────────────────────────────────────
 
 // POST /api/dating/photos — multipart "image" → adds a profile photo
+// POST /api/dating/voip-token { token } — the PushKit token that lets
+// us ring this device when Veiled isn't running.
+router.post('/voip-token', authenticate, (req, res) => {
+  const { token, platform } = req.body || {};
+  if (!token || typeof token !== 'string') return res.status(400).json({ error: 'Token required' });
+  voip.saveVoipToken(req.userId, token, platform === 'android' ? 'android' : 'ios');
+  res.status(201).json({ ok: true, canRingClosedApp: voip.configured() });
+});
+
 // GET /api/dating/ice — how to reach the other device on a call.
 // Fetched when a call starts rather than baked into the app, so TURN
 // credentials are short-lived and tied to the person using them.

@@ -10,6 +10,7 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const db = require('./db');
+const voip = require('./services/voip');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'veiled-dev-secret';
 
@@ -66,19 +67,35 @@ function init(httpServer) {
 
     // ── Call signalling ───────────────────────────────────────────
     // The caller rings. `mode` is 'audio' or 'video'.
-    socket.on('call:ring', ({ to, mode, callId }, ack) => {
+    socket.on('call:ring', async ({ to, mode, callId }, ack) => {
       const peer = Number(to);
       if (!callId || !peer || !canCall(socket.userId, peer)) {
         if (ack) ack({ ok: false, error: 'unavailable' });
         return;
       }
-      if (!online.has(peer)) {
-        if (ack) ack({ ok: false, error: 'offline' });
+      const video = mode === 'video';
+      calls.set(callId, { from: socket.userId, to: peer, mode: video ? 'video' : 'audio', startedAt: Date.now() });
+
+      // Their app is open: the socket is the fastest way in.
+      if (online.has(peer)) {
+        io.to(`user:${peer}`).emit('call:incoming', { callId, from: socket.userId, mode });
+        if (ack) ack({ ok: true });
         return;
       }
-      calls.set(callId, { from: socket.userId, to: peer, mode: mode === 'video' ? 'video' : 'audio', startedAt: Date.now() });
-      io.to(`user:${peer}`).emit('call:incoming', { callId, from: socket.userId, mode });
-      if (ack) ack({ ok: true });
+
+      // It isn't. A VoIP push wakes it and hands the call to CallKit, so
+      // the phone rings like a phone instead of the call being refused
+      // because the app happened to be closed.
+      let name = 'Veiled';
+      try {
+        const row = db.prepare('SELECT name FROM dating_profiles WHERE user_id = ?').get(socket.userId);
+        if (row && row.name) name = row.name;
+      } catch {}
+      const reached = await voip.ringDevices(peer, { callId, callerName: name, video });
+      if (reached > 0) { if (ack) ack({ ok: true, viaPush: true }); return; }
+
+      calls.delete(callId);
+      if (ack) ack({ ok: false, error: 'offline' });
     });
 
     // Everything after the ring is between the two parties named on the

@@ -67,10 +67,21 @@ for (const key of Object.keys(info).filter((k) => k.startsWith('NS') && k.endsWi
 // UIBackgroundModes are checked closely, and `voip` obliges PushKit and
 // CallKit. Declaring it without them is a rejection on its own.
 const modes = info.UIBackgroundModes || [];
-if (modes.includes('voip') && !uses('CallKit') && !uses('react-native-callkeep')) {
+const hasCallKit = uses('react-native-callkeep') || uses('CallKit');
+const hasVoipPush = uses('react-native-voip-push-notification');
+if (modes.includes('voip') && !hasCallKit) {
   fail('UIBackgroundModes includes "voip" without CallKit',
     'Apple requires PushKit + CallKit for the voip mode. Remove it, or implement CallKit.');
-} else if (modes.includes('voip')) pass('voip mode is backed by CallKit');
+} else if (modes.includes('voip')) {
+  pass('voip mode is backed by CallKit');
+  // iOS kills an app that takes a VoIP push without reporting a call.
+  if (!hasVoipPush) warn('voip declared without a PushKit token registration',
+    'Without react-native-voip-push-notification nothing wakes a closed app, so the mode does nothing.');
+  else pass('PushKit token registration is present');
+} else if (hasCallKit) {
+  warn('CallKit is installed but the voip background mode is not declared',
+    'A closed app cannot be woken for a call without it.');
+}
 if (modes.includes('audio') && !uses('react-native-webrtc') && !uses('expo-audio')) {
   fail('UIBackgroundModes includes "audio" with no audio in the app',
     'Remove it — background modes are checked against what the app does.');
@@ -79,7 +90,9 @@ if (modes.includes('audio') && !uses('react-native-webrtc') && !uses('expo-audio
 // A native module that is installed but never imported still ships its
 // permissions and frameworks, and review sees them.
 const NATIVE = ['expo-camera', 'expo-local-authentication', 'expo-location', 'expo-contacts',
-  'expo-av', 'react-native-iap', 'expo-sensors', 'expo-calendar'];
+  'expo-av', 'react-native-iap', 'expo-sensors', 'expo-calendar',
+  'react-native-callkeep', 'react-native-voip-push-notification', 'react-native-webrtc',
+  'react-native-purchases'];
 for (const dep of NATIVE.filter((d) => pkg.dependencies[d])) {
   if (!uses(dep)) fail(`${dep} is installed but never imported`,
     'It still contributes frameworks and permissions to the build. Remove it, or use it.');

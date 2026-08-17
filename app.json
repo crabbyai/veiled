@@ -36,7 +36,8 @@
         "UIBackgroundModes": [
           "fetch",
           "remote-notification",
-          "audio"
+          "audio",
+          "voip"
         ]
       },
       "config": {
@@ -95,7 +96,12 @@
         "INTERNET",
         "ACCESS_NETWORK_STATE",
         "RECORD_AUDIO",
-        "MODIFY_AUDIO_SETTINGS"
+        "MODIFY_AUDIO_SETTINGS",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_MICROPHONE",
+        "READ_PHONE_STATE",
+        "CALL_PHONE",
+        "MANAGE_OWN_CALLS"
       ],
       "blockedPermissions": [
         "ACCESS_FINE_LOCATION",
@@ -186,7 +192,8 @@
           "cameraPermission": "Allow Veiled to use your camera so you can make video calls.",
           "microphonePermission": "Allow Veiled to use your microphone so you can call and send voice notes."
         }
-      ]
+      ],
+      "@config-plugins/react-native-callkeep"
     ],
     "owner": "adeelahmedrahman"
   }

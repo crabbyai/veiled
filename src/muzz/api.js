@@ -146,6 +146,11 @@ export const unveil = (matchId) => request(`/dating/matches/${matchId}/unveil`, 
 // short-lived credential when a relay is configured.
 export const iceServers = () => request('/dating/ice');
 
+// The PushKit token that lets the server ring this device when the app
+// isn't running.
+export const registerVoipToken = (token, platform = 'ios') =>
+  request('/dating/voip-token', { method: 'POST', body: { token, platform } });
+
 export const veilState = (matchId) => request(`/dating/matches/${matchId}/veil`);
 export const askUnveil = (matchId) => request(`/dating/matches/${matchId}/unveil-ask`, { method: 'POST' });
 export const unmatch = (matchId) => request(`/dating/matches/${matchId}/unmatch`, { method: 'POST' });

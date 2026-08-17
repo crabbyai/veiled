@@ -7,6 +7,7 @@ import { M, RADIUS, SPACE, TYPE } from '../theme';
 import { getPerson } from '../store';
 import * as realtime from '../realtime';
 import * as api from '../api';
+import * as callkit from '../callkit';
 import * as H from '../haptics';
 
 // ─── An incoming call ───────────────────────────────────────────────
@@ -22,6 +23,29 @@ export default function IncomingCall({ navRef }) {
   const insets = useSafeAreaInsets();
   const [call, setCall] = useState(null);   // { callId, from, mode, person }
   const timer = useRef(null);
+  const current = useRef(null);             // what CallKit is ringing
+
+  // The system call UI. Where it works, it — not this modal — is what
+  // rings: on the lock screen, in Recents, and before Veiled is open.
+  // The in-app card is the fallback for anywhere it doesn't.
+  useEffect(() => {
+    if (!callkit.available()) return undefined;
+    callkit.setup({
+      onAnswer: (callUUID) => {
+        const c = current.current;
+        if (!c || c.callId !== callUUID) return;
+        answerCall(c);
+      },
+      onEnd: (callUUID) => {
+        const c = current.current;
+        if (!c || c.callId !== callUUID) return;
+        realtime.signal('call:decline', { callId: c.callId, reason: 'declined' });
+        current.current = null;
+        setCall(null);
+      },
+    });
+    return () => callkit.reportEndedAll();
+  }, []);
 
   useEffect(() => {
     const off = realtime.onCallEvent(async (event, payload) => {
@@ -33,40 +57,65 @@ export default function IncomingCall({ navRef }) {
           const m = matches.find((x) => x.person.id === payload.from);
           if (m) person = getPerson(api.toLocalId(m.person.id)) || m.person;
         } catch {}
-        setCall({ ...payload, person });
-        H.heavy();
+        const next = { ...payload, person };
+        current.current = next;
+        // Ring through the system first — it is what reaches a phone
+        // that isn't looking at Veiled.
+        if (callkit.available()) {
+          callkit.reportIncoming({
+            callId: payload.callId,
+            name: person ? person.name : 'Veiled',
+            video: payload.mode === 'video',
+          });
+        } else {
+          setCall(next);
+          H.heavy();
+        }
         clearTimeout(timer.current);
         timer.current = setTimeout(() => {
           realtime.signal('call:decline', { callId: payload.callId, reason: 'missed' });
+          callkit.reportEnded(payload.callId);
+          current.current = null;
           setCall(null);
         }, RING_MS);
       } else if (event === 'call:ended') {
-        // They gave up before it was answered.
+        // They gave up before it was answered. The system UI has to be
+        // told too, or the phone keeps ringing for a call that is over.
+        callkit.reportEnded(payload.callId);
+        current.current = null;
         setCall((c) => (c && c.callId === payload.callId ? null : c));
       }
     });
     return () => { off(); clearTimeout(timer.current); };
   }, []);
 
-  const decline = () => {
-    if (!call) return;
-    H.tap();
-    realtime.signal('call:decline', { callId: call.callId, reason: 'declined' });
+  // Answering, from either the system UI or the card. Both land here.
+  const answerCall = (c) => {
+    if (!c) return;
     clearTimeout(timer.current);
-    setCall(null);
-  };
-
-  const accept = () => {
-    if (!call) return;
-    H.press();
-    clearTimeout(timer.current);
-    const c = call;
+    current.current = null;
     setCall(null);
     navRef.current?.navigate('MuzzCall', {
       personId: c.person ? c.person.id : null,
       video: c.mode === 'video',
       incoming: { callId: c.callId, mode: c.mode },
     });
+  };
+
+  const decline = () => {
+    if (!call) return;
+    H.tap();
+    realtime.signal('call:decline', { callId: call.callId, reason: 'declined' });
+    callkit.reportEnded(call.callId);
+    clearTimeout(timer.current);
+    current.current = null;
+    setCall(null);
+  };
+
+  const accept = () => {
+    if (!call) return;
+    H.press();
+    answerCall(call);
   };
 
   if (!call) return null;
